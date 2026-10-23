@@ -10,72 +10,99 @@
     return String(value || '').trim();
   }
 
-  function filterUserProjects(projects) {
-    if (!Array.isArray(projects)) return [];
-
-    const cleaned = [];
-    const seen = new Set();
-
-    projects.forEach((item) => {
-      const name = normalizeProjectName(item);
-      if (!name || BUILT_IN_PROJECTS.has(name)) return;
-      if (seen.has(name)) return;
-      seen.add(name);
-      cleaned.push(name);
-    });
-
-    return cleaned;
+  function isBuiltInProject(name) {
+    return BUILT_IN_PROJECTS.has(normalizeProjectName(name));
   }
 
-  function filterProjectEntries(list) {
+  function sanitizeProjectList(list) {
     if (!Array.isArray(list)) return [];
-    return list.filter((entry) => {
-      const name = normalizeProjectName(entry && entry.project_name ? entry.project_name : entry);
-      return name && !BUILT_IN_PROJECTS.has(name);
+    const seen = new Set();
+    return list
+      .map(item => normalizeProjectName(item))
+      .filter(value => {
+        if (!value || isBuiltInProject(value) || seen.has(value)) return false;
+        seen.add(value);
+        return true;
+      });
+  }
+
+  function cleanProjectRecordList(list) {
+    if (!Array.isArray(list)) return [];
+    return list.filter(item => {
+      const name = normalizeProjectName(item && item.project_name ? item.project_name : item);
+      return name && !isBuiltInProject(name);
     });
   }
 
-  function refreshVisibleProjectFields() {
-    const selects = [
-      document.getElementById('filter-project'),
-      document.getElementById('input-project'),
-      document.getElementById('db-filter-project'),
-      document.getElementById('batch-project-select'),
-      document.getElementById('clear-target-project'),
-      document.getElementById('pallet-project'),
-      document.getElementById('manual-preset-project'),
-      document.getElementById('bulk-preset-project'),
-      document.getElementById('turbo-preset-project')
+  function removeBuiltInSelectOptions() {
+    const selectorIds = [
+      'filter-project',
+      'input-project',
+      'db-filter-project',
+      'batch-project-select',
+      'clear-target-project',
+      'pallet-project',
+      'manual-preset-project',
+      'bulk-preset-project',
+      'turbo-preset-project',
+      'edit-project'
     ];
 
-    selects.forEach((element) => {
-      if (!element) return;
-      const selected = element.value;
-      const options = Array.from(element.options || []).filter((opt) => {
-        const value = normalizeProjectName(opt.value);
-        return value && !BUILT_IN_PROJECTS.has(value);
+    selectorIds.forEach((id) => {
+      const node = document.getElementById(id);
+      if (!node) return;
+
+      const selected = node.value;
+      const filtered = Array.from(node.options || []).filter((opt) => {
+        const v = normalizeProjectName(opt.value);
+        return !!v && !isBuiltInProject(v);
       });
-      element.innerHTML = options.length
-        ? options.map((opt) => `<option value="${opt.value}">${opt.textContent}</option>`).join('')
+
+      node.innerHTML = filtered.length
+        ? filtered.map((opt) => `<option value="${opt.value}">${opt.textContent}</option>`).join('')
         : '<option value="">-- ไม่มีโครงการ --</option>';
 
-      if (selected && !BUILT_IN_PROJECTS.has(normalizeProjectName(selected))) {
-        element.value = selected;
+      if (selected && !isBuiltInProject(selected)) {
+        node.value = selected;
       }
     });
   }
 
-  function applyProjectFiltering() {
-    if (!window.app) return;
+  function removeBuiltInProjectsFromStorage() {
+    try {
+      const localKey = 'solartrack_panels';
+      const raw = JSON.parse(localStorage.getItem(localKey) || '[]');
+      if (!Array.isArray(raw)) return;
+
+      const cleaned = cleanProjectRecordList(raw).map((item) => {
+        if (typeof item === 'object' && item !== null && item.project_name) {
+          return { ...item, project_name: normalizeProjectName(item.project_name) };
+        }
+        return item;
+      });
+
+      if (cleaned.length !== raw.length) {
+        localStorage.setItem(localKey, JSON.stringify(cleaned));
+      }
+    } catch (e) {
+      console.warn('project filter cleanup failed:', e);
+    }
+  }
+
+  function patchProjectFiltering() {
+    if (!window.app) {
+      setTimeout(patchProjectFiltering, 180);
+      return;
+    }
 
     const originalLoadProjects = window.app.loadProjects?.bind(window.app);
     if (originalLoadProjects) {
       window.app.loadProjects = async function () {
         const result = await originalLoadProjects();
         if (Array.isArray(this.cachedProjectsList)) {
-          this.cachedProjectsList = filterUserProjects(this.cachedProjectsList);
+          this.cachedProjectsList = sanitizeProjectList(this.cachedProjectsList);
         }
-        refreshVisibleProjectFields();
+        removeBuiltInSelectOptions();
         return result;
       };
     }
@@ -84,7 +111,7 @@
     if (originalPopulateDbProjectDropdowns) {
       window.app.populateDbProjectDropdowns = async function () {
         const result = await originalPopulateDbProjectDropdowns();
-        refreshVisibleProjectFields();
+        removeBuiltInSelectOptions();
         return result;
       };
     }
@@ -96,41 +123,25 @@
         if (Array.isArray(this.cachedProjects)) {
           this.cachedProjects = this.cachedProjects.filter((proj) => {
             const name = normalizeProjectName(proj && proj.name ? proj.name : proj);
-            return name && !BUILT_IN_PROJECTS.has(name);
+            return !!name && !isBuiltInProject(name);
           });
         }
-        refreshVisibleProjectFields();
+        removeBuiltInSelectOptions();
         return result;
       };
     }
 
-    const originalInitLocalStorageMock = window.app.initLocalStorageMock?.bind(window.app);
-    if (originalInitLocalStorageMock) {
-      window.app.initLocalStorageMock = function () {
-        const result = originalInitLocalStorageMock();
-        const raw = JSON.parse(localStorage.getItem('solartrack_panels') || '[]');
-        const cleaned = filterProjectEntries(raw).map((item) => ({ ...item, project_name: normalizeProjectName(item.project_name) }));
-        if (cleaned.length !== raw.length) {
-          localStorage.setItem('solartrack_panels', JSON.stringify(cleaned));
-        }
-        return result;
-      };
-    }
-  }
-
-  function waitForApp() {
-    if (!window.app) {
-      setTimeout(waitForApp, 200);
-      return;
-    }
-    applyProjectFiltering();
-    refreshVisibleProjectFields();
+    removeBuiltInProjectsFromStorage();
+    removeBuiltInSelectOptions();
     setTimeout(() => {
       if (typeof window.app.loadProjects === 'function') {
         window.app.loadProjects();
       }
+      if (typeof window.app.loadDbProjects === 'function') {
+        window.app.loadDbProjects();
+      }
     }, 150);
   }
 
-  waitForApp();
+  patchProjectFiltering();
 })();
