@@ -1,0 +1,25 @@
+{
+  "name": "solar-panel-tracking-system",
+  "version": "1.0.0",
+  "description": "Solar Panel Serial Tracking & Field Operations Web Application",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "keywords": [
+    "solar",
+    "barcode-scanner",
+    "field-operations",
+    "tracking",
+    "inventory",
+    "iot"
+  ],
+  "author": "Field Operations Architect",
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "sqlite3": "^5.1.7"
+  }
+}

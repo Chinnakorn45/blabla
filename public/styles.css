@@ -1,0 +1,138 @@
+/* Solar Panel Tracking System - Field Operations Styling */
+
+@keyframes scan-laser {
+  0% {
+    top: 5%;
+    opacity: 0.8;
+  }
+  50% {
+    top: 92%;
+    opacity: 1;
+  }
+  100% {
+    top: 5%;
+    opacity: 0.8;
+  }
+}
+
+.scanner-laser {
+  position: absolute;
+  left: 5%;
+  right: 5%;
+  height: 3px;
+  background: linear-gradient(90deg, rgba(239, 68, 68, 0) 0%, rgba(239, 68, 68, 1) 50%, rgba(239, 68, 68, 0) 100%);
+  box-shadow: 0 0 12px 2px rgba(239, 68, 68, 0.8);
+  animation: scan-laser 2.2s ease-in-out infinite;
+  z-index: 20;
+}
+
+/* Reticle corner borders */
+.scanner-corner {
+  position: absolute;
+  width: 32px;
+  height: 32px;
+  border-color: #3b82f6;
+  pointer-events: none;
+  z-index: 20;
+}
+
+.scanner-corner-tl {
+  top: 0;
+  left: 0;
+  border-top-width: 4px;
+  border-left-width: 4px;
+  border-top-left-radius: 12px;
+}
+
+.scanner-corner-tr {
+  top: 0;
+  right: 0;
+  border-top-width: 4px;
+  border-right-width: 4px;
+  border-top-right-radius: 12px;
+}
+
+.scanner-corner-bl {
+  bottom: 0;
+  left: 0;
+  border-bottom-width: 4px;
+  border-left-width: 4px;
+  border-bottom-left-radius: 12px;
+}
+
+.scanner-corner-br {
+  bottom: 0;
+  right: 0;
+  border-bottom-width: 4px;
+  border-right-width: 4px;
+  border-bottom-right-radius: 12px;
+}
+
+/* html5-qrcode video element override to fill container properly */
+#reader video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  border-radius: 1rem;
+}
+
+#reader {
+  border: none !important;
+  background-color: #0f172a;
+}
+
+#reader__scan_region {
+  background: transparent !important;
+}
+
+/* Touch active effects for mobile */
+.touch-press {
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+.touch-press:active {
+  transform: scale(0.97);
+}
+
+/* Prevent unwanted zoom on iOS Safari & Android Chrome when focusing inputs on mobile */
+@media (max-width: 640px) {
+  input[type="text"],
+  input[type="number"],
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Safe area support for notched phones */
+body {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Smooth transitions */
+.view-panel {
+  width: 100%;
+  transition: opacity 0.25s ease-in-out, transform 0.25s ease-in-out;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Guarantee badges and pills never wrap or break syllables */
+.whitespace-nowrap {
+  white-space: nowrap !important;
+  word-break: keep-all !important;
+}

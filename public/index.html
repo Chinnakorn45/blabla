@@ -1,0 +1,1616 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>SolarTrack - ระบบบันทึกและติดตามซีเรียลแผงโซลาร์เซลล์</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☀️</text></svg>">
+
+  <!-- Google Fonts: Prompt & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Prompt', 'Inter', 'sans-serif'],
+          },
+          colors: {
+            solar: {
+              50: '#fffbeb',
+              100: '#fef3c7',
+              200: '#fde68a',
+              300: '#fcd34d',
+              400: '#fbbf24',
+              500: '#f59e0b',
+              600: '#d97706',
+              700: '#b45309',
+              800: '#92400e',
+              900: '#78350f',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- html5-qrcode Library for Barcode/QR Scanning -->
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans min-h-screen antialiased flex flex-col">
+
+  <!-- Top Navigation Header -->
+  <header class="bg-slate-900 text-white sticky top-0 z-40 shadow-md">
+    <div class="max-w-5xl mx-auto px-4 py-2.5 flex items-center justify-between gap-2">
+      <div class="flex items-center space-x-2.5 cursor-pointer" onclick="app.showView('dashboard')">
+        <div class="w-9 h-9 rounded-lg bg-gradient-to-tr from-amber-500 to-amber-300 flex items-center justify-center text-slate-950 shadow-inner">
+          <i data-lucide="sun-medium" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <h1 class="text-base font-bold tracking-tight flex items-center gap-1.5 leading-tight">
+            SolarTrack <span class="text-amber-400 text-xs px-1.5 py-0.5 rounded bg-slate-800 font-mono">FIELD</span>
+          </h1>
+          <p class="text-[11px] text-slate-400 leading-none">ระบบติดตามซีเรียลแผงโซลาร์</p>
+        </div>
+      </div>
+
+      <!-- Main Navigation Menu -->
+      <nav class="flex items-center bg-slate-800/90 p-1 rounded-xl border border-slate-700/80">
+        <button id="nav-btn-dashboard" onclick="app.showView('dashboard')" class="text-xs px-2.5 sm:px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 bg-amber-500 text-slate-950 font-bold shadow-xs">
+          <i data-lucide="layout-dashboard" class="w-3.5 h-3.5"></i>
+          <span>แดชบอร์ด</span>
+        </button>
+        <button id="nav-btn-database" onclick="app.showView('database')" class="text-xs px-2.5 sm:px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 text-slate-300 hover:text-white">
+          <i data-lucide="database" class="w-3.5 h-3.5"></i>
+          <span class="inline sm:hidden">ฐานข้อมูล</span>
+          <span class="hidden sm:inline">จัดการฐานข้อมูล</span>
+        </button>
+      </nav>
+
+      <!-- System Status / Mode Indicator -->
+      <div class="hidden sm:flex items-center space-x-2">
+        <div id="connection-status" class="flex items-center gap-1.5 text-xs bg-slate-800 border border-slate-700 px-2.5 py-1 rounded-full text-slate-300">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span id="connection-text" class="text-[11px]">ออนไลน์</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Area -->
+  <main class="flex-1 max-w-5xl w-full mx-auto p-4 sm:p-6 pb-20 md:pb-8">
+
+    <!-- ========================================== -->
+    <!-- VIEW 1: DASHBOARD                          -->
+    <!-- ========================================== -->
+    <div id="view-dashboard" class="view-panel space-y-5 w-full block">
+
+      <!-- Field Quick Actions (Big Thumb-friendly Buttons) -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 w-full">
+        <button onclick="app.startScanMode('warehouse')" class="touch-press w-full bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white p-4 sm:p-5 rounded-2xl shadow-md flex items-center space-x-3.5 transition text-left">
+          <div class="w-12 h-12 p-2.5 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center shrink-0">
+            <i data-lucide="package-plus" class="w-6 h-6 text-white"></i>
+          </div>
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="font-bold text-base sm:text-lg text-white">สแกนรับเข้าคลัง</span>
+              <span class="text-[10px] uppercase font-semibold bg-white/20 px-1.5 py-0.5 rounded text-white tracking-wider">Inbound</span>
+            </div>
+            <p class="text-xs text-emerald-100 mt-0.5 truncate sm:whitespace-normal">บันทึกรับแผงเข้าสต๊อก ตรวจสอบสภาพกล่อง</p>
+          </div>
+        </button>
+
+        <button onclick="app.startScanMode('field')" class="touch-press w-full bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white p-4 sm:p-5 rounded-2xl shadow-md flex items-center space-x-3.5 transition text-left">
+          <div class="w-12 h-12 p-2.5 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center shrink-0">
+            <i data-lucide="scan-line" class="w-6 h-6 text-white"></i>
+          </div>
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="font-bold text-base sm:text-lg text-white">สแกนติดตั้งหน้างาน</span>
+              <span class="text-[10px] uppercase font-semibold bg-white/20 px-1.5 py-0.5 rounded text-white tracking-wider">Field</span>
+            </div>
+            <p class="text-xs text-amber-100 mt-0.5 truncate sm:whitespace-normal">ผูก Inverter, String และบันทึกพิกัด GPS</p>
+          </div>
+        </button>
+      </div>
+
+      <!-- Overview Stats Cards -->
+      <div>
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="font-bold text-slate-800 text-base flex items-center gap-2">
+            <i data-lucide="bar-chart-3" class="w-4 h-4 text-slate-500"></i> สรุปจำนวนแผงโซลาร์
+          </h2>
+          <button onclick="app.loadDashboardData()" class="text-xs text-slate-500 hover:text-slate-800 flex items-center gap-1">
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> รีเฟรช
+          </button>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <!-- Total & Projects -->
+          <div onclick="app.showDbTab('projects')" title="คลิกเพื่อจัดการโครงการ" class="touch-press bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm cursor-pointer hover:border-amber-400 hover:shadow-md transition">
+            <div class="text-xs font-medium text-slate-500 flex items-center justify-between">
+              <span>รวมทั้งหมด</span>
+              <i data-lucide="folder-kanban" class="w-3.5 h-3.5 text-amber-500"></i>
+            </div>
+            <div id="stat-total" class="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-1">0</div>
+            <div class="text-[11px] text-amber-600 font-semibold mt-0.5 flex items-center gap-1">
+              <span id="stat-projects">0</span> โครงการ <span class="text-slate-400 font-normal">➜ จัดการ</span>
+            </div>
+          </div>
+
+          <!-- In Warehouse -->
+          <div class="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm border-l-4 border-l-emerald-500">
+            <div class="text-xs font-medium text-slate-500">ในคลังสินค้า</div>
+            <div id="stat-warehouse" class="text-2xl sm:text-3xl font-extrabold text-emerald-600 mt-1">0</div>
+            <div class="text-[11px] text-emerald-600/80 mt-0.5">พร้อมติดตั้ง</div>
+          </div>
+
+          <!-- Installing / In Progress -->
+          <div class="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm border-l-4 border-l-blue-500">
+            <div class="text-xs font-medium text-slate-500">กำลังติดตั้ง</div>
+            <div id="stat-installing" class="text-2xl sm:text-3xl font-extrabold text-blue-600 mt-1">0</div>
+            <div class="text-[11px] text-blue-600/80 mt-0.5">หน้างาน</div>
+          </div>
+
+          <!-- Installed -->
+          <div class="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm border-l-4 border-l-purple-500">
+            <div class="text-xs font-medium text-slate-500">ติดตั้งแล้วเสร็จ</div>
+            <div id="stat-installed" class="text-2xl sm:text-3xl font-extrabold text-purple-600 mt-1">0</div>
+            <div class="text-[11px] text-purple-600/80 mt-0.5">บนโครงสร้าง</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent Records & Filter Section -->
+      <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+        <div class="p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h3 class="font-bold text-slate-900 text-base">รายการบันทึกล่าสุด</h3>
+            <p class="text-xs text-slate-500">แผงโซลาร์เซลล์ที่ถูกสแกนในระบบ</p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <button onclick="app.openPalletRangeModal()" class="flex-1 sm:flex-initial text-xs bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 px-3 py-2 rounded-lg flex items-center justify-center gap-1.5 transition font-semibold">
+              <i data-lucide="boxes" class="w-3.5 h-3.5 text-amber-600"></i> สแกนยกพาเลท (100+)
+            </button>
+            <button onclick="app.openManualEntryModal()" class="flex-1 sm:flex-initial text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-lg flex items-center justify-center gap-1.5 transition font-medium">
+              <i data-lucide="keyboard" class="w-3.5 h-3.5"></i> กรอกรหัสด้วยมือ
+            </button>
+            <button onclick="app.exportCsv()" class="flex-1 sm:flex-initial text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-lg flex items-center justify-center gap-1.5 transition font-medium">
+              <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5"></i> ส่งออก Excel
+            </button>
+          </div>
+        </div>
+
+        <!-- Search & Filter Controls -->
+        <div class="p-3.5 sm:p-4 bg-slate-50/70 border-b border-slate-100 grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+          <div class="relative">
+            <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+            <input type="text" id="filter-search" oninput="app.handleFilterChange()" placeholder="ค้นหา Serial, Inverter, ช่าง..." class="w-full text-xs pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500">
+          </div>
+          <div>
+            <select id="filter-project" onchange="app.handleFilterChange()" class="w-full text-xs px-3 py-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500">
+              <option value="all">ทุกโครงการ</option>
+            </select>
+          </div>
+          <div>
+            <select id="filter-status" onchange="app.handleFilterChange()" class="w-full text-xs px-3 py-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500">
+              <option value="all">ทุกสถานะ</option>
+              <option value="warehouse">ในคลังสินค้า (Warehouse)</option>
+              <option value="installing">กำลังติดตั้ง (Installing)</option>
+              <option value="installed">ติดตั้งแล้ว (Installed)</option>
+              <option value="damaged">ชำรุด / เคลม (Damaged)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Mobile Card List View (Visible on phones) -->
+        <div id="panels-cards-container" class="sm:hidden divide-y divide-slate-100">
+          <div class="py-8 text-center text-slate-400 text-xs">กำลังโหลดข้อมูล...</div>
+        </div>
+
+        <!-- Desktop Table View (Visible on tablet/desktop) -->
+        <div class="hidden sm:block overflow-x-auto w-full">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-100/70 text-slate-600 font-semibold uppercase tracking-wider text-[10px] border-b border-slate-200">
+              <tr>
+                <th class="py-3 px-4 whitespace-nowrap">Serial Number</th>
+                <th class="py-3 px-4 whitespace-nowrap">โครงการ</th>
+                <th class="py-3 px-4 whitespace-nowrap">Inverter / String</th>
+                <th class="py-3 px-4 whitespace-nowrap">สถานะ</th>
+                <th class="py-3 px-4 whitespace-nowrap">ผู้บันทึก</th>
+                <th class="py-3 px-4 text-right whitespace-nowrap">เวลาบันทึก</th>
+                <th class="py-3 px-3 text-center whitespace-nowrap">จัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="panels-table-body" class="divide-y divide-slate-100 text-slate-700">
+              <!-- Rendered via JS -->
+              <tr>
+                <td colspan="7" class="py-8 text-center text-slate-400">กำลังโหลดข้อมูล...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- VIEW 2: SCANNER VIEW                       -->
+    <!-- ========================================== -->
+    <div id="view-scanner" class="view-panel hidden flex flex-col w-full">
+      <!-- Scanner Header Bar -->
+      <div class="bg-slate-900 text-white rounded-t-2xl p-4 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+          <button onclick="app.stopScannerAndReturn()" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-300">
+            <i data-lucide="chevron-left" class="w-5 h-5"></i>
+          </button>
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 class="font-bold text-sm sm:text-base">กล้องสแกนบาร์โค้ด / QR</h2>
+              <span id="scanner-mode-badge" class="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500 text-slate-950 uppercase">
+                ติดตั้งหน้างาน
+              </span>
+            </div>
+            <p class="text-[11px] text-slate-400">สแกน Barcode 1D / 2D หรือ QR Code บนตัวแผง</p>
+          </div>
+        </div>
+
+        <div class="flex items-center space-x-1.5">
+          <!-- Torch / Flashlight Toggle -->
+          <button id="btn-torch" onclick="app.toggleTorch()" title="เปิด/ปิดไฟฉาย" class="w-9 h-9 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-400 flex items-center justify-center transition border border-slate-700">
+            <i data-lucide="zap" class="w-4 h-4"></i>
+          </button>
+          <!-- Camera Switcher -->
+          <button id="btn-switch-camera" onclick="app.switchCamera()" title="สลับกล้อง" class="w-9 h-9 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center justify-center transition border border-slate-700">
+            <i data-lucide="switch-camera" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Turbo Mode Control Bar (For 100+ Panels High-Speed Continuous Scanning) -->
+      <div class="bg-slate-800 text-white px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 border-t border-slate-700/80 text-xs">
+        <div class="flex items-center gap-2">
+          <label class="flex items-center gap-2 cursor-pointer select-none">
+            <input type="checkbox" id="turbo-mode-toggle" onchange="app.toggleTurboMode(this.checked)" class="sr-only peer">
+            <div class="w-9 h-5 bg-slate-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-500 relative"></div>
+            <span class="font-bold flex items-center gap-1 text-amber-400">
+              ⚡ โหมดสแกนรัวต่อเนื่อง (Turbo Scan 100+)
+            </span>
+          </label>
+        </div>
+        <div id="turbo-status-pill" class="hidden sm:flex items-center gap-2 text-[11px] bg-slate-900/90 border border-amber-500/40 px-2.5 py-1 rounded-full text-amber-300">
+          <span>ยิงแล้ว: <strong id="turbo-scan-count" class="text-white text-xs">0</strong> แผง</span>
+          <span class="text-slate-500">•</span>
+          <span>แผงถัดไป: <strong id="turbo-next-index" class="text-white">#1</strong></span>
+        </div>
+        <button onclick="app.toggleTurboPresetDrawer()" class="text-[11px] text-slate-300 hover:text-white flex items-center gap-1 underline underline-offset-2">
+          <i data-lucide="sliders" class="w-3 h-3"></i> ตั้งค่า String / ช่าง
+        </button>
+      </div>
+
+      <!-- Collapsible Turbo Preset Config Drawer -->
+      <div id="turbo-preset-drawer" class="hidden bg-slate-850 bg-slate-900 border-b border-slate-700 p-3.5 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+        <div>
+          <label class="block text-[10px] text-slate-400 mb-0.5">โครงการ</label>
+          <select id="turbo-preset-project" class="w-full text-xs px-2 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-white">
+          </select>
+        </div>
+        <div>
+          <label class="block text-[10px] text-slate-400 mb-0.5">Inverter / String</label>
+          <div class="flex gap-1">
+            <input type="text" id="turbo-preset-inverter" placeholder="INV-01" class="w-1/2 text-xs px-2 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-white font-mono">
+            <input type="text" id="turbo-preset-string" placeholder="STR-01" class="w-1/2 text-xs px-2 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-white font-mono">
+          </div>
+        </div>
+        <div>
+          <label class="block text-[10px] text-slate-400 mb-0.5">ลำดับแผงเริ่มต้น (#)</label>
+          <input type="number" id="turbo-preset-index" value="1" min="1" class="w-full text-xs px-2 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-white font-mono">
+        </div>
+        <div>
+          <label class="block text-[10px] text-slate-400 mb-0.5">สถานะที่บันทึก</label>
+          <select id="turbo-preset-status" class="w-full text-xs px-2 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-white font-bold">
+            <option value="installed">ติดตั้งแล้ว (Installed)</option>
+            <option value="warehouse">ในคลังสินค้า (Warehouse)</option>
+            <option value="installing">กำลังติดตั้ง (Installing)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Scanner Camera Box -->
+      <div class="relative bg-black rounded-b-2xl overflow-hidden aspect-[4/3] sm:aspect-[16/9] max-h-[70vh] flex items-center justify-center">
+        <!-- Floating HUD Overlay for Turbo Scan Notifications -->
+        <div id="turbo-hud-overlay" class="absolute top-4 left-4 right-4 z-30 pointer-events-none hidden transition-all duration-300">
+          <div class="bg-emerald-600/95 backdrop-blur-md text-white px-4 py-2.5 rounded-2xl shadow-xl border border-emerald-400 flex items-center justify-between gap-2 max-w-md mx-auto">
+            <div class="flex items-center gap-2 min-w-0">
+              <span class="w-6 h-6 rounded-full bg-white text-emerald-700 font-bold flex items-center justify-center text-xs shrink-0">✓</span>
+              <div class="min-w-0">
+                <div class="text-xs font-bold truncate" id="turbo-hud-serial">-</div>
+                <div class="text-[10px] text-emerald-100" id="turbo-hud-details">-</div>
+              </div>
+            </div>
+            <span class="text-xs font-extrabold bg-emerald-800 px-2 py-1 rounded-lg text-emerald-200 shrink-0" id="turbo-hud-counter">
+              #1
+            </span>
+          </div>
+        </div>
+
+        <!-- html5-qrcode mount point -->
+        <div id="reader" class="w-full h-full"></div>
+
+        <!-- Visual Reticle Overlay -->
+        <div class="absolute inset-0 pointer-events-none flex items-center justify-center p-6 z-10">
+          <div class="relative w-64 h-64 sm:w-80 sm:h-64 max-w-[85vw] max-h-[85vh]">
+            <div class="scanner-corner scanner-corner-tl"></div>
+            <div class="scanner-corner scanner-corner-tr"></div>
+            <div class="scanner-corner scanner-corner-bl"></div>
+            <div class="scanner-corner scanner-corner-br"></div>
+            <div class="scanner-laser"></div>
+          </div>
+        </div>
+
+        <!-- Scanner Prompt helper -->
+        <div class="absolute bottom-3 left-4 right-4 text-center z-20 pointer-events-none">
+          <span class="inline-block bg-black/60 backdrop-blur-md text-white text-xs px-3 py-1.5 rounded-full border border-white/10 shadow">
+            วางบาร์โค้ดให้อยู่ในกรอบสี่เหลี่ยม
+          </span>
+        </div>
+      </div>
+
+      <!-- Scanner Controls Footer -->
+      <div class="mt-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div class="text-xs text-slate-500 flex items-center gap-2">
+          <i data-lucide="info" class="w-4 h-4 text-slate-400"></i>
+          <span>รองรับ Code128, Code39, DataMatrix และ QR Code</span>
+        </div>
+
+        <div class="flex items-center gap-2 w-full sm:w-auto">
+          <button onclick="app.openManualEntryModal()" class="flex-1 sm:flex-initial text-xs bg-white hover:bg-slate-50 text-slate-800 font-semibold px-4 py-2.5 rounded-xl border border-slate-300 shadow-sm flex items-center justify-center gap-1.5 transition">
+            <i data-lucide="keyboard" class="w-4 h-4 text-amber-500"></i> กรอกด้วยมือ / แปะรายการ (100+)
+          </button>
+          <button onclick="app.stopScannerAndReturn()" class="flex-1 sm:flex-initial text-xs bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold px-4 py-2.5 rounded-xl shadow-sm flex items-center justify-center gap-1 transition">
+            ยกเลิก
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- VIEW 3: DATA FORM                          -->
+    <!-- ========================================== -->
+    <div id="view-form" class="view-panel hidden w-full">
+      <div class="max-w-2xl mx-auto bg-white rounded-2xl border border-slate-200/90 shadow-md overflow-hidden">
+        
+        <!-- Form Header -->
+        <div class="bg-slate-900 text-white p-4 sm:p-5 flex items-center justify-between">
+          <div class="flex items-center space-x-3">
+            <button type="button" onclick="app.showView('dashboard')" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-300">
+              <i data-lucide="chevron-left" class="w-5 h-5"></i>
+            </button>
+            <div>
+              <h2 id="form-title-text" class="font-bold text-base">บันทึกข้อมูลแผงโซลาร์เซลล์</h2>
+              <p id="form-subtitle-text" class="text-xs text-slate-400">กรอกรายละเอียดเพื่อบันทึกลงฐานข้อมูล</p>
+            </div>
+          </div>
+          <span id="form-mode-tag" class="text-xs font-semibold px-2.5 py-1 rounded bg-amber-500 text-slate-950">
+            โหมดติดตั้งหน้างาน
+          </span>
+        </div>
+
+        <!-- Warehouse Inbound Notice Banner (Shown only in warehouse mode) -->
+        <div id="warehouse-mode-banner" class="hidden m-4 mb-0 p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-900 text-xs flex items-center gap-2.5">
+          <div class="w-7 h-7 rounded-lg bg-emerald-200/80 text-emerald-800 flex items-center justify-center shrink-0">
+            <i data-lucide="package-check" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <p class="font-bold">โหมดบันทึกรับเข้าคลังสินค้า (Simplified Inbound)</p>
+            <p class="text-emerald-700 mt-0.5">ระบุเพียง Serial Number แล้วกดบันทึกได้ทันที ไม่ต้องกรอก Inverter / String หรือพิกัดหน้างาน</p>
+          </div>
+        </div>
+
+        <!-- Duplicate / Existing Panel Alert (Hidden by default) -->
+        <div id="existing-panel-alert" class="hidden m-4 mb-0 p-3.5 bg-blue-50 border border-blue-200 rounded-xl text-blue-900 text-xs flex items-start gap-2.5">
+          <i data-lucide="alert-circle" class="w-4 h-4 text-blue-600 mt-0.5 shrink-0"></i>
+          <div>
+            <p class="font-semibold">พบข้อมูลแผงนี้ในระบบแล้ว!</p>
+            <p id="existing-panel-desc" class="text-blue-700 mt-0.5">การบันทึกครั้งนี้จะเป็นการอัปเดตสถานะและตำแหน่งใหม่</p>
+          </div>
+        </div>
+
+        <!-- Form Body -->
+        <form id="panel-form" onsubmit="app.handleFormSubmit(event)" class="p-4 sm:p-6 space-y-4">
+
+          <!-- Serial Number Field -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+              Serial Number (รหัสประจำแผง) <span class="text-red-500">*</span>
+            </label>
+            <div class="relative">
+              <input type="text" id="input-serial" required placeholder="เช่น LONGI-LR5-72HBD-550M-001" class="w-full text-sm font-mono font-bold px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-slate-900">
+              <button type="button" onclick="app.startScanMode(app.currentMode)" title="สแกนใหม่" class="absolute right-2 top-1/2 -translate-y-1/2 text-xs bg-slate-200 hover:bg-slate-300 text-slate-700 px-2.5 py-1.5 rounded-lg flex items-center gap-1 font-medium transition">
+                <i data-lucide="qr-code" class="w-3.5 h-3.5"></i> สแกนใหม่
+              </button>
+            </div>
+          </div>
+
+          <!-- Project Name / Target Warehouse Field -->
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <label id="label-project" class="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                ชื่อโครงการ (Project Name) <span class="text-red-500">*</span>
+              </label>
+              <button type="button" onclick="app.openNewProjectModal()" class="text-[11px] text-amber-600 hover:text-amber-700 font-medium flex items-center gap-0.5">
+                <i data-lucide="plus" class="w-3 h-3"></i> โครงการใหม่
+              </button>
+            </div>
+            <select id="input-project" required class="w-full text-xs sm:text-sm px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500">
+              <option value="">-- เลือกโครงการ --</option>
+            </select>
+          </div>
+
+          <!-- Site Installation Specific Fields (Automatically Hidden in Warehouse Inbound Mode) -->
+          <div id="field-installation-fields" class="space-y-4">
+            <!-- Location on Site: Inverter & String & Index -->
+            <div class="grid grid-cols-3 gap-2.5">
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                  Inverter
+                </label>
+                <input type="text" id="input-inverter" placeholder="INV-01" class="w-full text-xs sm:text-sm px-3 py-2.5 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                  String
+                </label>
+                <input type="text" id="input-string" placeholder="STR-04" class="w-full text-xs sm:text-sm px-3 py-2.5 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                  ลำดับแผง (#)
+                </label>
+                <input type="number" id="input-index" placeholder="1" min="0" class="w-full text-xs sm:text-sm px-3 py-2.5 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500">
+              </div>
+            </div>
+
+            <!-- Status Selection (Interactive Radio Pills) -->
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                สถานะแผงโซลาร์ (Panel Status) <span class="text-red-500">*</span>
+              </label>
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <label class="status-option-label cursor-pointer">
+                  <input type="radio" name="form-status" value="warehouse" class="sr-only peer">
+                  <div class="p-2.5 text-center rounded-xl border border-slate-200 peer-checked:border-emerald-600 peer-checked:bg-emerald-50 peer-checked:text-emerald-800 text-slate-600 hover:bg-slate-50 transition">
+                    <i data-lucide="warehouse" class="w-4 h-4 mx-auto mb-1 text-emerald-600"></i>
+                    <div class="text-xs font-bold">ในคลัง</div>
+                    <div class="text-[10px] text-slate-400">Warehouse</div>
+                  </div>
+                </label>
+
+                <label class="status-option-label cursor-pointer">
+                  <input type="radio" name="form-status" value="installing" class="sr-only peer">
+                  <div class="p-2.5 text-center rounded-xl border border-slate-200 peer-checked:border-blue-600 peer-checked:bg-blue-50 peer-checked:text-blue-800 text-slate-600 hover:bg-slate-50 transition">
+                    <i data-lucide="wrench" class="w-4 h-4 mx-auto mb-1 text-blue-600"></i>
+                    <div class="text-xs font-bold">กำลังติดตั้ง</div>
+                    <div class="text-[10px] text-slate-400">In Progress</div>
+                  </div>
+                </label>
+
+                <label class="status-option-label cursor-pointer">
+                  <input type="radio" name="form-status" value="installed" class="sr-only peer" checked>
+                  <div class="p-2.5 text-center rounded-xl border border-slate-200 peer-checked:border-purple-600 peer-checked:bg-purple-50 peer-checked:text-purple-800 text-slate-600 hover:bg-slate-50 transition">
+                    <i data-lucide="check-circle" class="w-4 h-4 mx-auto mb-1 text-purple-600"></i>
+                    <div class="text-xs font-bold">ติดตั้งแล้ว</div>
+                    <div class="text-[10px] text-slate-400">Installed</div>
+                  </div>
+                </label>
+
+                <label class="status-option-label cursor-pointer">
+                  <input type="radio" name="form-status" value="damaged" class="sr-only peer">
+                  <div class="p-2.5 text-center rounded-xl border border-slate-200 peer-checked:border-rose-600 peer-checked:bg-rose-50 peer-checked:text-rose-800 text-slate-600 hover:bg-slate-50 transition">
+                    <i data-lucide="alert-triangle" class="w-4 h-4 mx-auto mb-1 text-rose-600"></i>
+                    <div class="text-xs font-bold">ชำรุด / เคลม</div>
+                    <div class="text-[10px] text-slate-400">Damaged</div>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <!-- Brand & Wattage -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                  ยี่ห้อ / รุ่น (Brand & Model)
+                </label>
+                <input type="text" id="input-brand" placeholder="Longi Hi-MO 5 Bifacial" class="w-full text-xs sm:text-sm px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                  กำลังไฟฟ้าวัตต์ (Wattage)
+                </label>
+                <div class="relative">
+                  <input type="number" id="input-wattage" placeholder="550" value="550" class="w-full text-xs sm:text-sm px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500">
+                  <span class="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-medium">Wp</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Technician & GPS Geolocation -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                  ผู้ปฏิบัติงาน / ช่างผู้ติดตั้ง
+                </label>
+                <input type="text" id="input-technician" placeholder="ชื่อ-นามสกุล ช่าง" class="w-full text-xs sm:text-sm px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500">
+              </div>
+              <div>
+                <div class="flex items-center justify-between mb-1">
+                  <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                    พิกัดภาคสนาม (GPS Coordinates)
+                  </label>
+                  <button type="button" onclick="app.captureGps()" class="text-[11px] text-amber-600 hover:text-amber-700 font-medium flex items-center gap-1">
+                    <i data-lucide="map-pin" class="w-3 h-3"></i> ดึงพิกัดปัจจุบัน
+                  </button>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                  <input type="text" id="input-lat" readonly placeholder="Latitude" class="w-full text-xs px-2.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-600 font-mono">
+                  <input type="text" id="input-lng" readonly placeholder="Longitude" class="w-full text-xs px-2.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-600 font-mono">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Notes -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+              หมายเหตุ / บันทึกเพิ่มเติม
+            </label>
+            <textarea id="input-notes" rows="2" placeholder="เช่น สภาพรอยต่อ MC4, ค่า Voc ก่อนต่อเข้า String, รอยขีดข่วน..." class="w-full text-xs sm:text-sm px-3.5 py-2 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500"></textarea>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="pt-3 flex items-center gap-3">
+            <button type="button" onclick="app.showView('dashboard')" class="flex-1 py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-bold transition text-center">
+              ยกเลิก
+            </button>
+            <button type="submit" id="btn-save-panel" class="touch-press flex-[2] py-3 px-6 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white rounded-xl text-sm font-bold shadow-md shadow-amber-900/15 transition flex items-center justify-center gap-2">
+              <i data-lucide="save" class="w-4 h-4"></i> บันทึกข้อมูลแผงโซลาร์
+            </button>
+          </div>
+
+        </form>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- VIEW 4: SUCCESS STATE                      -->
+    <!-- ========================================== -->
+    <div id="view-success" class="view-panel hidden w-full">
+      <div class="max-w-md mx-auto bg-white rounded-3xl border border-slate-200/90 shadow-xl p-6 sm:p-8 text-center space-y-5">
+        
+        <!-- Animated Check Badge -->
+        <div class="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-inner ring-8 ring-emerald-50">
+          <i data-lucide="check" class="w-10 h-10 stroke-[3]"></i>
+        </div>
+
+        <div>
+          <h2 class="text-xl font-bold text-slate-900">บันทึกข้อมูลสำเร็จ!</h2>
+          <p class="text-xs text-slate-500 mt-1">ข้อมูลถูกจัดเก็บลงฐานข้อมูลเรียบร้อยแล้ว</p>
+        </div>
+
+        <!-- Summary Card of the saved item -->
+        <div class="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 text-left text-xs space-y-2">
+          <div class="flex justify-between items-center pb-2 border-b border-slate-200">
+            <span class="text-slate-500">Serial Number</span>
+            <span id="success-serial" class="font-mono font-bold text-slate-900">-</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-slate-500">โครงการ</span>
+            <span id="success-project" class="font-medium text-slate-800">-</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-slate-500">Inverter / String</span>
+            <span id="success-location" class="font-medium text-slate-800">-</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-slate-500">สถานะ</span>
+            <span id="success-status-pill" class="font-bold px-2 py-0.5 rounded text-[11px]">-</span>
+          </div>
+          <div class="flex justify-between items-center pt-1 border-t border-slate-200">
+            <span class="text-slate-500">ผู้บันทึก</span>
+            <span id="success-tech" class="text-slate-700">-</span>
+          </div>
+        </div>
+
+        <!-- Continuous Actions (Critical for Fast Field Operations) -->
+        <div class="space-y-2.5 pt-2">
+          <button onclick="app.scanNextPanel()" class="touch-press w-full py-3.5 px-6 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white rounded-2xl text-sm font-bold shadow-lg shadow-amber-900/15 transition flex items-center justify-center gap-2">
+            <i data-lucide="scan-line" class="w-5 h-5"></i> สแกนแผงถัดไป (Scan Next)
+          </button>
+          
+          <button onclick="app.showView('dashboard')" class="w-full py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition">
+            กลับหน้าหลัก (Dashboard)
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- VIEW 5: DATABASE MANAGEMENT STUDIO         -->
+    <!-- ========================================== -->
+    <div id="view-database" class="view-panel hidden w-full space-y-5">
+      <!-- Database Status & Overview Header Card -->
+      <div class="bg-slate-900 text-white rounded-2xl p-5 shadow-lg space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
+              <i data-lucide="database" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <h2 class="text-lg font-bold">ระบบจัดการฐานข้อมูล (Database Studio)</h2>
+                <span id="db-engine-badge" class="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                  SQLite
+                </span>
+              </div>
+              <p class="text-xs text-slate-400">จัดการข้อมูลแผงโซลาร์, อัปเดตสถานะแบบกลุ่ม, สำรองและกู้คืนข้อมูล</p>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button onclick="app.downloadJsonBackup()" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg border border-slate-700 flex items-center gap-1.5 transition">
+              <i data-lucide="download" class="w-3.5 h-3.5 text-amber-400"></i> Backup JSON
+            </button>
+            <button onclick="app.seedDemoDataset()" class="text-xs bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition shadow">
+              <i data-lucide="sparkles" class="w-3.5 h-3.5"></i> เติมข้อมูลทดสอบ
+            </button>
+          </div>
+        </div>
+
+        <!-- Metrics Grid -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-2 border-t border-slate-800 text-xs">
+          <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700/50">
+            <span class="text-slate-400 text-[11px]">จำนวนแผงทั้งหมด</span>
+            <div id="db-metric-total" class="text-lg font-bold text-white mt-0.5">0</div>
+          </div>
+          <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700/50">
+            <span class="text-slate-400 text-[11px]">ขนาดไฟล์ฐานข้อมูล</span>
+            <div id="db-metric-size" class="text-lg font-bold text-amber-400 mt-0.5">0 KB</div>
+          </div>
+          <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700/50">
+            <span class="text-slate-400 text-[11px]">ติดตั้งแล้วเสร็จ</span>
+            <div id="db-metric-installed" class="text-lg font-bold text-purple-400 mt-0.5">0</div>
+          </div>
+          <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700/50">
+            <span class="text-slate-400 text-[11px]">อัปเดตล่าสุด</span>
+            <div id="db-metric-time" class="text-[11px] font-mono text-slate-300 mt-1 truncate">-</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Studio Sub-Navigation Tabs -->
+      <div class="flex items-center space-x-2 border-b border-slate-200 pb-2 text-xs font-semibold overflow-x-auto">
+        <button id="tab-btn-records" onclick="app.switchDbTab('records')" class="px-3.5 py-2 rounded-xl bg-slate-900 text-white flex items-center gap-1.5 transition shrink-0">
+          <i data-lucide="table" class="w-3.5 h-3.5"></i> ตารางข้อมูลแผงโซลาร์
+        </button>
+        <button id="tab-btn-projects" onclick="app.switchDbTab('projects')" class="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-600 border border-slate-200 flex items-center gap-1.5 transition shrink-0">
+          <i data-lucide="folder-kanban" class="w-3.5 h-3.5"></i> จัดการโครงการ
+        </button>
+        <button id="tab-btn-tools" onclick="app.switchDbTab('tools')" class="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-600 border border-slate-200 flex items-center gap-1.5 transition shrink-0">
+          <i data-lucide="wrench" class="w-3.5 h-3.5"></i> เครื่องมือ & กู้คืนข้อมูล
+        </button>
+      </div>
+
+      <!-- TAB 1: ALL RECORDS WITH BATCH ACTIONS -->
+      <div id="db-tab-records" class="space-y-4">
+        <!-- Batch Action Toolbar (Visible when rows are selected) -->
+        <div id="batch-action-bar" class="hidden p-3 bg-amber-500 text-slate-950 rounded-xl shadow-md flex flex-wrap items-center justify-between gap-2.5">
+          <div class="flex items-center gap-2 text-xs font-bold">
+            <i data-lucide="check-square" class="w-4 h-4"></i>
+            <span>เลือกแล้ว <span id="batch-selected-count" class="underline">0</span> รายการ</span>
+          </div>
+          <div class="flex items-center gap-1.5 text-xs">
+            <button onclick="app.openBatchStatusModal()" class="bg-slate-900 hover:bg-slate-800 text-white font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1 transition">
+              <i data-lucide="tag" class="w-3.5 h-3.5 text-amber-400"></i> เปลี่ยนสถานะกลุ่ม
+            </button>
+            <button onclick="app.openBatchProjectModal()" class="bg-slate-900 hover:bg-slate-800 text-white font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1 transition">
+              <i data-lucide="folder-input" class="w-3.5 h-3.5 text-amber-400"></i> ย้ายโครงการกลุ่ม
+            </button>
+            <button onclick="app.confirmBatchDelete()" class="bg-rose-600 hover:bg-rose-700 text-white font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1 transition">
+              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> ลบที่เลือก
+            </button>
+            <button onclick="app.clearSelection()" class="bg-amber-600 hover:bg-amber-700 text-slate-950 font-bold px-2 py-1.5 rounded-lg text-[11px] transition">
+              ยกเลิก
+            </button>
+          </div>
+        </div>
+
+        <!-- Filter & Search Controls -->
+        <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs grid grid-cols-1 sm:grid-cols-4 gap-2.5">
+          <div class="relative sm:col-span-2">
+            <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+            <input type="text" id="db-filter-search" oninput="app.handleDbFilterChange()" placeholder="ค้นหา Serial, Inverter, ช่าง, ยี่ห้อ..." class="w-full text-xs pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500">
+          </div>
+          <div>
+            <select id="db-filter-project" onchange="app.handleDbFilterChange()" class="w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500">
+              <option value="all">ทุกโครงการ</option>
+            </select>
+          </div>
+          <div>
+            <select id="db-filter-status" onchange="app.handleDbFilterChange()" class="w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500">
+              <option value="all">ทุกสถานะ</option>
+              <option value="warehouse">ในคลังสินค้า (Warehouse)</option>
+              <option value="installing">กำลังติดตั้ง (Installing)</option>
+              <option value="installed">ติดตั้งแล้ว (Installed)</option>
+              <option value="damaged">ชำรุด / เคลม (Damaged)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Master Data Records Container -->
+        <div class="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden">
+          <!-- Mobile Cards View -->
+          <div id="db-cards-container" class="sm:hidden divide-y divide-slate-100">
+            <div class="py-8 text-center text-slate-400 text-xs">กำลังโหลดข้อมูล...</div>
+          </div>
+
+          <!-- Desktop Table View -->
+          <div class="hidden sm:block overflow-x-auto w-full">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-100/80 text-slate-600 font-semibold uppercase tracking-wider text-[10px] border-b border-slate-200">
+                <tr>
+                  <th class="py-3 px-3 w-8 text-center">
+                    <input type="checkbox" id="db-select-all" onchange="app.toggleSelectAll(this.checked)" class="rounded text-amber-500 focus:ring-amber-400">
+                  </th>
+                  <th class="py-3 px-3 whitespace-nowrap">ID</th>
+                  <th class="py-3 px-3 whitespace-nowrap">Serial Number</th>
+                  <th class="py-3 px-3 whitespace-nowrap">โครงการ</th>
+                  <th class="py-3 px-3 whitespace-nowrap">ตำแหน่ง (Inv/Str/#)</th>
+                  <th class="py-3 px-3 whitespace-nowrap">รุ่น / วัตต์</th>
+                  <th class="py-3 px-3 whitespace-nowrap">สถานะ</th>
+                  <th class="py-3 px-3 whitespace-nowrap">ช่างผู้ตรวจ</th>
+                  <th class="py-3 px-3 text-center whitespace-nowrap">จัดการ</th>
+                </tr>
+              </thead>
+              <tbody id="db-table-body" class="divide-y divide-slate-100 text-slate-700">
+                <tr>
+                  <td colspan="9" class="py-8 text-center text-slate-400">กำลังโหลดข้อมูล...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 2: PROJECTS OVERVIEW & MANAGEMENT -->
+      <div id="db-tab-projects" class="hidden space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/90 shadow-sm">
+          <div>
+            <h3 class="font-bold text-slate-800 text-sm sm:text-base flex items-center gap-2">
+              <i data-lucide="folder-kanban" class="w-4 h-4 text-amber-500"></i> จัดการโครงการโซลาร์เซลล์
+            </h3>
+            <p class="text-xs text-slate-500 mt-0.5">เพิ่ม ลบ แก้ไขชื่อโครงการ พร้อมติดตามสถานะและกำลังการผลิตแบบ Real-time</p>
+          </div>
+          <button onclick="app.openNewProjectModal()" class="touch-press text-xs bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold px-4 py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition shadow-xs shrink-0">
+            <i data-lucide="folder-plus" class="w-4 h-4"></i> เพิ่มโครงการใหม่
+          </button>
+        </div>
+
+        <div id="db-projects-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <!-- Rendered via JS -->
+          <div class="col-span-full p-8 bg-white rounded-2xl border border-slate-200 text-center text-slate-400 text-xs">
+            กำลังโหลดข้อมูลโครงการ...
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 3: MAINTENANCE & TOOLS -->
+      <div id="db-tab-tools" class="hidden space-y-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <!-- Backup Card -->
+          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                <i data-lucide="archive" class="w-5 h-5"></i>
+              </div>
+              <div>
+                <h4 class="font-bold text-sm text-slate-900">สำรองข้อมูล (JSON Backup)</h4>
+                <p class="text-xs text-slate-500">ดาวน์โหลด Snapshot ฐานข้อมูลเก็บไว้บนเครื่อง</p>
+              </div>
+            </div>
+            <p class="text-xs text-slate-600 leading-relaxed">
+              ส่งออกข้อมูลแผงโซลาร์ทั้งหมด รวมถึงประวัติพิกัด GPS, Inverter, String และสถานะล่าสุดในรูปแบบไฟล์ JSON มาตรฐาน
+            </p>
+            <button onclick="app.downloadJsonBackup()" class="w-full py-2.5 px-4 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-2">
+              <i data-lucide="download" class="w-4 h-4 text-amber-400"></i> ดาวน์โหลดไฟล์ Backup (.json)
+            </button>
+          </div>
+
+          <!-- Restore / Import Card -->
+          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                <i data-lucide="upload-cloud" class="w-5 h-5"></i>
+              </div>
+              <div>
+                <h4 class="font-bold text-sm text-slate-900">นำเข้าข้อมูล (Import Panels)</h4>
+                <p class="text-xs text-slate-500">นำเข้าข้อมูลจากไฟล์ JSON หรือ Backup เดิม</p>
+              </div>
+            </div>
+            <p class="text-xs text-slate-600 leading-relaxed">
+              เลือกไฟล์ JSON ที่มีโครงสร้างข้อมูลแผงโซลาร์ ระบบจะทำการ Upsert ข้อมูลลงฐานข้อมูลโดยอัตโนมัติ
+            </p>
+            <div class="flex items-center gap-2">
+              <input type="file" id="import-json-file" accept=".json" class="text-xs file:mr-2 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 w-full">
+              <button onclick="app.handleImportJson()" class="py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold whitespace-nowrap transition">
+                นำเข้า
+              </button>
+            </div>
+          </div>
+
+          <!-- Seed Demo Dataset -->
+          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                <i data-lucide="sparkles" class="w-5 h-5"></i>
+              </div>
+              <div>
+                <h4 class="font-bold text-sm text-slate-900">เติมชุดข้อมูลทดสอบ (Demo Seed)</h4>
+                <p class="text-xs text-slate-500">สร้างแผง Longi, Jinko, Trina จำลอง</p>
+              </div>
+            </div>
+            <p class="text-xs text-slate-600 leading-relaxed">
+              ระบบจะสร้างตัวอย่างแผงโซลาร์ 12 แผง พร้อมผูก Inverter, String, ค่าวัตต์, พิกัด GPS และสถานะต่างๆ เพื่อความสะดวกในการทดสอบระบบ
+            </p>
+            <button onclick="app.seedDemoDataset()" class="w-full py-2.5 px-4 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 shadow-xs">
+              <i data-lucide="database" class="w-4 h-4"></i> เติมชุดข้อมูลตัวอย่าง 12 แผง
+            </button>
+          </div>
+
+          <!-- Danger Zone: Selective & Full Clear Data -->
+          <div class="bg-white p-5 rounded-2xl border border-rose-200 shadow-sm space-y-3">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
+                <i data-lucide="alert-triangle" class="w-5 h-5"></i>
+              </div>
+              <div>
+                <h4 class="font-bold text-sm text-rose-700">จัดการล้างข้อมูลในระบบ (Selective Clear)</h4>
+                <p class="text-xs text-slate-500">เลือกล้างเฉพาะหมวดหมู่ หรือล้างทั้งหมด</p>
+              </div>
+            </div>
+            <p class="text-xs text-slate-600 leading-relaxed">
+              สามารถเลือกล้างเฉพาะ <strong>แผงในคลังสินค้า</strong>, <strong>แผงที่ติดตั้งแล้ว</strong>, <strong>แผงชำรุด/ส่งเคลม</strong>, <strong>ล้างเฉพาะรายโครงการ</strong> หรือล้างทั้งหมด 100% พร้อมคำอธิบายและระบบยืนยันความปลอดภัย
+            </p>
+            <button onclick="app.openClearOptionsModal()" class="w-full py-2.5 px-4 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 shadow-xs">
+              <i data-lucide="trash-2" class="w-4 h-4"></i> เปิดตัวเลือกล้างข้อมูล (Selective Clear)
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ========================================== -->
+  <!-- MODAL: MANUAL & BULK PASTE SERIAL ENTRY    -->
+  <!-- ========================================== -->
+  <div id="modal-manual" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-5 shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center">
+            <i data-lucide="keyboard" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-slate-900 text-sm">กรอกรหัสด้วยมือ & วางรายการ</h3>
+            <p class="text-[11px] text-slate-500">สำหรับบาร์โค้ดชำรุด หรือมีรายชื่อแผงในมือ</p>
+          </div>
+        </div>
+        <button onclick="app.closeManualEntryModal()" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- Mode Tabs: Single Rapid vs Bulk Paste -->
+      <div class="flex items-center bg-slate-100 p-1 rounded-xl text-xs font-semibold">
+        <button type="button" id="manual-tab-btn-single" onclick="app.switchManualTab('single')" class="flex-1 py-1.5 rounded-lg bg-white text-slate-900 shadow-xs flex items-center justify-center gap-1.5">
+          <i data-lucide="edit-3" class="w-3.5 h-3.5 text-amber-600"></i> พิมพ์ต่อเนื่อง (Enter)
+        </button>
+        <button type="button" id="manual-tab-btn-bulk" onclick="app.switchManualTab('bulk')" class="flex-1 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 flex items-center justify-center gap-1.5">
+          <i data-lucide="clipboard-list" class="w-3.5 h-3.5 text-blue-600"></i> แปะ 100+ แผงรวดเดียว
+        </button>
+      </div>
+
+      <!-- TAB 1: SINGLE RAPID TYPING (AUTO-ENTER) -->
+      <form id="manual-form-single" onsubmit="app.handleManualSubmit(event)" class="space-y-3">
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label class="block text-xs font-semibold text-slate-700">Serial Number <span class="text-red-500">*</span></label>
+            <label class="flex items-center gap-1.5 text-[11px] text-amber-700 cursor-pointer select-none">
+              <input type="checkbox" id="manual-quick-save" checked class="rounded text-amber-500">
+              <span>⚡ เคาะ Enter เพื่อบันทึกทันที</span>
+            </label>
+          </div>
+          <input type="text" id="manual-serial-input" required placeholder="เช่น LONGI-LR5-72HBD-550M-001" class="w-full text-xs font-mono font-bold px-3.5 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 uppercase">
+        </div>
+
+        <!-- Preset location to enable instant auto-save without opening form -->
+        <div id="manual-single-presets" class="space-y-2.5 p-3 bg-slate-50 border border-slate-200/80 rounded-xl text-xs">
+          <div>
+            <label class="block text-[10px] font-semibold text-slate-600 uppercase mb-0.5">โครงการ</label>
+            <select id="manual-preset-project" class="w-full text-xs px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg">
+            </select>
+          </div>
+          <div class="grid grid-cols-3 gap-2">
+            <div>
+              <label class="block text-[10px] font-semibold text-slate-600 mb-0.5">Inverter</label>
+              <input type="text" id="manual-preset-inverter" placeholder="INV-01" value="INV-01" class="w-full text-xs px-2 py-1.5 bg-white border border-slate-300 rounded-lg font-mono">
+            </div>
+            <div>
+              <label class="block text-[10px] font-semibold text-slate-600 mb-0.5">String</label>
+              <input type="text" id="manual-preset-string" placeholder="STR-01" value="STR-01" class="w-full text-xs px-2 py-1.5 bg-white border border-slate-300 rounded-lg font-mono">
+            </div>
+            <div>
+              <label class="block text-[10px] font-semibold text-slate-600 mb-0.5">เลขแผง (#)</label>
+              <input type="number" id="manual-preset-index" value="1" min="1" class="w-full text-xs px-2 py-1.5 bg-white border border-slate-300 rounded-lg font-mono font-bold text-amber-700">
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2 pt-1">
+          <button type="button" onclick="app.closeManualEntryModal()" class="flex-1 py-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl">
+            ยกเลิก
+          </button>
+          <button type="submit" class="flex-1 py-2 text-xs font-bold text-white bg-amber-500 hover:bg-amber-600 rounded-xl shadow">
+            บันทึก (Enter)
+          </button>
+        </div>
+      </form>
+
+      <!-- TAB 2: BULK MULTI-LINE PASTE (100+ PANELS FROM EXCEL) -->
+      <form id="manual-form-bulk" onsubmit="app.handleBulkPasteSubmit(event)" class="hidden space-y-3">
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label class="block text-xs font-semibold text-slate-700">วางรายชื่อ Serial Number ทั้งหมด</label>
+            <span class="text-[11px] text-blue-600 font-bold">ตรวจพบ: <span id="bulk-paste-count">0</span> แผง</span>
+          </div>
+          <textarea id="bulk-paste-input" rows="5" oninput="app.updateBulkPasteCount()" placeholder="ก๊อปปี้จาก Excel / LINE / Notepad มาวางที่นี่ (1 แผง ต่อ 1 บรรทัด)&#10;LONGI-550M-240101&#10;LONGI-550M-240102&#10;LONGI-550M-240103..." class="w-full text-xs font-mono px-3.5 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 leading-relaxed"></textarea>
+        </div>
+
+        <div class="space-y-2.5 p-3 bg-slate-50 border border-slate-200/80 rounded-xl text-xs">
+          <div>
+            <label class="block text-[10px] font-semibold text-slate-600 mb-0.5">โครงการปลายทาง</label>
+            <select id="bulk-preset-project" required class="w-full text-xs px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg">
+            </select>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-[10px] font-semibold text-slate-600 mb-0.5">Inverter / String</label>
+              <div class="flex gap-1">
+                <input type="text" id="bulk-preset-inverter" placeholder="INV-01" value="INV-01" class="w-1/2 text-xs px-2 py-1.5 bg-white border border-slate-300 rounded-lg font-mono">
+                <input type="text" id="bulk-preset-string" placeholder="STR-01" value="STR-01" class="w-1/2 text-xs px-2 py-1.5 bg-white border border-slate-300 rounded-lg font-mono">
+              </div>
+            </div>
+            <div>
+              <label class="block text-[10px] font-semibold text-slate-600 mb-0.5">สถานะ</label>
+              <select id="bulk-preset-status" class="w-full text-xs px-2 py-1.5 bg-white border border-slate-300 rounded-lg font-bold">
+                <option value="installed">ติดตั้งแล้ว (Installed)</option>
+                <option value="warehouse">ในคลังสินค้า (Warehouse)</option>
+                <option value="installing">กำลังติดตั้ง (Installing)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2 pt-1">
+          <button type="button" onclick="app.closeManualEntryModal()" class="flex-1 py-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl">
+            ยกเลิก
+          </button>
+          <button type="submit" id="btn-submit-bulk-paste" class="flex-1 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow flex items-center justify-center gap-1.5">
+            <i data-lucide="check" class="w-4 h-4"></i> บันทึกทั้งหมดรวดเดียว
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL: NEW PROJECT CREATION                -->
+  <!-- ========================================== -->
+  <div id="modal-new-project" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-5 sm:p-6 shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center">
+            <i data-lucide="folder-plus" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-slate-900 text-sm sm:text-base">เพิ่มโครงการใหม่</h3>
+            <p class="text-xs text-slate-500">สร้างโครงการติดตั้งหรือคลังเก็บแผงโซลาร์</p>
+          </div>
+        </div>
+        <button onclick="app.closeNewProjectModal()" class="text-slate-400 hover:text-slate-600 p-1">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form onsubmit="app.handleCreateProject(event)" class="space-y-3.5">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">
+            ชื่อโครงการ (Project Name) <span class="text-red-500">*</span>
+          </label>
+          <input type="text" id="new-project-name" required placeholder="เช่น Solar Farm Lopburi Phase 3" class="w-full text-xs sm:text-sm px-3.5 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500">
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">
+              สถานที่ / จังหวัด
+            </label>
+            <input type="text" id="new-project-location" placeholder="เช่น ลพบุรี, นิคมฯ อมตะ" class="w-full text-xs sm:text-sm px-3.5 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">
+              เป้าหมายกำลังผลิต (kWp)
+            </label>
+            <input type="number" id="new-project-capacity" placeholder="เช่น 1200" step="any" min="0" class="w-full text-xs sm:text-sm px-3.5 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 font-mono">
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2 pt-2 border-t border-slate-100">
+          <button type="button" onclick="app.closeNewProjectModal()" class="flex-1 py-2.5 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition">
+            ยกเลิก
+          </button>
+          <button type="submit" id="btn-submit-new-project" class="flex-1 py-2.5 text-xs font-bold text-white bg-amber-500 hover:bg-amber-600 rounded-xl shadow transition flex items-center justify-center gap-1.5">
+            <i data-lucide="check" class="w-4 h-4"></i> เพิ่มโครงการ
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL: EDIT PROJECT                        -->
+  <!-- ========================================== -->
+  <div id="modal-edit-project" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-5 sm:p-6 shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center">
+            <i data-lucide="edit-3" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-slate-900 text-sm sm:text-base">แก้ไขข้อมูลโครงการ</h3>
+            <p class="text-xs text-slate-500">ปรับเปลี่ยนชื่อ หรือรายละเอียดโครงการ</p>
+          </div>
+        </div>
+        <button onclick="app.closeEditProjectModal()" class="text-slate-400 hover:text-slate-600 p-1">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form onsubmit="app.handleUpdateProject(event)" class="space-y-3.5">
+        <input type="hidden" id="edit-project-old-name">
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">
+            ชื่อโครงการ (Project Name) <span class="text-red-500">*</span>
+          </label>
+          <input type="text" id="edit-project-name" required placeholder="ชื่อโครงการใหม่" class="w-full text-xs sm:text-sm px-3.5 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-900">
+          <p class="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 p-2 rounded-lg mt-1.5 flex items-start gap-1.5">
+            <i data-lucide="info" class="w-3.5 h-3.5 shrink-0 mt-0.5"></i>
+            <span>หากเปลี่ยนชื่อโครงการ ระบบจะอัปเดตชื่อโครงการในทุกแผงที่สังกัดโครงการนี้ให้อัตโนมัติ</span>
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">
+              สถานที่ / จังหวัด
+            </label>
+            <input type="text" id="edit-project-location" placeholder="เช่น ลพบุรี, นิคมฯ อมตะ" class="w-full text-xs sm:text-sm px-3.5 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">
+              เป้าหมายกำลังผลิต (kWp)
+            </label>
+            <input type="number" id="edit-project-capacity" placeholder="เช่น 1200" step="any" min="0" class="w-full text-xs sm:text-sm px-3.5 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono">
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2 pt-2 border-t border-slate-100">
+          <button type="button" onclick="app.closeEditProjectModal()" class="flex-1 py-2.5 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition">
+            ยกเลิก
+          </button>
+          <button type="submit" id="btn-submit-edit-project" class="flex-1 py-2.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow transition flex items-center justify-center gap-1.5">
+            <i data-lucide="check" class="w-4 h-4"></i> บันทึกการแก้ไข
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL: DELETE PROJECT                      -->
+  <!-- ========================================== -->
+  <div id="modal-delete-project" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-5 sm:p-6 shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center">
+            <i data-lucide="trash-2" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-slate-900 text-sm sm:text-base">ยืนยันการลบโครงการ</h3>
+            <p class="text-xs text-slate-500">จัดการโครงการและแผงที่สังกัดอยู่</p>
+          </div>
+        </div>
+        <button onclick="app.closeDeleteProjectModal()" class="text-slate-400 hover:text-slate-600 p-1">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <input type="hidden" id="delete-project-name-hidden">
+
+      <div class="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
+        <div class="text-xs text-slate-500">โครงการที่ต้องการลบ:</div>
+        <div id="delete-project-name-display" class="font-bold text-sm text-slate-900"></div>
+        <div class="text-xs text-slate-600 flex items-center gap-1.5 mt-1">
+          <i data-lucide="layers" class="w-3.5 h-3.5 text-amber-500"></i>
+          <span>จำนวนแผงปัจจุบันในโครงการ: <strong id="delete-project-count-display" class="text-amber-700">0</strong> แผง</span>
+        </div>
+      </div>
+
+      <div id="delete-project-options-container" class="space-y-2.5">
+        <label class="block text-xs font-semibold text-slate-700">เลือกแนวทางจัดการแผงในโครงการนี้:</label>
+
+        <label class="block cursor-pointer">
+          <input type="radio" name="delete-project-action" value="move_warehouse" checked class="sr-only peer">
+          <div class="p-3 rounded-xl border border-slate-200 peer-checked:border-emerald-600 peer-checked:bg-emerald-50/70 hover:bg-slate-50 transition flex items-start gap-2.5">
+            <i data-lucide="package" class="w-4 h-4 text-emerald-600 shrink-0 mt-0.5"></i>
+            <div>
+              <div class="text-xs font-bold text-emerald-950">📦 ย้ายแผงทั้งหมดเข้า "คลังสินค้ากลาง" (แนะนำ)</div>
+              <p class="text-[11px] text-emerald-800/80 mt-0.5">ข้อมูลแผงโซลาร์จะไม่สูญหาย โดยจะถูกเปลี่ยนสถานะเป็น "ในคลัง" พร้อมนำไปใช้โครงการอื่น</p>
+            </div>
+          </div>
+        </label>
+
+        <label class="block cursor-pointer">
+          <input type="radio" name="delete-project-action" value="delete_panels" class="sr-only peer">
+          <div class="p-3 rounded-xl border border-slate-200 peer-checked:border-rose-600 peer-checked:bg-rose-50/70 hover:bg-slate-50 transition flex items-start gap-2.5">
+            <i data-lucide="trash-2" class="w-4 h-4 text-rose-600 shrink-0 mt-0.5"></i>
+            <div>
+              <div class="text-xs font-bold text-rose-950">🔴 ลบแผงทั้งหมดในโครงการนี้ทิ้งถาวร</div>
+              <p class="text-[11px] text-rose-800/80 mt-0.5">⚠️ ข้อมูลแผงโซลาร์ทั้งหมดในโครงการนี้จะถูกลบออกจากฐานข้อมูลอย่างถาวร</p>
+            </div>
+          </div>
+        </label>
+      </div>
+
+      <div class="flex items-center gap-2 pt-2 border-t border-slate-100">
+        <button type="button" onclick="app.closeDeleteProjectModal()" class="flex-1 py-2.5 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition">
+          ยกเลิก
+        </button>
+        <button type="button" id="btn-confirm-delete-project" onclick="app.executeDeleteProject()" class="flex-1 py-2.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl shadow transition flex items-center justify-center gap-1.5">
+          <i data-lucide="trash-2" class="w-4 h-4"></i> ยืนยันการลบ
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL: EDIT PANEL RECORD                   -->
+  <!-- ========================================== -->
+  <div id="modal-edit-panel" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-5 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 class="font-bold text-slate-900 text-sm flex items-center gap-2">
+          <i data-lucide="edit-3" class="w-4 h-4 text-amber-500"></i> แก้ไขข้อมูลแผงโซลาร์
+        </h3>
+        <button onclick="app.closeEditModal()" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <form onsubmit="app.handleSaveEditPanel(event)" class="space-y-3">
+        <input type="hidden" id="edit-id">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Serial Number</label>
+          <input type="text" id="edit-serial" required class="w-full text-xs font-mono font-bold px-3 py-2 bg-slate-100 border border-slate-300 rounded-lg" readonly>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">โครงการ</label>
+          <select id="edit-project" required class="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg">
+          </select>
+        </div>
+
+        <div class="grid grid-cols-3 gap-2">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Inverter</label>
+            <input type="text" id="edit-inverter" class="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">String</label>
+            <input type="text" id="edit-string" class="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">ลำดับแผง</label>
+            <input type="number" id="edit-index" class="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">สถานะ</label>
+            <select id="edit-status" class="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg font-bold">
+              <option value="warehouse">ในคลังสินค้า (Warehouse)</option>
+              <option value="installing">กำลังติดตั้ง (Installing)</option>
+              <option value="installed">ติดตั้งแล้ว (Installed)</option>
+              <option value="damaged">ชำรุด / เคลม (Damaged)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">กำลังวัตต์ (Wp)</label>
+            <input type="number" id="edit-wattage" class="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">ยี่ห้อ / รุ่น</label>
+          <input type="text" id="edit-brand" class="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">ผู้ตรวจ / ช่าง</label>
+          <input type="text" id="edit-technician" class="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">หมายเหตุ</label>
+          <textarea id="edit-notes" rows="2" class="w-full text-xs px-3 py-1.5 border border-slate-300 rounded-lg"></textarea>
+        </div>
+
+        <div class="flex items-center gap-2 pt-2 border-t border-slate-100">
+          <button type="button" onclick="app.closeEditModal()" class="flex-1 py-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl">
+            ยกเลิก
+          </button>
+          <button type="submit" class="flex-1 py-2 text-xs font-bold text-white bg-amber-500 hover:bg-amber-600 rounded-xl shadow">
+            บันทึกการแก้ไข
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL: BATCH STATUS UPDATE                 -->
+  <!-- ========================================== -->
+  <div id="modal-batch-status" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 class="font-bold text-slate-900 text-sm flex items-center gap-2">
+          <i data-lucide="tag" class="w-4 h-4 text-amber-500"></i> เปลี่ยนสถานะแบบกลุ่ม
+        </h3>
+        <button onclick="app.closeBatchStatusModal()" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <p class="text-xs text-slate-600">เลือกสถานะใหม่สำหรับแผงโซลาร์ที่เลือกทั้งหมด (<span id="batch-status-target-count" class="font-bold">0</span> รายการ):</p>
+
+      <form onsubmit="app.handleBatchStatusSubmit(event)" class="space-y-3">
+        <select id="batch-status-select" class="w-full text-xs px-3.5 py-2.5 border border-slate-300 rounded-xl font-bold">
+          <option value="warehouse">ในคลังสินค้า (Warehouse)</option>
+          <option value="installing">กำลังติดตั้ง (Installing)</option>
+          <option value="installed" selected>ติดตั้งแล้ว (Installed)</option>
+          <option value="damaged">ชำรุด / เคลม (Damaged)</option>
+        </select>
+        <div class="flex items-center gap-2 pt-2">
+          <button type="button" onclick="app.closeBatchStatusModal()" class="flex-1 py-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl">
+            ยกเลิก
+          </button>
+          <button type="submit" class="flex-1 py-2 text-xs font-bold text-white bg-amber-500 hover:bg-amber-600 rounded-xl shadow">
+            อัปเดตสถานะทั้งหมด
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL: BATCH PROJECT UPDATE                -->
+  <!-- ========================================== -->
+  <div id="modal-batch-project" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 class="font-bold text-slate-900 text-sm flex items-center gap-2">
+          <i data-lucide="folder-input" class="w-4 h-4 text-amber-500"></i> ย้ายโครงการแบบกลุ่ม
+        </h3>
+        <button onclick="app.closeBatchProjectModal()" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <p class="text-xs text-slate-600">เลือกโครงการปลายทางสำหรับแผงที่เลือก (<span id="batch-project-target-count" class="font-bold">0</span> รายการ):</p>
+
+      <form onsubmit="app.handleBatchProjectSubmit(event)" class="space-y-3">
+        <select id="batch-project-select" required class="w-full text-xs px-3.5 py-2.5 border border-slate-300 rounded-xl font-bold">
+        </select>
+        <div class="flex items-center gap-2 pt-2">
+          <button type="button" onclick="app.closeBatchProjectModal()" class="flex-1 py-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl">
+            ยกเลิก
+          </button>
+          <button type="submit" class="flex-1 py-2 text-xs font-bold text-white bg-amber-500 hover:bg-amber-600 rounded-xl shadow">
+            ย้ายโครงการทั้งหมด
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL: PALLET SERIAL RANGE BULK CREATOR    -->
+  <!-- ========================================== -->
+  <div id="modal-pallet-range" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-5 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center">
+            <i data-lucide="boxes" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-slate-900 text-sm">บันทึกยกพาเลท (Pallet Bulk)</h3>
+            <p class="text-[11px] text-slate-500">สร้างแผงตามช่วงตัวเลข Serial Number อัตโนมัติ</p>
+          </div>
+        </div>
+        <button onclick="app.closePalletRangeModal()" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <div class="p-3 bg-amber-50 border border-amber-200/80 rounded-xl text-xs text-amber-900">
+        💡 แผงโซลาร์ใน 1 พาเลท (30-36 แผง) มักมี Serial Number ต่อเนื่องกัน เพียงกรอกแผงแรกและแผงสุดท้าย ระบบจะสร้างทั้งหมดให้ในคลิกเดียว!
+      </div>
+
+      <form onsubmit="app.handlePalletRangeSubmit(event)" class="space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">โครงการ <span class="text-red-500">*</span></label>
+          <select id="pallet-project" required class="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg">
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">คำนำหน้ารหัส (Prefix) <span class="text-red-500">*</span></label>
+          <input type="text" id="pallet-prefix" required placeholder="เช่น LONGI-LR5-72HBD-550M-" value="LONGI-LR5-72HBD-550M-" class="w-full text-xs font-mono px-3 py-2 border border-slate-300 rounded-lg">
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">เลขเริ่มต้น (Start #) <span class="text-red-500">*</span></label>
+            <input type="number" id="pallet-start-num" required value="240101" oninput="app.calculatePalletCount()" class="w-full text-xs font-mono font-bold px-3 py-2 border border-slate-300 rounded-lg">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">เลขสิ้นสุด (End #) <span class="text-red-500">*</span></label>
+            <input type="number" id="pallet-end-num" required value="240136" oninput="app.calculatePalletCount()" class="w-full text-xs font-mono font-bold px-3 py-2 border border-slate-300 rounded-lg">
+          </div>
+        </div>
+
+        <div class="p-2.5 bg-slate-100 rounded-xl flex items-center justify-between text-xs">
+          <span class="text-slate-600">จำนวนแผงที่จะสร้าง:</span>
+          <span class="font-extrabold text-amber-600 text-sm"><span id="pallet-calc-count">36</span> แผง</span>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Inverter / String</label>
+            <div class="flex gap-1">
+              <input type="text" id="pallet-inverter" placeholder="INV-01" value="INV-01" class="w-1/2 text-xs px-2 py-2 border border-slate-300 rounded-lg font-mono">
+              <input type="text" id="pallet-string" placeholder="STR-01" value="STR-01" class="w-1/2 text-xs px-2 py-2 border border-slate-300 rounded-lg font-mono">
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">สถานะ</label>
+            <select id="pallet-status" class="w-full text-xs px-2.5 py-2 border border-slate-300 rounded-lg font-bold">
+              <option value="warehouse">ในคลังสินค้า (Warehouse)</option>
+              <option value="installed" selected>ติดตั้งแล้ว (Installed)</option>
+              <option value="installing">กำลังติดตั้ง (Installing)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">ยี่ห้อ / รุ่น</label>
+            <input type="text" id="pallet-brand" value="Longi Hi-MO 5 Bifacial" class="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">กำลังวัตต์ (Wp)</label>
+            <input type="number" id="pallet-wattage" value="550" class="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg">
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2 pt-2 border-t border-slate-100">
+          <button type="button" onclick="app.closePalletRangeModal()" class="flex-1 py-2.5 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl">
+            ยกเลิก
+          </button>
+          <button type="submit" id="btn-submit-pallet-range" class="flex-1 py-2.5 text-xs font-bold text-white bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 rounded-xl shadow flex items-center justify-center gap-1.5">
+            <i data-lucide="check-circle" class="w-4 h-4"></i> บันทึกยกพาเลททันที
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL: SELECTIVE DATABASE CLEAR OPTIONS    -->
+  <!-- ========================================== -->
+  <div id="modal-clear-options" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-5 sm:p-6 shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center">
+            <i data-lucide="trash-2" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-slate-900 text-sm sm:text-base">ตัวเลือกล้างข้อมูลฐานข้อมูล</h3>
+            <p class="text-xs text-slate-500">เลือกหมวดหมู่ที่ต้องการล้างอย่างชัดเจนและปลอดภัย</p>
+          </div>
+        </div>
+        <button onclick="app.closeClearOptionsModal()" class="text-slate-400 hover:text-slate-600 p-1">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <p class="text-xs text-slate-600">กรุณาเลือกขอบเขตข้อมูลแผงโซลาร์ที่ต้องการล้างออกจากระบบ:</p>
+
+      <!-- Options Radio Cards -->
+      <div class="space-y-2.5">
+        <!-- Option 1: Warehouse Only -->
+        <label class="block cursor-pointer">
+          <input type="radio" name="clear-scope-option" value="warehouse" onchange="app.onClearScopeChange()" class="sr-only peer">
+          <div class="p-3 rounded-xl border border-slate-200 peer-checked:border-emerald-600 peer-checked:bg-emerald-50/60 hover:bg-slate-50 transition flex items-start gap-3">
+            <div class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 mt-0.5">
+              <i data-lucide="package" class="w-4 h-4"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-900">📦 ล้างเฉพาะแผงในคลังสินค้า (Warehouse)</span>
+                <span class="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded whitespace-nowrap">ปลอดภัยสูง</span>
+              </div>
+              <p class="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
+                ลบเฉพาะแผงที่สถานะเป็น "ในคลัง" เพื่อเริ่มนับสต๊อกใหม่ <strong>ไม่กระทบ</strong>แผงที่ติดตั้งตามไซต์งาน
+              </p>
+            </div>
+          </div>
+        </label>
+
+        <!-- Option 2: Installed Only -->
+        <label class="block cursor-pointer">
+          <input type="radio" name="clear-scope-option" value="installed" onchange="app.onClearScopeChange()" class="sr-only peer">
+          <div class="p-3 rounded-xl border border-slate-200 peer-checked:border-purple-600 peer-checked:bg-purple-50/60 hover:bg-slate-50 transition flex items-start gap-3">
+            <div class="w-8 h-8 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center shrink-0 mt-0.5">
+              <i data-lucide="check-circle" class="w-4 h-4"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-900">☀️ ล้างเฉพาะแผงที่ติดตั้งแล้ว (Installed)</span>
+                <span class="text-[10px] bg-purple-100 text-purple-800 font-bold px-2 py-0.5 rounded whitespace-nowrap">เฉพาะไซต์งาน</span>
+              </div>
+              <p class="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
+                ลบเฉพาะแผงที่บันทึกว่าติดตั้งตาม Inverter / String แล้ว แผงในคลังสินค้ายังคงอยู่
+              </p>
+            </div>
+          </div>
+        </label>
+
+        <!-- Option 3: Damaged Only -->
+        <label class="block cursor-pointer">
+          <input type="radio" name="clear-scope-option" value="damaged" onchange="app.onClearScopeChange()" class="sr-only peer">
+          <div class="p-3 rounded-xl border border-slate-200 peer-checked:border-rose-600 peer-checked:bg-rose-50/60 hover:bg-slate-50 transition flex items-start gap-3">
+            <div class="w-8 h-8 rounded-lg bg-rose-100 text-rose-700 flex items-center justify-center shrink-0 mt-0.5">
+              <i data-lucide="alert-triangle" class="w-4 h-4"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-900">⚠️ ล้างเฉพาะแผงที่ชำรุด / ส่งเคลม (Damaged)</span>
+                <span class="text-[10px] bg-rose-100 text-rose-800 font-bold px-2 py-0.5 rounded whitespace-nowrap">เคลียร์ของเสีย</span>
+              </div>
+              <p class="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
+                ลบเฉพาะแผงที่บันทึกว่าชำรุดหรือส่งเคลมเรียบร้อยแล้วออกจากระบบ
+              </p>
+            </div>
+          </div>
+        </label>
+
+        <!-- Option 4: By Project -->
+        <label class="block cursor-pointer">
+          <input type="radio" name="clear-scope-option" value="project" onchange="app.onClearScopeChange()" class="sr-only peer">
+          <div class="p-3 rounded-xl border border-slate-200 peer-checked:border-amber-600 peer-checked:bg-amber-50/60 hover:bg-slate-50 transition flex items-start gap-3">
+            <div class="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 mt-0.5">
+              <i data-lucide="folder-x" class="w-4 h-4"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-900">📁 ล้างเฉพาะโครงการที่เลือก (By Project)</span>
+                <span class="text-[10px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded whitespace-nowrap">แยกตามโครงการ</span>
+              </div>
+              <p class="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
+                ลบเฉพาะแผงทั้งหมดในโครงการที่ระบุ โครงการอื่นจะไม่ได้รับผลกระทบ
+              </p>
+            </div>
+          </div>
+        </label>
+
+        <!-- Dynamic Project Selector (Visible only when 'project' is selected) -->
+        <div id="clear-project-select-container" class="hidden p-3 bg-amber-50/80 border border-amber-200 rounded-xl space-y-1.5 ml-1">
+          <label class="block text-xs font-semibold text-amber-900">เลือกโครงการที่ต้องการลบแผงทั้งหมด:</label>
+          <select id="clear-target-project" class="w-full text-xs px-3 py-2 bg-white border border-slate-300 rounded-lg font-semibold text-slate-800">
+          </select>
+        </div>
+
+        <!-- Option 5: Wipe All (Factory Reset) -->
+        <label class="block cursor-pointer">
+          <input type="radio" name="clear-scope-option" value="all" checked onchange="app.onClearScopeChange()" class="sr-only peer">
+          <div class="p-3 rounded-xl border border-slate-200 peer-checked:border-red-600 peer-checked:bg-red-50/60 hover:bg-slate-50 transition flex items-start gap-3">
+            <div class="w-8 h-8 rounded-lg bg-red-100 text-red-700 flex items-center justify-center shrink-0 mt-0.5">
+              <i data-lucide="alert-octagon" class="w-4 h-4"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-red-700">🔴 ล้างข้อมูลทั้งหมดในระบบ (Wipe All Data)</span>
+                <span class="text-[10px] bg-red-100 text-red-800 font-bold px-2 py-0.5 rounded whitespace-nowrap">ล้าง 100%</span>
+              </div>
+              <p class="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
+                ⚠️ ลบแผงโซลาร์ทุกแผง ทุกโครงการ ทุกสถานะออกจากฐานข้อมูลทั้งหมด (เริ่มต้นใหม่)
+              </p>
+            </div>
+          </div>
+        </label>
+      </div>
+
+      <!-- Live Summary Banner -->
+      <div id="clear-impact-preview" class="p-3 rounded-xl bg-slate-100 text-xs text-slate-700 font-medium flex items-center gap-2">
+        <i data-lucide="info" class="w-4 h-4 text-slate-500 shrink-0"></i>
+        <span id="clear-impact-text">ระบบจะล้างข้อมูล: แผงโซลาร์ทั้งหมดในระบบ 100% (ข้อมูลจะหายหมด)</span>
+      </div>
+
+      <!-- Safety Confirmation Checkbox -->
+      <div class="p-3 bg-rose-50 border border-rose-200 rounded-xl">
+        <label class="flex items-start gap-2.5 cursor-pointer select-none">
+          <input type="checkbox" id="clear-confirm-checkbox" onchange="app.onClearCheckboxToggle()" class="mt-0.5 rounded text-rose-600 focus:ring-rose-500">
+          <span class="text-xs font-semibold text-rose-900 leading-snug">
+            ฉันได้ตรวจสอบแล้ว และยืนยันว่าต้องการลบข้อมูลตามตัวเลือกด้านบนอย่างถาวร
+          </span>
+        </label>
+      </div>
+
+      <!-- Modal Action Buttons -->
+      <div class="flex items-center gap-2 pt-2 border-t border-slate-100">
+        <button type="button" onclick="app.closeClearOptionsModal()" class="flex-1 py-2.5 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition">
+          ยกเลิก
+        </button>
+        <button type="button" id="btn-submit-clear-options" onclick="app.handleClearOptionsSubmit()" disabled class="flex-1 py-2.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl shadow transition flex items-center justify-center gap-1.5">
+          <i data-lucide="trash-2" class="w-4 h-4"></i> ยืนยันการล้างข้อมูล
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="fixed bottom-4 right-4 left-4 sm:left-auto sm:w-80 z-50 pointer-events-none space-y-2"></div>
+
+  <!-- Frontend Logic -->
+  <script src="app.js"></script>
+</body>
+</html>
