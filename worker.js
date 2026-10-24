@@ -1,20 +1,20 @@
-/**
+﻿/**
  * Cloudflare Worker API for SolarTrack.
  * Serves /api/* from KV JSON storage and forwards everything else to static assets.
  */
 
 const STORE_KEY = 'solartrack';
 const DEFAULT_PROJECTS = [
-  { id: 1, name: 'Solar Farm Lopburi Phase 2', location: 'ลพบุรี', target_capacity_kw: 5000 },
-  { id: 2, name: 'Rooftop Factory Amata Chonburi', location: 'ชลบุรี', target_capacity_kw: 1200 },
-  { id: 3, name: 'Floating Solar Ubon Ratchathani', location: 'อุบลราชธานี', target_capacity_kw: 3500 },
-  { id: 4, name: 'Warehouse Bangna Km.19', location: 'สมุทรปราการ', target_capacity_kw: 850 }
+  { id: 1, name: 'Solar Farm Lopburi Phase 2', location: 'เธฅเธเธเธธเธฃเธต', target_capacity_kw: 5000 },
+  { id: 2, name: 'Rooftop Factory Amata Chonburi', location: 'เธเธฅเธเธธเธฃเธต', target_capacity_kw: 1200 },
+  { id: 3, name: 'Floating Solar Ubon Ratchathani', location: 'เธญเธธเธเธฅเธฃเธฒเธเธเธฒเธเธต', target_capacity_kw: 3500 },
+  { id: 4, name: 'Warehouse Bangna Km.19', location: 'เธชเธกเธธเธ—เธฃเธเธฃเธฒเธเธฒเธฃ', target_capacity_kw: 850 }
 ];
 const DEFAULT_PROJECT_NAMES = [
   'Solar Farm Lopburi Phase 2',
   'Rooftop Factory Amata Chonburi',
   'Floating Solar Ubon Ratchathani',
-  'คลังสินค้ากลาง (Central Warehouse)'
+  'เธเธฅเธฑเธเธชเธดเธเธเนเธฒเธเธฅเธฒเธ (Central Warehouse)'
 ];
 
 export default {
@@ -224,7 +224,7 @@ class DataStore {
   }
 
   emptyStore() {
-    return { panels: [], projects: DEFAULT_PROJECTS.map((p) => ({ ...p })) };
+    return { panels: [], projects: [] };
   }
 
   async load() {
@@ -242,7 +242,7 @@ class DataStore {
     try {
       this.cache = JSON.parse(raw);
       if (!Array.isArray(this.cache.panels)) this.cache.panels = [];
-      if (!Array.isArray(this.cache.projects)) this.cache.projects = DEFAULT_PROJECTS.map((p) => ({ ...p }));
+      if (!Array.isArray(this.cache.projects)) this.cache.projects = [];
     } catch {
       this.cache = this.emptyStore();
     }
@@ -360,19 +360,19 @@ class DataStore {
     const memory = await this.load();
     const fromProjects = (memory.projects || []).map((p) => p.name);
     const fromPanels = memory.panels.map((p) => p.project_name);
-    return Array.from(new Set([...DEFAULT_PROJECT_NAMES, ...fromProjects, ...fromPanels])).filter(Boolean);
+    return Array.from(new Set([...fromProjects, ...fromPanels])).filter(Boolean);
   }
 
-  async createProject({ name, location = 'ภาคสนาม', target_capacity_kw = 0 }) {
+  async createProject({ name, location = 'เธ เธฒเธเธชเธเธฒเธก', target_capacity_kw = 0 }) {
     const memory = await this.load();
     const cleanName = String(name || '').trim();
     if (memory.projects.some((p) => p.name.toLowerCase() === cleanName.toLowerCase())) {
-      throw new Error(`โครงการ "${cleanName}" มีอยู่ในระบบแล้ว`);
+      throw new Error(`เนเธเธฃเธเธเธฒเธฃ "${cleanName}" เธกเธตเธญเธขเธนเนเนเธเธฃเธฐเธเธเนเธฅเนเธง`);
     }
     const newProj = {
       id: Date.now(),
       name: cleanName,
-      location: String(location || 'ภาคสนาม').trim(),
+      location: String(location || 'เธ เธฒเธเธชเธเธฒเธก').trim(),
       target_capacity_kw: Number(target_capacity_kw) || 0,
       created_at: new Date().toISOString()
     };
@@ -381,7 +381,7 @@ class DataStore {
     return { success: true, project: newProj };
   }
 
-  async updateProject({ oldName, name, location = 'ภาคสนาม', target_capacity_kw = 0 }) {
+  async updateProject({ oldName, name, location = 'เธ เธฒเธเธชเธเธฒเธก', target_capacity_kw = 0 }) {
     const memory = await this.load();
     const cleanOld = String(oldName || '').trim();
     const cleanNew = String(name || cleanOld).trim();
@@ -412,13 +412,13 @@ class DataStore {
     } else {
       memory.panels.forEach((p) => {
         if (p.project_name === cleanName) {
-          p.project_name = 'คลังสินค้ากลาง (Central Warehouse)';
+          p.project_name = 'เธเธฅเธฑเธเธชเธดเธเธเนเธฒเธเธฅเธฒเธ (Central Warehouse)';
           p.status = 'warehouse';
         }
       });
     }
     await this.save();
-    return { success: true, message: `ลบโครงการ "${cleanName}" สำเร็จ` };
+    return { success: true, message: `เธฅเธเนเธเธฃเธเธเธฒเธฃ "${cleanName}" เธชเธณเน€เธฃเนเธ` };
   }
 
   async deletePanel(id) {
@@ -525,15 +525,15 @@ class DataStore {
     const memory = await this.load();
     const projectsMap = {};
     const defaults = [
-      { name: 'Solar Farm Lopburi Phase 2', location: 'ลพบุรี', target_capacity_kw: 5000 },
-      { name: 'Rooftop Factory Amata Chonburi', location: 'ชลบุรี', target_capacity_kw: 1200 },
-      { name: 'Floating Solar Ubon Ratchathani', location: 'อุบลราชธานี', target_capacity_kw: 3500 },
-      { name: 'คลังสินค้ากลาง (Central Warehouse)', location: 'สมุทรปราการ', target_capacity_kw: 0 }
+      { name: 'Solar Farm Lopburi Phase 2', location: 'เธฅเธเธเธธเธฃเธต', target_capacity_kw: 5000 },
+      { name: 'Rooftop Factory Amata Chonburi', location: 'เธเธฅเธเธธเธฃเธต', target_capacity_kw: 1200 },
+      { name: 'Floating Solar Ubon Ratchathani', location: 'เธญเธธเธเธฅเธฃเธฒเธเธเธฒเธเธต', target_capacity_kw: 3500 },
+      { name: 'เธเธฅเธฑเธเธชเธดเธเธเนเธฒเธเธฅเธฒเธ (Central Warehouse)', location: 'เธชเธกเธธเธ—เธฃเธเธฃเธฒเธเธฒเธฃ', target_capacity_kw: 0 }
     ];
-    (memory.projects.length ? memory.projects : defaults).forEach((d) => {
+    memory.projects.forEach((d) => {
       projectsMap[d.name] = {
         name: d.name,
-        location: d.location || 'ภาคสนาม',
+        location: d.location || 'เธ เธฒเธเธชเธเธฒเธก',
         target_capacity_kw: Number(d.target_capacity_kw) || 0,
         total_panels: 0,
         installed_panels: 0,
@@ -547,7 +547,7 @@ class DataStore {
       if (!projectsMap[p.project_name]) {
         projectsMap[p.project_name] = {
           name: p.project_name,
-          location: 'ภาคสนาม',
+          location: 'เธ เธฒเธเธชเธเธฒเธก',
           target_capacity_kw: 0,
           total_panels: 0,
           installed_panels: 0,
@@ -571,17 +571,17 @@ class DataStore {
 
 function demoPanels() {
   return [
-    { serial_number: 'LONGI-LR5-72HBD-550M-001', project_name: 'Solar Farm Lopburi Phase 2', inverter: 'INV-01', string_name: 'STR-01', panel_index: 1, brand_model: 'Longi Hi-MO 5 Bifacial', wattage: 550, status: 'installed', technician_name: 'สมชาย รักงาน', gps_lat: 14.80551, gps_lng: 100.65342, notes: 'Voc: 49.5V, Isc: 13.9A ผ่านเกณฑ์', scanned_mode: 'field' },
-    { serial_number: 'LONGI-LR5-72HBD-550M-002', project_name: 'Solar Farm Lopburi Phase 2', inverter: 'INV-01', string_name: 'STR-01', panel_index: 2, brand_model: 'Longi Hi-MO 5 Bifacial', wattage: 550, status: 'installed', technician_name: 'สมชาย รักงาน', gps_lat: 14.80552, gps_lng: 100.65345, notes: 'เชื่อมต่อ MC4 แน่นหนา ไม่หลวม', scanned_mode: 'field' },
-    { serial_number: 'LONGI-LR5-72HBD-550M-003', project_name: 'Solar Farm Lopburi Phase 2', inverter: 'INV-01', string_name: 'STR-01', panel_index: 3, brand_model: 'Longi Hi-MO 5 Bifacial', wattage: 550, status: 'installed', technician_name: 'สมชาย รักงาน', gps_lat: 14.80554, gps_lng: 100.65349, notes: 'ขัน Clamp ด้วยทอร์กประแจ 12 N·m', scanned_mode: 'field' },
-    { serial_number: 'LONGI-LR5-72HBD-550M-004', project_name: 'Solar Farm Lopburi Phase 2', inverter: 'INV-01', string_name: 'STR-01', panel_index: 4, brand_model: 'Longi Hi-MO 5 Bifacial', wattage: 550, status: 'installing', technician_name: 'สมชาย รักงาน', gps_lat: 14.80556, gps_lng: 100.65352, notes: 'รอต่อหัว Connector', scanned_mode: 'field' },
-    { serial_number: 'JINKO-JKM560N-72HL4-101', project_name: 'Rooftop Factory Amata Chonburi', inverter: 'INV-02', string_name: 'STR-03', panel_index: 1, brand_model: 'Jinko Tiger Neo N-Type', wattage: 560, status: 'installed', technician_name: 'วิชัย ช่างไฟ', gps_lat: 13.36112, gps_lng: 100.98471, notes: 'ติดตั้งบนราง Roof Clamp ไร้เจาะหลังคา', scanned_mode: 'field' },
-    { serial_number: 'JINKO-JKM560N-72HL4-102', project_name: 'Rooftop Factory Amata Chonburi', inverter: 'INV-02', string_name: 'STR-03', panel_index: 2, brand_model: 'Jinko Tiger Neo N-Type', wattage: 560, status: 'installed', technician_name: 'วิชัย ช่างไฟ', gps_lat: 13.36115, gps_lng: 100.98475, notes: 'ร้อยท่อ Flex กันน้ำเรียบร้อย', scanned_mode: 'field' },
-    { serial_number: 'JINKO-JKM560N-72HL4-103', project_name: 'Rooftop Factory Amata Chonburi', inverter: 'INV-02', string_name: 'STR-03', panel_index: 3, brand_model: 'Jinko Tiger Neo N-Type', wattage: 560, status: 'damaged', technician_name: 'วิชัย ช่างไฟ', gps_lat: 13.36118, gps_lng: 100.98480, notes: 'พบรอยแตกมุมกระจกด้านบน ส่งเคลมซัพพลายเออร์', scanned_mode: 'field' },
-    { serial_number: 'TRINA-TSM-NEG19RC-580-001', project_name: 'Floating Solar Ubon Ratchathani', inverter: 'FL-INV-01', string_name: 'STR-01', panel_index: 1, brand_model: 'Trina Vertex N Dual-Glass', wattage: 580, status: 'installed', technician_name: 'เกียรติศักดิ์ วิศวกรทุ่น', gps_lat: 15.2281, gps_lng: 104.8562, notes: 'ทุ่นลอยยึดสมอแน่นหนา สายไฟกัน UV IP68', scanned_mode: 'field' },
-    { serial_number: 'TRINA-TSM-NEG19RC-580-002', project_name: 'Floating Solar Ubon Ratchathani', inverter: 'FL-INV-01', string_name: 'STR-01', panel_index: 2, brand_model: 'Trina Vertex N Dual-Glass', wattage: 580, status: 'installed', technician_name: 'เกียรติศักดิ์ วิศวกรทุ่น', gps_lat: 15.2282, gps_lng: 104.8564, notes: 'ตรวจสอบจุดต่อสายดินกราวด์ผ่าน', scanned_mode: 'field' },
-    { serial_number: 'WH-LONGI-550-PALLET-08', project_name: 'คลังสินค้ากลาง (Central Warehouse)', inverter: '-', string_name: '-', panel_index: 0, brand_model: 'Longi Hi-MO 5 Bifacial', wattage: 550, status: 'warehouse', technician_name: 'ประสิทธิ์ สโตร์แมน', gps_lat: 13.6899, gps_lng: 100.7501, notes: 'พาเลทที่ #08 สภาพกล่องสมบูรณ์ มีซีล QC ครบ', scanned_mode: 'warehouse' },
-    { serial_number: 'WH-JINKO-560-PALLET-12', project_name: 'คลังสินค้ากลาง (Central Warehouse)', inverter: '-', string_name: '-', panel_index: 0, brand_model: 'Jinko Tiger Neo N-Type', wattage: 560, status: 'warehouse', technician_name: 'ประสิทธิ์ สโตร์แมน', gps_lat: 13.6899, gps_lng: 100.7501, notes: 'พาเลทที่ #12 ตรวจนับครบ 36 แผง', scanned_mode: 'warehouse' },
-    { serial_number: 'WH-TRINA-580-PALLET-15', project_name: 'คลังสินค้ากลาง (Central Warehouse)', inverter: '-', string_name: '-', panel_index: 0, brand_model: 'Trina Vertex N Dual-Glass', wattage: 580, status: 'warehouse', technician_name: 'ประสิทธิ์ สโตร์แมน', gps_lat: 13.6899, gps_lng: 100.7501, notes: 'พาเลทที่ #15 รอเบิกจ่ายไปหน้างานลพบุรี', scanned_mode: 'warehouse' }
+    { serial_number: 'LONGI-LR5-72HBD-550M-001', project_name: 'Solar Farm Lopburi Phase 2', inverter: 'INV-01', string_name: 'STR-01', panel_index: 1, brand_model: 'Longi Hi-MO 5 Bifacial', wattage: 550, status: 'installed', technician_name: 'เธชเธกเธเธฒเธข เธฃเธฑเธเธเธฒเธ', gps_lat: 14.80551, gps_lng: 100.65342, notes: 'Voc: 49.5V, Isc: 13.9A เธเนเธฒเธเน€เธเธ“เธ‘เน', scanned_mode: 'field' },
+    { serial_number: 'LONGI-LR5-72HBD-550M-002', project_name: 'Solar Farm Lopburi Phase 2', inverter: 'INV-01', string_name: 'STR-01', panel_index: 2, brand_model: 'Longi Hi-MO 5 Bifacial', wattage: 550, status: 'installed', technician_name: 'เธชเธกเธเธฒเธข เธฃเธฑเธเธเธฒเธ', gps_lat: 14.80552, gps_lng: 100.65345, notes: 'เน€เธเธทเนเธญเธกเธ•เนเธญ MC4 เนเธเนเธเธซเธเธฒ เนเธกเนเธซเธฅเธงเธก', scanned_mode: 'field' },
+    { serial_number: 'LONGI-LR5-72HBD-550M-003', project_name: 'Solar Farm Lopburi Phase 2', inverter: 'INV-01', string_name: 'STR-01', panel_index: 3, brand_model: 'Longi Hi-MO 5 Bifacial', wattage: 550, status: 'installed', technician_name: 'เธชเธกเธเธฒเธข เธฃเธฑเธเธเธฒเธ', gps_lat: 14.80554, gps_lng: 100.65349, notes: 'เธเธฑเธ Clamp เธ”เนเธงเธขเธ—เธญเธฃเนเธเธเธฃเธฐเนเธ 12 Nยทm', scanned_mode: 'field' },
+    { serial_number: 'LONGI-LR5-72HBD-550M-004', project_name: 'Solar Farm Lopburi Phase 2', inverter: 'INV-01', string_name: 'STR-01', panel_index: 4, brand_model: 'Longi Hi-MO 5 Bifacial', wattage: 550, status: 'installing', technician_name: 'เธชเธกเธเธฒเธข เธฃเธฑเธเธเธฒเธ', gps_lat: 14.80556, gps_lng: 100.65352, notes: 'เธฃเธญเธ•เนเธญเธซเธฑเธง Connector', scanned_mode: 'field' },
+    { serial_number: 'JINKO-JKM560N-72HL4-101', project_name: 'Rooftop Factory Amata Chonburi', inverter: 'INV-02', string_name: 'STR-03', panel_index: 1, brand_model: 'Jinko Tiger Neo N-Type', wattage: 560, status: 'installed', technician_name: 'เธงเธดเธเธฑเธข เธเนเธฒเธเนเธ', gps_lat: 13.36112, gps_lng: 100.98471, notes: 'เธ•เธดเธ”เธ•เธฑเนเธเธเธเธฃเธฒเธ Roof Clamp เนเธฃเนเน€เธเธฒเธฐเธซเธฅเธฑเธเธเธฒ', scanned_mode: 'field' },
+    { serial_number: 'JINKO-JKM560N-72HL4-102', project_name: 'Rooftop Factory Amata Chonburi', inverter: 'INV-02', string_name: 'STR-03', panel_index: 2, brand_model: 'Jinko Tiger Neo N-Type', wattage: 560, status: 'installed', technician_name: 'เธงเธดเธเธฑเธข เธเนเธฒเธเนเธ', gps_lat: 13.36115, gps_lng: 100.98475, notes: 'เธฃเนเธญเธขเธ—เนเธญ Flex เธเธฑเธเธเนเธณเน€เธฃเธตเธขเธเธฃเนเธญเธข', scanned_mode: 'field' },
+    { serial_number: 'JINKO-JKM560N-72HL4-103', project_name: 'Rooftop Factory Amata Chonburi', inverter: 'INV-02', string_name: 'STR-03', panel_index: 3, brand_model: 'Jinko Tiger Neo N-Type', wattage: 560, status: 'damaged', technician_name: 'เธงเธดเธเธฑเธข เธเนเธฒเธเนเธ', gps_lat: 13.36118, gps_lng: 100.98480, notes: 'เธเธเธฃเธญเธขเนเธ•เธเธกเธธเธกเธเธฃเธฐเธเธเธ”เนเธฒเธเธเธ เธชเนเธเน€เธเธฅเธกเธเธฑเธเธเธฅเธฒเธขเน€เธญเธญเธฃเน', scanned_mode: 'field' },
+    { serial_number: 'TRINA-TSM-NEG19RC-580-001', project_name: 'Floating Solar Ubon Ratchathani', inverter: 'FL-INV-01', string_name: 'STR-01', panel_index: 1, brand_model: 'Trina Vertex N Dual-Glass', wattage: 580, status: 'installed', technician_name: 'เน€เธเธตเธขเธฃเธ•เธดเธจเธฑเธเธ”เธดเน เธงเธดเธจเธงเธเธฃเธ—เธธเนเธ', gps_lat: 15.2281, gps_lng: 104.8562, notes: 'เธ—เธธเนเธเธฅเธญเธขเธขเธถเธ”เธชเธกเธญเนเธเนเธเธซเธเธฒ เธชเธฒเธขเนเธเธเธฑเธ UV IP68', scanned_mode: 'field' },
+    { serial_number: 'TRINA-TSM-NEG19RC-580-002', project_name: 'Floating Solar Ubon Ratchathani', inverter: 'FL-INV-01', string_name: 'STR-01', panel_index: 2, brand_model: 'Trina Vertex N Dual-Glass', wattage: 580, status: 'installed', technician_name: 'เน€เธเธตเธขเธฃเธ•เธดเธจเธฑเธเธ”เธดเน เธงเธดเธจเธงเธเธฃเธ—เธธเนเธ', gps_lat: 15.2282, gps_lng: 104.8564, notes: 'เธ•เธฃเธงเธเธชเธญเธเธเธธเธ”เธ•เนเธญเธชเธฒเธขเธ”เธดเธเธเธฃเธฒเธงเธ”เนเธเนเธฒเธ', scanned_mode: 'field' },
+    { serial_number: 'WH-LONGI-550-PALLET-08', project_name: 'เธเธฅเธฑเธเธชเธดเธเธเนเธฒเธเธฅเธฒเธ (Central Warehouse)', inverter: '-', string_name: '-', panel_index: 0, brand_model: 'Longi Hi-MO 5 Bifacial', wattage: 550, status: 'warehouse', technician_name: 'เธเธฃเธฐเธชเธดเธ—เธเธดเน เธชเนเธ•เธฃเนเนเธกเธ', gps_lat: 13.6899, gps_lng: 100.7501, notes: 'เธเธฒเน€เธฅเธ—เธ—เธตเน #08 เธชเธ เธฒเธเธเธฅเนเธญเธเธชเธกเธเธนเธฃเธ“เน เธกเธตเธเธตเธฅ QC เธเธฃเธ', scanned_mode: 'warehouse' },
+    { serial_number: 'WH-JINKO-560-PALLET-12', project_name: 'เธเธฅเธฑเธเธชเธดเธเธเนเธฒเธเธฅเธฒเธ (Central Warehouse)', inverter: '-', string_name: '-', panel_index: 0, brand_model: 'Jinko Tiger Neo N-Type', wattage: 560, status: 'warehouse', technician_name: 'เธเธฃเธฐเธชเธดเธ—เธเธดเน เธชเนเธ•เธฃเนเนเธกเธ', gps_lat: 13.6899, gps_lng: 100.7501, notes: 'เธเธฒเน€เธฅเธ—เธ—เธตเน #12 เธ•เธฃเธงเธเธเธฑเธเธเธฃเธ 36 เนเธเธ', scanned_mode: 'warehouse' },
+    { serial_number: 'WH-TRINA-580-PALLET-15', project_name: 'เธเธฅเธฑเธเธชเธดเธเธเนเธฒเธเธฅเธฒเธ (Central Warehouse)', inverter: '-', string_name: '-', panel_index: 0, brand_model: 'Trina Vertex N Dual-Glass', wattage: 580, status: 'warehouse', technician_name: 'เธเธฃเธฐเธชเธดเธ—เธเธดเน เธชเนเธ•เธฃเนเนเธกเธ', gps_lat: 13.6899, gps_lng: 100.7501, notes: 'เธเธฒเน€เธฅเธ—เธ—เธตเน #15 เธฃเธญเน€เธเธดเธเธเนเธฒเธขเนเธเธซเธเนเธฒเธเธฒเธเธฅเธเธเธธเธฃเธต', scanned_mode: 'warehouse' }
   ];
 }
