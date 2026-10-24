@@ -12,6 +12,7 @@ const db = require('./database');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const WAREHOUSE_PROJECT_NAME = 'คลังสินค้ากลาง (Central Warehouse)';
 
 // Middleware
 app.use(cors());
@@ -73,15 +74,25 @@ app.get('/api/panels/:serial', async (req, res) => {
 // Save (Create or Update) Panel
 app.post('/api/panels', async (req, res) => {
   try {
-    const { serial_number, project_name } = req.body;
-    if (!serial_number || !serial_number.trim()) {
+    const body = req.body || {};
+    const serialNumber = typeof body.serial_number === 'string' ? body.serial_number.trim() : '';
+    const isWarehouse = body.status === 'warehouse' || body.scanned_mode === 'warehouse';
+    const projectName = isWarehouse
+      ? WAREHOUSE_PROJECT_NAME
+      : (typeof body.project_name === 'string' ? body.project_name.trim() : '');
+    if (!serialNumber) {
       return res.status(400).json({ success: false, error: 'Serial number is required.' });
     }
-    if (!project_name || !project_name.trim()) {
+    if (!projectName) {
       return res.status(400).json({ success: false, error: 'Project name is required.' });
     }
 
-    const result = await db.savePanel(req.body);
+    const result = await db.savePanel({
+      ...body,
+      serial_number: serialNumber,
+      project_name: projectName,
+      ...(isWarehouse ? { status: 'warehouse', scanned_mode: 'warehouse' } : {})
+    });
     res.status(200).json(result);
   } catch (err) {
     console.error('Error saving panel:', err);

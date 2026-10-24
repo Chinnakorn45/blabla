@@ -15,8 +15,14 @@ const DEFAULT_SETTINGS = {
 function loadSettings() {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
-    return raw ? { ...DEFAULT_SETTINGS, ...JSON.parse(raw) } : { ...DEFAULT_SETTINGS };
-  } catch {
+    const parsed = raw ? JSON.parse(raw) : {};
+    return {
+      ...DEFAULT_SETTINGS,
+      ...parsed,
+      brands: Array.isArray(parsed.brands) ? parsed.brands.filter(b => typeof b === 'string' && b.trim()) : []
+    };
+  } catch (error) {
+    console.warn('Unable to load saved settings:', error);
     return { ...DEFAULT_SETTINGS };
   }
 }
@@ -25,7 +31,8 @@ function saveSettings(settings) {
   try {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
     return true;
-  } catch {
+  } catch (error) {
+    console.error('Unable to save settings:', error);
     return false;
   }
 }
@@ -53,8 +60,10 @@ class SettingsManager {
   }
 
   save(updates) {
-    this.settings = { ...this.settings, ...updates };
-    saveSettings(this.settings);
+    const nextSettings = { ...this.settings, ...updates };
+    if (!saveSettings(nextSettings)) return false;
+    this.settings = nextSettings;
+    return true;
   }
 
   getDefaultBrand() {
@@ -70,22 +79,23 @@ class SettingsManager {
   }
 
   getBrands() {
-    return this.settings.brands || [];
+    return Array.isArray(this.settings.brands) ? this.settings.brands : [];
   }
 
   addBrand(brandName) {
-    if (!brandName || !brandName.trim()) return;
+    if (!brandName || !brandName.trim()) return false;
     const brands = this.getBrands();
     const clean = brandName.trim();
     if (!brands.includes(clean)) {
       brands.push(clean);
-      this.save({ brands });
+      return this.save({ brands });
     }
+    return true;
   }
 
   removeBrand(brandName) {
     const brands = this.getBrands().filter(b => b !== brandName);
-    this.save({ brands });
+    return this.save({ brands });
   }
 
   /** Render the settings view into #view-settings */
@@ -101,6 +111,7 @@ class SettingsManager {
     if (defaultTechInput) defaultTechInput.value = this.settings.defaultTechnician || '';
 
     this.renderBrandList();
+    this.updateBrandDatalist();
   }
 
   renderBrandList() {
@@ -111,41 +122,54 @@ class SettingsManager {
       container.innerHTML = '<p class="text-xs text-slate-400 text-center py-3">ยังไม่มียี่ห้อที่บันทึกไว้</p>';
       return;
     }
-    container.innerHTML = brands.map(b => `
-      <div class="flex items-center justify-between px-3 py-2 bg-slate-50 rounded-lg border border-slate-200">
-        <span class="text-xs font-medium text-slate-800 truncate">${b}</span>
-        <button type="button" onclick="appSettings.removeBrandAndRefresh('${b.replace(/'/g, "\\'")}')"
-          class="ml-2 text-rose-400 hover:text-rose-600 shrink-0">
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-          </svg>
-        </button>
-      </div>
-    `).join('');
+    container.replaceChildren();
+    brands.forEach(brand => {
+      const row = document.createElement('div');
+      row.className = 'flex items-center justify-between px-3 py-2 bg-slate-50 rounded-lg border border-slate-200';
+      const name = document.createElement('span');
+      name.className = 'text-xs font-medium text-slate-800 truncate';
+      name.textContent = brand;
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'ml-2 text-rose-400 hover:text-rose-600 shrink-0';
+      remove.setAttribute('aria-label', `Remove ${brand}`);
+      remove.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+      remove.addEventListener('click', () => this.removeBrandAndRefresh(brand));
+      row.append(name, remove);
+      container.appendChild(row);
+    });
   }
 
   removeBrandAndRefresh(brandName) {
-    this.removeBrand(brandName);
-    this.renderBrandList();
-    // If removed brand was default, clear default
-    if (this.settings.defaultBrand === brandName) {
-      this.save({ defaultBrand: '' });
-      const el = document.getElementById('settings-default-brand');
-      if (el) el.value = '';
+    const updates = { brands: this.getBrands().filter(b => b !== brandName) };
+    if (this.settings.defaultBrand === brandName) updates.defaultBrand = '';
+    if (!this.save(updates)) {
+      if (typeof app !== 'undefined' && app) app.showToast('ไม่สามารถบันทึกการตั้งค่าได้', 'error');
+      return;
     }
+    this.renderBrandList();
+    this.updateBrandDatalist();
+    const el = document.getElementById('settings-default-brand');
+    if (el) el.value = this.settings.defaultBrand || '';
   }
 
   handleSaveDefaults() {
     const brand = document.getElementById('settings-default-brand')?.value.trim() || '';
-    const wattage = parseInt(document.getElementById('settings-default-wattage')?.value, 10) || 550;
+    const wattage = parseInt(document.getElementById('settings-default-wattage')?.value, 10);
     const tech = document.getElementById('settings-default-tech')?.value.trim() || '';
+    if (!Number.isInteger(wattage) || wattage < 1 || wattage > 2000) {
+      if (typeof app !== 'undefined' && app) app.showToast('กำลังวัตต์ต้องอยู่ระหว่าง 1 ถึง 2000 Wp', 'warning');
+      return;
+    }
 
-    this.save({ defaultBrand: brand, defaultWattage: wattage, defaultTechnician: tech });
-
-    // Auto-add brand to brand list if not empty and not already there
-    if (brand) this.addBrand(brand);
+    const brands = this.getBrands();
+    if (brand && !brands.includes(brand)) brands.push(brand);
+    if (!this.save({ defaultBrand: brand, defaultWattage: wattage, defaultTechnician: tech, brands })) {
+      if (typeof app !== 'undefined' && app) app.showToast('ไม่สามารถบันทึกการตั้งค่าได้', 'error');
+      return;
+    }
     this.renderBrandList();
+    this.updateBrandDatalist();
 
     // Show success feedback
     const btn = document.getElementById('btn-save-settings');
@@ -162,22 +186,29 @@ class SettingsManager {
     if (!input) return;
     const val = input.value.trim();
     if (!val) return;
-    this.addBrand(val);
+    if (!this.addBrand(val)) {
+      if (typeof app !== 'undefined' && app) app.showToast('ไม่สามารถบันทึกยี่ห้อได้', 'error');
+      return;
+    }
     input.value = '';
     this.renderBrandList();
 
     // Update default brand datalist if exists
     this.updateBrandDatalist();
+    if (typeof app !== 'undefined' && app) app.showToast('เพิ่มยี่ห้อแล้ว', 'success');
   }
 
   updateBrandDatalist() {
     const datalist = document.getElementById('brand-datalist');
     if (!datalist) return;
-    const brands = this.getBrands();
-    datalist.innerHTML = brands.map(b => `<option value="${b}">`).join('');
+    datalist.replaceChildren();
+    this.getBrands().forEach(brand => {
+      const option = document.createElement('option');
+      option.value = brand;
+      datalist.appendChild(option);
+    });
   }
 }
 
 // Global instance
 const appSettings = new SettingsManager();
-

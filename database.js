@@ -8,6 +8,7 @@ const path = require('path');
 
 const DB_FILE = path.join(__dirname, 'solar_panels.db');
 const JSON_FILE = path.join(__dirname, 'solar_panels_store.json');
+const WAREHOUSE_PROJECT_NAME = 'คลังสินค้ากลาง (Central Warehouse)';
 
 let db = null;
 let useJsonStore = false;
@@ -308,9 +309,10 @@ function getPanelBySerial(serial) {
 }
 
 function savePanel(panelData) {
+  const isWarehouse = panelData.status === 'warehouse' || panelData.scanned_mode === 'warehouse';
   const {
     serial_number,
-    project_name,
+    project_name = WAREHOUSE_PROJECT_NAME,
     inverter = '-',
     string_name = '-',
     panel_index = 0,
@@ -322,7 +324,15 @@ function savePanel(panelData) {
     gps_lng = null,
     notes = '',
     scanned_mode = 'field'
-  } = panelData;
+  } = {
+    ...panelData,
+    project_name: isWarehouse ? WAREHOUSE_PROJECT_NAME : panelData.project_name,
+    inverter: isWarehouse ? '-' : panelData.inverter,
+    string_name: isWarehouse ? '-' : panelData.string_name,
+    panel_index: isWarehouse ? 0 : panelData.panel_index,
+    status: isWarehouse ? 'warehouse' : panelData.status,
+    scanned_mode: isWarehouse ? 'warehouse' : panelData.scanned_mode
+  };
 
   const now = new Date().toISOString();
 
@@ -945,8 +955,16 @@ function seedDemoData() {
 function importPanels(panelsArray) {
   if (!Array.isArray(panelsArray)) return Promise.reject(new Error('Invalid import format: expected array'));
   return Promise.all(panelsArray.map(p => {
-    if (!p.serial_number || !p.project_name) return null;
-    return savePanel(p);
+    if (!p || typeof p !== 'object' || Array.isArray(p)) return null;
+    const isWarehouse = p.status === 'warehouse' || p.scanned_mode === 'warehouse';
+    const serialNumber = typeof p.serial_number === 'string' ? p.serial_number.trim() : '';
+    const projectName = typeof p.project_name === 'string' ? p.project_name.trim() : '';
+    if (!serialNumber || (!isWarehouse && !projectName)) return null;
+    return savePanel({
+      ...p,
+      serial_number: serialNumber,
+      project_name: isWarehouse ? WAREHOUSE_PROJECT_NAME : projectName
+    });
   })).then(results => {
     const valid = results.filter(Boolean);
     return { success: true, count: valid.length };
