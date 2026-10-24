@@ -13,12 +13,7 @@ let db = null;
 let useJsonStore = false;
 let memoryStore = {
   panels: [],
-  projects: [
-    { id: 1, name: 'Solar Farm Lopburi Phase 2', location: 'ลพบุรี', target_capacity_kw: 5000 },
-    { id: 2, name: 'Rooftop Factory Amata Chonburi', location: 'ชลบุรี', target_capacity_kw: 1200 },
-    { id: 3, name: 'Floating Solar Ubon Ratchathani', location: 'อุบลราชธานี', target_capacity_kw: 3500 },
-    { id: 4, name: 'Warehouse Bangna Km.19', location: 'สมุทรปราการ', target_capacity_kw: 850 }
-  ]
+  projects: []
 };
 
 // Seed initial demo data for field testing
@@ -443,8 +438,7 @@ function getProjectsList() {
     if (!memoryStore.projects) memoryStore.projects = [];
     const fromProjects = memoryStore.projects.map(p => p.name);
     const fromPanels = memoryStore.panels.map(p => p.project_name);
-    const defaults = ['Solar Farm Lopburi Phase 2', 'Rooftop Factory Amata Chonburi', 'Floating Solar Ubon Ratchathani', 'คลังสินค้ากลาง (Central Warehouse)'];
-    const merged = Array.from(new Set([...defaults, ...fromProjects, ...fromPanels])).filter(Boolean);
+    const merged = Array.from(new Set([...fromProjects, ...fromPanels])).filter(Boolean);
     return Promise.resolve(merged);
   }
 
@@ -458,9 +452,7 @@ function getProjectsList() {
     `;
     db.all(query, (err, rows) => {
       if (err) return reject(err);
-      const defaults = ['Solar Farm Lopburi Phase 2', 'Rooftop Factory Amata Chonburi', 'Floating Solar Ubon Ratchathani', 'คลังสินค้ากลาง (Central Warehouse)'];
-      const dbProjects = (rows || []).map(r => r.name);
-      resolve(Array.from(new Set([...defaults, ...dbProjects])).filter(Boolean));
+      resolve((rows || []).map(r => r.name).filter(Boolean));
     });
   });
 }
@@ -989,14 +981,8 @@ function getProjectsFull() {
   return new Promise((resolve, reject) => {
     if (useJsonStore) {
       const projectsMap = {};
-      const defaults = [
-        { name: 'Solar Farm Lopburi Phase 2', location: 'ลพบุรี', target_capacity_kw: 5000 },
-        { name: 'Rooftop Factory Amata Chonburi', location: 'ชลบุรี', target_capacity_kw: 1200 },
-        { name: 'Floating Solar Ubon Ratchathani', location: 'อุบลราชธานี', target_capacity_kw: 3500 },
-        { name: 'คลังสินค้ากลาง (Central Warehouse)', location: 'สมุทรปราการ', target_capacity_kw: 0 }
-      ];
 
-      (memoryStore.projects || defaults).forEach(d => {
+      (memoryStore.projects || []).forEach(d => {
         projectsMap[d.name] = {
           name: d.name,
           location: d.location || 'ภาคสนาม',

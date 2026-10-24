@@ -1045,8 +1045,7 @@ class SolarTrackingApp {
     try {
       if (this.isMockMode) {
         const panels = this.getMockPanels();
-        const def = ['Solar Farm Lopburi Phase 2', 'Rooftop Factory Amata Chonburi', 'Floating Solar Ubon Ratchathani', 'คลังสินค้ากลาง (Central Warehouse)'];
-        projects = Array.from(new Set([...def, ...panels.map(p => p.project_name)])).filter(Boolean);
+        projects = Array.from(new Set(panels.map(p => p.project_name))).filter(Boolean);
       } else {
         const res = await fetch('/api/projects');
         const data = await res.json();
@@ -1054,7 +1053,7 @@ class SolarTrackingApp {
       }
     } catch (e) {
       console.warn('Failed loading projects:', e);
-      projects = ['Solar Farm Lopburi Phase 2', 'Rooftop Factory Amata Chonburi', 'คลังสินค้ากลาง (Central Warehouse)'];
+      projects = [];
     }
 
     this.cachedProjectsList = projects;
@@ -2559,9 +2558,10 @@ class SolarTrackingApp {
         projects = [];
       }
       if (projects.length === 0) {
-        projects = ['Solar Farm Lopburi Phase 2', 'Rooftop Factory Amata Chonburi', 'คลังสินค้ากลาง (Central Warehouse)'];
+        projectSelect.innerHTML = '<option value="">-- ไม่มีโครงการ --</option>';
+      } else {
+        projectSelect.innerHTML = projects.map(p => `<option value="${this.escapeHtml(p)}">${this.escapeHtml(p)}</option>`).join('');
       }
-      projectSelect.innerHTML = projects.map(p => `<option value="${this.escapeHtml(p)}">${this.escapeHtml(p)}</option>`).join('');
     }
 
     const radios = document.getElementsByName('clear-scope-option');
