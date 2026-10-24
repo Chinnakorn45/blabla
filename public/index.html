@@ -1,10 +1,10 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="th">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>SolarTrack - ระบบบันทึกและติดตามซีเรียลแผงโซลาร์เซลล์</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☀️</text></svg>">
+  <title>SolarTrack - เธฃเธฐเธเธเธเธฑเธเธ—เธถเธเนเธฅเธฐเธ•เธดเธ”เธ•เธฒเธกเธเธตเน€เธฃเธตเธขเธฅเนเธเธเนเธเธฅเธฒเธฃเนเน€เธเธฅเธฅเน</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>โ€๏ธ</text></svg>">
 
   <!-- Google Fonts: Prompt & Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -36,7 +36,7 @@
           <h1 class="text-base font-bold tracking-tight flex items-center gap-1.5 leading-tight">
             SolarTrack <span class="text-amber-400 text-xs px-1.5 py-0.5 rounded bg-slate-800 font-mono">FIELD</span>
           </h1>
-          <p class="text-[11px] text-slate-400 leading-none">ระบบติดตามซีเรียลแผงโซลาร์</p>
+          <p class="text-[11px] text-slate-400 leading-none">เธฃเธฐเธเธเธ•เธดเธ”เธ•เธฒเธกเธเธตเน€เธฃเธตเธขเธฅเนเธเธเนเธเธฅเธฒเธฃเน</p>
         </div>
       </div>
 
@@ -44,12 +44,12 @@
       <nav class="flex items-center bg-slate-800/90 p-1 rounded-xl border border-slate-700/80">
         <button id="nav-btn-dashboard" onclick="app.showView('dashboard')" class="text-xs px-2.5 sm:px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 bg-amber-500 text-slate-950 font-bold shadow-xs">
           <i data-lucide="layout-dashboard" class="w-3.5 h-3.5"></i>
-          <span>แดชบอร์ด</span>
+          <span>เนเธ”เธเธเธญเธฃเนเธ”</span>
         </button>
         <button id="nav-btn-database" onclick="app.showView('database')" class="text-xs px-2.5 sm:px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 text-slate-300 hover:text-white">
           <i data-lucide="database" class="w-3.5 h-3.5"></i>
-          <span class="inline sm:hidden">ฐานข้อมูล</span>
-          <span class="hidden sm:inline">จัดการฐานข้อมูล</span>
+          <span class="inline sm:hidden">เธเธฒเธเธเนเธญเธกเธนเธฅ</span>
+          <span class="hidden sm:inline">เธเธฑเธ”เธเธฒเธฃเธเธฒเธเธเนเธญเธกเธนเธฅ</span>
         </button>
       </nav>
 
@@ -57,7 +57,7 @@
       <div class="hidden sm:flex items-center space-x-2">
         <div id="connection-status" class="flex items-center gap-1.5 text-xs bg-slate-800 border border-slate-700 px-2.5 py-1 rounded-full text-slate-300">
           <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-          <span id="connection-text" class="text-[11px]">ออนไลน์</span>
+          <span id="connection-text" class="text-[11px]">เธญเธญเธเนเธฅเธเน</span>
         </div>
       </div>
     </div>
@@ -79,10 +79,10 @@
           </div>
           <div class="min-w-0 flex-1">
             <div class="flex items-center gap-1.5 flex-wrap">
-              <span class="font-bold text-base sm:text-lg text-white">สแกนรับเข้าคลัง</span>
+              <span class="font-bold text-base sm:text-lg text-white">เธชเนเธเธเธฃเธฑเธเน€เธเนเธฒเธเธฅเธฑเธ</span>
               <span class="text-[10px] uppercase font-semibold bg-white/20 px-1.5 py-0.5 rounded text-white tracking-wider">Inbound</span>
             </div>
-            <p class="text-xs text-emerald-100 mt-0.5 truncate sm:whitespace-normal">บันทึกรับแผงเข้าสต๊อก ตรวจสอบสภาพกล่อง</p>
+            <p class="text-xs text-emerald-100 mt-0.5 truncate sm:whitespace-normal">เธเธฑเธเธ—เธถเธเธฃเธฑเธเนเธเธเน€เธเนเธฒเธชเธ•เนเธญเธ เธ•เธฃเธงเธเธชเธญเธเธชเธ เธฒเธเธเธฅเนเธญเธ</p>
           </div>
         </button>
 
@@ -92,10 +92,10 @@
           </div>
           <div class="min-w-0 flex-1">
             <div class="flex items-center gap-1.5 flex-wrap">
-              <span class="font-bold text-base sm:text-lg text-white">สแกนติดตั้งหน้างาน</span>
+              <span class="font-bold text-base sm:text-lg text-white">เธชเนเธเธเธ•เธดเธ”เธ•เธฑเนเธเธซเธเนเธฒเธเธฒเธ</span>
               <span class="text-[10px] uppercase font-semibold bg-white/20 px-1.5 py-0.5 rounded text-white tracking-wider">Field</span>
             </div>
-            <p class="text-xs text-amber-100 mt-0.5 truncate sm:whitespace-normal">ผูก Inverter, String และบันทึกพิกัด GPS</p>
+            <p class="text-xs text-amber-100 mt-0.5 truncate sm:whitespace-normal">เธเธนเธ Inverter, String เนเธฅเธฐเธเธฑเธเธ—เธถเธเธเธดเธเธฑเธ” GPS</p>
           </div>
         </button>
       </div>
@@ -104,45 +104,45 @@
       <div>
         <div class="flex items-center justify-between mb-3">
           <h2 class="font-bold text-slate-800 text-base flex items-center gap-2">
-            <i data-lucide="bar-chart-3" class="w-4 h-4 text-slate-500"></i> สรุปจำนวนแผงโซลาร์
+            <i data-lucide="bar-chart-3" class="w-4 h-4 text-slate-500"></i> เธชเธฃเธธเธเธเธณเธเธงเธเนเธเธเนเธเธฅเธฒเธฃเน
           </h2>
           <button onclick="app.loadDashboardData()" class="text-xs text-slate-500 hover:text-slate-800 flex items-center gap-1">
-            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> รีเฟรช
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> เธฃเธตเน€เธเธฃเธ
           </button>
         </div>
 
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <!-- Total & Projects -->
-          <div onclick="app.showDbTab('projects')" title="คลิกเพื่อจัดการโครงการ" class="touch-press bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm cursor-pointer hover:border-amber-400 hover:shadow-md transition">
+          <div onclick="app.showDbTab('projects')" title="เธเธฅเธดเธเน€เธเธทเนเธญเธเธฑเธ”เธเธฒเธฃเนเธเธฃเธเธเธฒเธฃ" class="touch-press bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm cursor-pointer hover:border-amber-400 hover:shadow-md transition">
             <div class="text-xs font-medium text-slate-500 flex items-center justify-between">
-              <span>รวมทั้งหมด</span>
+              <span>เธฃเธงเธกเธ—เธฑเนเธเธซเธกเธ”</span>
               <i data-lucide="folder-kanban" class="w-3.5 h-3.5 text-amber-500"></i>
             </div>
             <div id="stat-total" class="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-1">0</div>
             <div class="text-[11px] text-amber-600 font-semibold mt-0.5 flex items-center gap-1">
-              <span id="stat-projects">0</span> โครงการ <span class="text-slate-400 font-normal">➜ จัดการ</span>
+              <span id="stat-projects">0</span> เนเธเธฃเธเธเธฒเธฃ <span class="text-slate-400 font-normal">โ เธเธฑเธ”เธเธฒเธฃ</span>
             </div>
           </div>
 
           <!-- In Warehouse -->
           <div class="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm border-l-4 border-l-emerald-500">
-            <div class="text-xs font-medium text-slate-500">ในคลังสินค้า</div>
+            <div class="text-xs font-medium text-slate-500">เนเธเธเธฅเธฑเธเธชเธดเธเธเนเธฒ</div>
             <div id="stat-warehouse" class="text-2xl sm:text-3xl font-extrabold text-emerald-600 mt-1">0</div>
-            <div class="text-[11px] text-emerald-600/80 mt-0.5">พร้อมติดตั้ง</div>
+            <div class="text-[11px] text-emerald-600/80 mt-0.5">เธเธฃเนเธญเธกเธ•เธดเธ”เธ•เธฑเนเธ</div>
           </div>
 
           <!-- Installing / In Progress -->
           <div class="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm border-l-4 border-l-blue-500">
-            <div class="text-xs font-medium text-slate-500">กำลังติดตั้ง</div>
+            <div class="text-xs font-medium text-slate-500">เธเธณเธฅเธฑเธเธ•เธดเธ”เธ•เธฑเนเธ</div>
             <div id="stat-installing" class="text-2xl sm:text-3xl font-extrabold text-blue-600 mt-1">0</div>
-            <div class="text-[11px] text-blue-600/80 mt-0.5">หน้างาน</div>
+            <div class="text-[11px] text-blue-600/80 mt-0.5">เธซเธเนเธฒเธเธฒเธ</div>
           </div>
 
           <!-- Installed -->
           <div class="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm border-l-4 border-l-purple-500">
-            <div class="text-xs font-medium text-slate-500">ติดตั้งแล้วเสร็จ</div>
+            <div class="text-xs font-medium text-slate-500">เธ•เธดเธ”เธ•เธฑเนเธเนเธฅเนเธงเน€เธชเธฃเนเธ</div>
             <div id="stat-installed" class="text-2xl sm:text-3xl font-extrabold text-purple-600 mt-1">0</div>
-            <div class="text-[11px] text-purple-600/80 mt-0.5">บนโครงสร้าง</div>
+            <div class="text-[11px] text-purple-600/80 mt-0.5">เธเธเนเธเธฃเธเธชเธฃเนเธฒเธ</div>
           </div>
         </div>
       </div>
@@ -151,18 +151,18 @@
       <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
         <div class="p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h3 class="font-bold text-slate-900 text-base">รายการบันทึกล่าสุด</h3>
-            <p class="text-xs text-slate-500">แผงโซลาร์เซลล์ที่ถูกสแกนในระบบ</p>
+            <h3 class="font-bold text-slate-900 text-base">เธฃเธฒเธขเธเธฒเธฃเธเธฑเธเธ—เธถเธเธฅเนเธฒเธชเธธเธ”</h3>
+            <p class="text-xs text-slate-500">เนเธเธเนเธเธฅเธฒเธฃเนเน€เธเธฅเธฅเนเธ—เธตเนเธ–เธนเธเธชเนเธเธเนเธเธฃเธฐเธเธ</p>
           </div>
           <div class="flex flex-wrap items-center gap-2">
             <button onclick="app.openPalletRangeModal()" class="flex-1 sm:flex-initial text-xs bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 px-3 py-2 rounded-lg flex items-center justify-center gap-1.5 transition font-semibold">
-              <i data-lucide="boxes" class="w-3.5 h-3.5 text-amber-600"></i> สแกนยกพาเลท (100+)
+              <i data-lucide="boxes" class="w-3.5 h-3.5 text-amber-600"></i> เธชเนเธเธเธขเธเธเธฒเน€เธฅเธ— (100+)
             </button>
             <button onclick="app.openManualEntryModal()" class="flex-1 sm:flex-initial text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-lg flex items-center justify-center gap-1.5 transition font-medium">
-              <i data-lucide="keyboard" class="w-3.5 h-3.5"></i> กรอกรหัสด้วยมือ
+              <i data-lucide="keyboard" class="w-3.5 h-3.5"></i> เธเธฃเธญเธเธฃเธซเธฑเธชเธ”เนเธงเธขเธกเธทเธญ
             </button>
             <button onclick="app.exportCsv()" class="flex-1 sm:flex-initial text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-lg flex items-center justify-center gap-1.5 transition font-medium">
-              <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5"></i> ส่งออก Excel
+              <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5"></i> เธชเนเธเธญเธญเธ Excel
             </button>
           </div>
         </div>
@@ -171,27 +171,27 @@
         <div class="p-3.5 sm:p-4 bg-slate-50/70 border-b border-slate-100 grid grid-cols-1 sm:grid-cols-3 gap-2.5">
           <div class="relative">
             <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
-            <input type="text" id="filter-search" oninput="app.handleFilterChange()" placeholder="ค้นหา Serial, Inverter, ช่าง..." class="w-full text-xs pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500">
+            <input type="text" id="filter-search" oninput="app.handleFilterChange()" placeholder="เธเนเธเธซเธฒ Serial, Inverter, เธเนเธฒเธ..." class="w-full text-xs pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500">
           </div>
           <div>
             <select id="filter-project" onchange="app.handleFilterChange()" class="w-full text-xs px-3 py-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500">
-              <option value="all">ทุกโครงการ</option>
+              <option value="all">เธ—เธธเธเนเธเธฃเธเธเธฒเธฃ</option>
             </select>
           </div>
           <div>
             <select id="filter-status" onchange="app.handleFilterChange()" class="w-full text-xs px-3 py-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500">
-              <option value="all">ทุกสถานะ</option>
-              <option value="warehouse">ในคลังสินค้า (Warehouse)</option>
-              <option value="installing">กำลังติดตั้ง (Installing)</option>
-              <option value="installed">ติดตั้งแล้ว (Installed)</option>
-              <option value="damaged">ชำรุด / เคลม (Damaged)</option>
+              <option value="all">เธ—เธธเธเธชเธ–เธฒเธเธฐ</option>
+              <option value="warehouse">เนเธเธเธฅเธฑเธเธชเธดเธเธเนเธฒ (Warehouse)</option>
+              <option value="installing">เธเธณเธฅเธฑเธเธ•เธดเธ”เธ•เธฑเนเธ (Installing)</option>
+              <option value="installed">เธ•เธดเธ”เธ•เธฑเนเธเนเธฅเนเธง (Installed)</option>
+              <option value="damaged">เธเธณเธฃเธธเธ” / เน€เธเธฅเธก (Damaged)</option>
             </select>
           </div>
         </div>
 
         <!-- Mobile Card List View (Visible on phones) -->
         <div id="panels-cards-container" class="sm:hidden divide-y divide-slate-100">
-          <div class="py-8 text-center text-slate-400 text-xs">กำลังโหลดข้อมูล...</div>
+          <div class="py-8 text-center text-slate-400 text-xs">เธเธณเธฅเธฑเธเนเธซเธฅเธ”เธเนเธญเธกเธนเธฅ...</div>
         </div>
 
         <!-- Desktop Table View (Visible on tablet/desktop) -->
@@ -200,18 +200,18 @@
             <thead class="bg-slate-100/70 text-slate-600 font-semibold uppercase tracking-wider text-[10px] border-b border-slate-200">
               <tr>
                 <th class="py-3 px-4 whitespace-nowrap">Serial Number</th>
-                <th class="py-3 px-4 whitespace-nowrap">โครงการ</th>
+                <th class="py-3 px-4 whitespace-nowrap">เนเธเธฃเธเธเธฒเธฃ</th>
                 <th class="py-3 px-4 whitespace-nowrap">Inverter / String</th>
-                <th class="py-3 px-4 whitespace-nowrap">สถานะ</th>
-                <th class="py-3 px-4 whitespace-nowrap">ผู้บันทึก</th>
-                <th class="py-3 px-4 text-right whitespace-nowrap">เวลาบันทึก</th>
-                <th class="py-3 px-3 text-center whitespace-nowrap">จัดการ</th>
+                <th class="py-3 px-4 whitespace-nowrap">เธชเธ–เธฒเธเธฐ</th>
+                <th class="py-3 px-4 whitespace-nowrap">เธเธนเนเธเธฑเธเธ—เธถเธ</th>
+                <th class="py-3 px-4 text-right whitespace-nowrap">เน€เธงเธฅเธฒเธเธฑเธเธ—เธถเธ</th>
+                <th class="py-3 px-3 text-center whitespace-nowrap">เธเธฑเธ”เธเธฒเธฃ</th>
               </tr>
             </thead>
             <tbody id="panels-table-body" class="divide-y divide-slate-100 text-slate-700">
               <!-- Rendered via JS -->
               <tr>
-                <td colspan="7" class="py-8 text-center text-slate-400">กำลังโหลดข้อมูล...</td>
+                <td colspan="7" class="py-8 text-center text-slate-400">เธเธณเธฅเธฑเธเนเธซเธฅเธ”เธเนเธญเธกเธนเธฅ...</td>
               </tr>
             </tbody>
           </table>
@@ -231,22 +231,22 @@
           </button>
           <div>
             <div class="flex items-center gap-2">
-              <h2 class="font-bold text-sm sm:text-base">กล้องสแกนบาร์โค้ด / QR</h2>
+              <h2 class="font-bold text-sm sm:text-base">เธเธฅเนเธญเธเธชเนเธเธเธเธฒเธฃเนเนเธเนเธ” / QR</h2>
               <span id="scanner-mode-badge" class="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500 text-slate-950 uppercase">
-                ติดตั้งหน้างาน
+                เธ•เธดเธ”เธ•เธฑเนเธเธซเธเนเธฒเธเธฒเธ
               </span>
             </div>
-            <p class="text-[11px] text-slate-400">สแกน Barcode 1D / 2D หรือ QR Code บนตัวแผง</p>
+            <p class="text-[11px] text-slate-400">เธชเนเธเธ Barcode 1D / 2D เธซเธฃเธทเธญ QR Code เธเธเธ•เธฑเธงเนเธเธ</p>
           </div>
         </div>
 
         <div class="flex items-center space-x-1.5">
           <!-- Torch / Flashlight Toggle -->
-          <button id="btn-torch" onclick="app.toggleTorch()" title="เปิด/ปิดไฟฉาย" class="w-9 h-9 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-400 flex items-center justify-center transition border border-slate-700">
+          <button id="btn-torch" onclick="app.toggleTorch()" title="เน€เธเธดเธ”/เธเธดเธ”เนเธเธเธฒเธข" class="w-9 h-9 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-400 flex items-center justify-center transition border border-slate-700">
             <i data-lucide="zap" class="w-4 h-4"></i>
           </button>
           <!-- Camera Switcher -->
-          <button id="btn-switch-camera" onclick="app.switchCamera()" title="สลับกล้อง" class="w-9 h-9 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center justify-center transition border border-slate-700">
+          <button id="btn-switch-camera" onclick="app.switchCamera()" title="เธชเธฅเธฑเธเธเธฅเนเธญเธ" class="w-9 h-9 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center justify-center transition border border-slate-700">
             <i data-lucide="switch-camera" class="w-4 h-4"></i>
           </button>
         </div>
@@ -259,24 +259,24 @@
             <input type="checkbox" id="turbo-mode-toggle" onchange="app.toggleTurboMode(this.checked)" class="sr-only peer">
             <div class="w-9 h-5 bg-slate-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-500 relative"></div>
             <span class="font-bold flex items-center gap-1 text-amber-400">
-              ⚡ โหมดสแกนรัวต่อเนื่อง (Turbo Scan 100+)
+              โก เนเธซเธกเธ”เธชเนเธเธเธฃเธฑเธงเธ•เนเธญเน€เธเธทเนเธญเธ (Turbo Scan 100+)
             </span>
           </label>
         </div>
         <div id="turbo-status-pill" class="hidden sm:flex items-center gap-2 text-[11px] bg-slate-900/90 border border-amber-500/40 px-2.5 py-1 rounded-full text-amber-300">
-          <span>ยิงแล้ว: <strong id="turbo-scan-count" class="text-white text-xs">0</strong> แผง</span>
-          <span class="text-slate-500">•</span>
-          <span>แผงถัดไป: <strong id="turbo-next-index" class="text-white">#1</strong></span>
+          <span>เธขเธดเธเนเธฅเนเธง: <strong id="turbo-scan-count" class="text-white text-xs">0</strong> เนเธเธ</span>
+          <span class="text-slate-500">โ€ข</span>
+          <span>เนเธเธเธ–เธฑเธ”เนเธ: <strong id="turbo-next-index" class="text-white">#1</strong></span>
         </div>
         <button onclick="app.toggleTurboPresetDrawer()" class="text-[11px] text-slate-300 hover:text-white flex items-center gap-1 underline underline-offset-2">
-          <i data-lucide="sliders" class="w-3 h-3"></i> ตั้งค่า String / ช่าง
+          <i data-lucide="sliders" class="w-3 h-3"></i> เธ•เธฑเนเธเธเนเธฒ String / เธเนเธฒเธ
         </button>
       </div>
 
       <!-- Collapsible Turbo Preset Config Drawer -->
       <div id="turbo-preset-drawer" class="hidden bg-slate-850 bg-slate-900 border-b border-slate-700 p-3.5 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
         <div>
-          <label class="block text-[10px] text-slate-400 mb-0.5">โครงการ</label>
+          <label class="block text-[10px] text-slate-400 mb-0.5">เนเธเธฃเธเธเธฒเธฃ</label>
           <select id="turbo-preset-project" class="w-full text-xs px-2 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-white">
           </select>
         </div>
@@ -288,15 +288,15 @@
           </div>
         </div>
         <div>
-          <label class="block text-[10px] text-slate-400 mb-0.5">ลำดับแผงเริ่มต้น (#)</label>
+          <label class="block text-[10px] text-slate-400 mb-0.5">เธฅเธณเธ”เธฑเธเนเธเธเน€เธฃเธดเนเธกเธ•เนเธ (#)</label>
           <input type="number" id="turbo-preset-index" value="1" min="1" class="w-full text-xs px-2 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-white font-mono">
         </div>
         <div>
-          <label class="block text-[10px] text-slate-400 mb-0.5">สถานะที่บันทึก</label>
+          <label class="block text-[10px] text-slate-400 mb-0.5">เธชเธ–เธฒเธเธฐเธ—เธตเนเธเธฑเธเธ—เธถเธ</label>
           <select id="turbo-preset-status" class="w-full text-xs px-2 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-white font-bold">
-            <option value="installed">ติดตั้งแล้ว (Installed)</option>
-            <option value="warehouse">ในคลังสินค้า (Warehouse)</option>
-            <option value="installing">กำลังติดตั้ง (Installing)</option>
+            <option value="installed">เธ•เธดเธ”เธ•เธฑเนเธเนเธฅเนเธง (Installed)</option>
+            <option value="warehouse">เนเธเธเธฅเธฑเธเธชเธดเธเธเนเธฒ (Warehouse)</option>
+            <option value="installing">เธเธณเธฅเธฑเธเธ•เธดเธ”เธ•เธฑเนเธ (Installing)</option>
           </select>
         </div>
       </div>
@@ -307,7 +307,7 @@
         <div id="turbo-hud-overlay" class="absolute top-4 left-4 right-4 z-30 pointer-events-none hidden transition-all duration-300">
           <div class="bg-emerald-600/95 backdrop-blur-md text-white px-4 py-2.5 rounded-2xl shadow-xl border border-emerald-400 flex items-center justify-between gap-2 max-w-md mx-auto">
             <div class="flex items-center gap-2 min-w-0">
-              <span class="w-6 h-6 rounded-full bg-white text-emerald-700 font-bold flex items-center justify-center text-xs shrink-0">✓</span>
+              <span class="w-6 h-6 rounded-full bg-white text-emerald-700 font-bold flex items-center justify-center text-xs shrink-0">โ“</span>
               <div class="min-w-0">
                 <div class="text-xs font-bold truncate" id="turbo-hud-serial">-</div>
                 <div class="text-[10px] text-emerald-100" id="turbo-hud-details">-</div>
@@ -336,7 +336,7 @@
         <!-- Scanner Prompt helper -->
         <div class="absolute bottom-3 left-4 right-4 text-center z-20 pointer-events-none">
           <span class="inline-block bg-black/60 backdrop-blur-md text-white text-xs px-3 py-1.5 rounded-full border border-white/10 shadow">
-            วางบาร์โค้ดให้อยู่ในกรอบสี่เหลี่ยม
+            เธงเธฒเธเธเธฒเธฃเนเนเธเนเธ”เนเธซเนเธญเธขเธนเนเนเธเธเธฃเธญเธเธชเธตเนเน€เธซเธฅเธตเนเธขเธก
           </span>
         </div>
       </div>
@@ -345,15 +345,15 @@
       <div class="mt-4 flex flex-col sm:flex-row items-center justify-between gap-3">
         <div class="text-xs text-slate-500 flex items-center gap-2">
           <i data-lucide="info" class="w-4 h-4 text-slate-400"></i>
-          <span>รองรับ Code128, Code39, DataMatrix และ QR Code</span>
+          <span>เธฃเธญเธเธฃเธฑเธ Code128, Code39, DataMatrix เนเธฅเธฐ QR Code</span>
         </div>
 
         <div class="flex items-center gap-2 w-full sm:w-auto">
           <button onclick="app.openManualEntryModal()" class="flex-1 sm:flex-initial text-xs bg-white hover:bg-slate-50 text-slate-800 font-semibold px-4 py-2.5 rounded-xl border border-slate-300 shadow-sm flex items-center justify-center gap-1.5 transition">
-            <i data-lucide="keyboard" class="w-4 h-4 text-amber-500"></i> กรอกด้วยมือ / แปะรายการ (100+)
+            <i data-lucide="keyboard" class="w-4 h-4 text-amber-500"></i> เธเธฃเธญเธเธ”เนเธงเธขเธกเธทเธญ / เนเธเธฐเธฃเธฒเธขเธเธฒเธฃ (100+)
           </button>
           <button onclick="app.stopScannerAndReturn()" class="flex-1 sm:flex-initial text-xs bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold px-4 py-2.5 rounded-xl shadow-sm flex items-center justify-center gap-1 transition">
-            ยกเลิก
+            เธขเธเน€เธฅเธดเธ
           </button>
         </div>
       </div>
@@ -372,12 +372,12 @@
               <i data-lucide="chevron-left" class="w-5 h-5"></i>
             </button>
             <div>
-              <h2 id="form-title-text" class="font-bold text-base">บันทึกข้อมูลแผงโซลาร์เซลล์</h2>
-              <p id="form-subtitle-text" class="text-xs text-slate-400">กรอกรายละเอียดเพื่อบันทึกลงฐานข้อมูล</p>
+              <h2 id="form-title-text" class="font-bold text-base">เธเธฑเธเธ—เธถเธเธเนเธญเธกเธนเธฅเนเธเธเนเธเธฅเธฒเธฃเนเน€เธเธฅเธฅเน</h2>
+              <p id="form-subtitle-text" class="text-xs text-slate-400">เธเธฃเธญเธเธฃเธฒเธขเธฅเธฐเน€เธญเธตเธขเธ”เน€เธเธทเนเธญเธเธฑเธเธ—เธถเธเธฅเธเธเธฒเธเธเนเธญเธกเธนเธฅ</p>
             </div>
           </div>
           <span id="form-mode-tag" class="text-xs font-semibold px-2.5 py-1 rounded bg-amber-500 text-slate-950">
-            โหมดติดตั้งหน้างาน
+            เนเธซเธกเธ”เธ•เธดเธ”เธ•เธฑเนเธเธซเธเนเธฒเธเธฒเธ
           </span>
         </div>
 
@@ -387,8 +387,8 @@
             <i data-lucide="package-check" class="w-4 h-4"></i>
           </div>
           <div>
-            <p class="font-bold">โหมดบันทึกรับเข้าคลังสินค้า (Simplified Inbound)</p>
-            <p class="text-emerald-700 mt-0.5">ระบุเพียง Serial Number แล้วกดบันทึกได้ทันที ไม่ต้องกรอก Inverter / String หรือพิกัดหน้างาน</p>
+            <p class="font-bold">เนเธซเธกเธ”เธเธฑเธเธ—เธถเธเธฃเธฑเธเน€เธเนเธฒเธเธฅเธฑเธเธชเธดเธเธเนเธฒ (Simplified Inbound)</p>
+            <p class="text-emerald-700 mt-0.5">เธฃเธฐเธเธธเน€เธเธตเธขเธ Serial Number เนเธฅเนเธงเธเธ”เธเธฑเธเธ—เธถเธเนเธ”เนเธ—เธฑเธเธ—เธต เนเธกเนเธ•เนเธญเธเธเธฃเธญเธ Inverter / String เธซเธฃเธทเธญเธเธดเธเธฑเธ”เธซเธเนเธฒเธเธฒเธ</p>
           </div>
         </div>
 
@@ -396,8 +396,8 @@
         <div id="existing-panel-alert" class="hidden m-4 mb-0 p-3.5 bg-blue-50 border border-blue-200 rounded-xl text-blue-900 text-xs flex items-start gap-2.5">
           <i data-lucide="alert-circle" class="w-4 h-4 text-blue-600 mt-0.5 shrink-0"></i>
           <div>
-            <p class="font-semibold">พบข้อมูลแผงนี้ในระบบแล้ว!</p>
-            <p id="existing-panel-desc" class="text-blue-700 mt-0.5">การบันทึกครั้งนี้จะเป็นการอัปเดตสถานะและตำแหน่งใหม่</p>
+            <p class="font-semibold">เธเธเธเนเธญเธกเธนเธฅเนเธเธเธเธตเนเนเธเธฃเธฐเธเธเนเธฅเนเธง!</p>
+            <p id="existing-panel-desc" class="text-blue-700 mt-0.5">เธเธฒเธฃเธเธฑเธเธ—เธถเธเธเธฃเธฑเนเธเธเธตเนเธเธฐเน€เธเนเธเธเธฒเธฃเธญเธฑเธเน€เธ”เธ•เธชเธ–เธฒเธเธฐเนเธฅเธฐเธ•เธณเนเธซเธเนเธเนเธซเธกเน</p>
           </div>
         </div>
 
@@ -407,28 +407,28 @@
           <!-- Serial Number Field -->
           <div>
             <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-              Serial Number (รหัสประจำแผง) <span class="text-red-500">*</span>
+              Serial Number (เธฃเธซเธฑเธชเธเธฃเธฐเธเธณเนเธเธ) <span class="text-red-500">*</span>
             </label>
             <div class="relative">
-              <input type="text" id="input-serial" required placeholder="เช่น LONGI-LR5-72HBD-550M-001" class="w-full text-sm font-mono font-bold px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-slate-900">
-              <button type="button" onclick="app.startScanMode(app.currentMode)" title="สแกนใหม่" class="absolute right-2 top-1/2 -translate-y-1/2 text-xs bg-slate-200 hover:bg-slate-300 text-slate-700 px-2.5 py-1.5 rounded-lg flex items-center gap-1 font-medium transition">
-                <i data-lucide="qr-code" class="w-3.5 h-3.5"></i> สแกนใหม่
+              <input type="text" id="input-serial" required placeholder="เน€เธเนเธ LONGI-LR5-72HBD-550M-001" class="w-full text-sm font-mono font-bold px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-slate-900">
+              <button type="button" onclick="app.startScanMode(app.currentMode)" title="เธชเนเธเธเนเธซเธกเน" class="absolute right-2 top-1/2 -translate-y-1/2 text-xs bg-slate-200 hover:bg-slate-300 text-slate-700 px-2.5 py-1.5 rounded-lg flex items-center gap-1 font-medium transition">
+                <i data-lucide="qr-code" class="w-3.5 h-3.5"></i> เธชเนเธเธเนเธซเธกเน
               </button>
             </div>
           </div>
 
           <!-- Project Name / Target Warehouse Field -->
-          <div>
+          <div id="field-project-wrapper">
             <div class="flex items-center justify-between mb-1">
               <label id="label-project" class="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                ชื่อโครงการ (Project Name) <span class="text-red-500">*</span>
+                เธเธทเนเธญเนเธเธฃเธเธเธฒเธฃ (Project Name) <span class="text-red-500">*</span>
               </label>
               <button type="button" onclick="app.openNewProjectModal()" class="text-[11px] text-amber-600 hover:text-amber-700 font-medium flex items-center gap-0.5">
-                <i data-lucide="plus" class="w-3 h-3"></i> โครงการใหม่
+                <i data-lucide="plus" class="w-3 h-3"></i> เนเธเธฃเธเธเธฒเธฃเนเธซเธกเน
               </button>
             </div>
-            <select id="input-project" required class="w-full text-xs sm:text-sm px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500">
-              <option value="">-- เลือกโครงการ --</option>
+            <select id="input-project" class="w-full text-xs sm:text-sm px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500">
+              <option value="">-- เน€เธฅเธทเธญเธเนเธเธฃเธเธเธฒเธฃ --</option>
             </select>
           </div>
 
@@ -450,7 +450,7 @@
               </div>
               <div>
                 <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                  ลำดับแผง (#)
+                  เธฅเธณเธ”เธฑเธเนเธเธ (#)
                 </label>
                 <input type="number" id="input-index" placeholder="1" min="0" class="w-full text-xs sm:text-sm px-3 py-2.5 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500">
               </div>
@@ -459,14 +459,14 @@
             <!-- Status Selection (Interactive Radio Pills) -->
             <div>
               <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-                สถานะแผงโซลาร์ (Panel Status) <span class="text-red-500">*</span>
+                เธชเธ–เธฒเธเธฐเนเธเธเนเธเธฅเธฒเธฃเน (Panel Status) <span class="text-red-500">*</span>
               </label>
               <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 <label class="status-option-label cursor-pointer">
                   <input type="radio" name="form-status" value="warehouse" class="sr-only peer">
                   <div class="p-2.5 text-center rounded-xl border border-slate-200 peer-checked:border-emerald-600 peer-checked:bg-emerald-50 peer-checked:text-emerald-800 text-slate-600 hover:bg-slate-50 transition">
                     <i data-lucide="warehouse" class="w-4 h-4 mx-auto mb-1 text-emerald-600"></i>
-                    <div class="text-xs font-bold">ในคลัง</div>
+                    <div class="text-xs font-bold">เนเธเธเธฅเธฑเธ</div>
                     <div class="text-[10px] text-slate-400">Warehouse</div>
                   </div>
                 </label>
@@ -475,7 +475,7 @@
                   <input type="radio" name="form-status" value="installing" class="sr-only peer">
                   <div class="p-2.5 text-center rounded-xl border border-slate-200 peer-checked:border-blue-600 peer-checked:bg-blue-50 peer-checked:text-blue-800 text-slate-600 hover:bg-slate-50 transition">
                     <i data-lucide="wrench" class="w-4 h-4 mx-auto mb-1 text-blue-600"></i>
-                    <div class="text-xs font-bold">กำลังติดตั้ง</div>
+                    <div class="text-xs font-bold">เธเธณเธฅเธฑเธเธ•เธดเธ”เธ•เธฑเนเธ</div>
                     <div class="text-[10px] text-slate-400">In Progress</div>
                   </div>
                 </label>
@@ -484,7 +484,7 @@
                   <input type="radio" name="form-status" value="installed" class="sr-only peer" checked>
                   <div class="p-2.5 text-center rounded-xl border border-slate-200 peer-checked:border-purple-600 peer-checked:bg-purple-50 peer-checked:text-purple-800 text-slate-600 hover:bg-slate-50 transition">
                     <i data-lucide="check-circle" class="w-4 h-4 mx-auto mb-1 text-purple-600"></i>
-                    <div class="text-xs font-bold">ติดตั้งแล้ว</div>
+                    <div class="text-xs font-bold">เธ•เธดเธ”เธ•เธฑเนเธเนเธฅเนเธง</div>
                     <div class="text-[10px] text-slate-400">Installed</div>
                   </div>
                 </label>
@@ -493,7 +493,7 @@
                   <input type="radio" name="form-status" value="damaged" class="sr-only peer">
                   <div class="p-2.5 text-center rounded-xl border border-slate-200 peer-checked:border-rose-600 peer-checked:bg-rose-50 peer-checked:text-rose-800 text-slate-600 hover:bg-slate-50 transition">
                     <i data-lucide="alert-triangle" class="w-4 h-4 mx-auto mb-1 text-rose-600"></i>
-                    <div class="text-xs font-bold">ชำรุด / เคลม</div>
+                    <div class="text-xs font-bold">เธเธณเธฃเธธเธ” / เน€เธเธฅเธก</div>
                     <div class="text-[10px] text-slate-400">Damaged</div>
                   </div>
                 </label>
@@ -504,13 +504,13 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                  ยี่ห้อ / รุ่น (Brand & Model)
+                  เธขเธตเนเธซเนเธญ / เธฃเธธเนเธ (Brand & Model)
                 </label>
                 <input type="text" id="input-brand" placeholder="Longi Hi-MO 5 Bifacial" class="w-full text-xs sm:text-sm px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500">
               </div>
               <div>
                 <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                  กำลังไฟฟ้าวัตต์ (Wattage)
+                  เธเธณเธฅเธฑเธเนเธเธเนเธฒเธงเธฑเธ•เธ•เน (Wattage)
                 </label>
                 <div class="relative">
                   <input type="number" id="input-wattage" placeholder="550" value="550" class="w-full text-xs sm:text-sm px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500">
@@ -523,17 +523,17 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                  ผู้ปฏิบัติงาน / ช่างผู้ติดตั้ง
+                  เธเธนเนเธเธเธดเธเธฑเธ•เธดเธเธฒเธ / เธเนเธฒเธเธเธนเนเธ•เธดเธ”เธ•เธฑเนเธ
                 </label>
-                <input type="text" id="input-technician" placeholder="ชื่อ-นามสกุล ช่าง" class="w-full text-xs sm:text-sm px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500">
+                <input type="text" id="input-technician" placeholder="เธเธทเนเธญ-เธเธฒเธกเธชเธเธธเธฅ เธเนเธฒเธ" class="w-full text-xs sm:text-sm px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500">
               </div>
               <div>
                 <div class="flex items-center justify-between mb-1">
                   <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                    พิกัดภาคสนาม (GPS Coordinates)
+                    เธเธดเธเธฑเธ”เธ เธฒเธเธชเธเธฒเธก (GPS Coordinates)
                   </label>
                   <button type="button" onclick="app.captureGps()" class="text-[11px] text-amber-600 hover:text-amber-700 font-medium flex items-center gap-1">
-                    <i data-lucide="map-pin" class="w-3 h-3"></i> ดึงพิกัดปัจจุบัน
+                    <i data-lucide="map-pin" class="w-3 h-3"></i> เธ”เธถเธเธเธดเธเธฑเธ”เธเธฑเธเธเธธเธเธฑเธ
                   </button>
                 </div>
                 <div class="grid grid-cols-2 gap-2">
@@ -547,18 +547,18 @@
           <!-- Notes -->
           <div>
             <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-              หมายเหตุ / บันทึกเพิ่มเติม
+              เธซเธกเธฒเธขเน€เธซเธ•เธธ / เธเธฑเธเธ—เธถเธเน€เธเธดเนเธกเน€เธ•เธดเธก
             </label>
-            <textarea id="input-notes" rows="2" placeholder="เช่น สภาพรอยต่อ MC4, ค่า Voc ก่อนต่อเข้า String, รอยขีดข่วน..." class="w-full text-xs sm:text-sm px-3.5 py-2 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500"></textarea>
+            <textarea id="input-notes" rows="2" placeholder="เน€เธเนเธ เธชเธ เธฒเธเธฃเธญเธขเธ•เนเธญ MC4, เธเนเธฒ Voc เธเนเธญเธเธ•เนเธญเน€เธเนเธฒ String, เธฃเธญเธขเธเธตเธ”เธเนเธงเธ..." class="w-full text-xs sm:text-sm px-3.5 py-2 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500"></textarea>
           </div>
 
           <!-- Action Buttons -->
           <div class="pt-3 flex items-center gap-3">
             <button type="button" onclick="app.showView('dashboard')" class="flex-1 py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-bold transition text-center">
-              ยกเลิก
+              เธขเธเน€เธฅเธดเธ
             </button>
             <button type="submit" id="btn-save-panel" class="touch-press flex-[2] py-3 px-6 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white rounded-xl text-sm font-bold shadow-md shadow-amber-900/15 transition flex items-center justify-center gap-2">
-              <i data-lucide="save" class="w-4 h-4"></i> บันทึกข้อมูลแผงโซลาร์
+              <i data-lucide="save" class="w-4 h-4"></i> เธเธฑเธเธ—เธถเธเธเนเธญเธกเธนเธฅเนเธเธเนเธเธฅเธฒเธฃเน
             </button>
           </div>
 
@@ -578,8 +578,8 @@
         </div>
 
         <div>
-          <h2 class="text-xl font-bold text-slate-900">บันทึกข้อมูลสำเร็จ!</h2>
-          <p class="text-xs text-slate-500 mt-1">ข้อมูลถูกจัดเก็บลงฐานข้อมูลเรียบร้อยแล้ว</p>
+          <h2 class="text-xl font-bold text-slate-900">เธเธฑเธเธ—เธถเธเธเนเธญเธกเธนเธฅเธชเธณเน€เธฃเนเธ!</h2>
+          <p class="text-xs text-slate-500 mt-1">เธเนเธญเธกเธนเธฅเธ–เธนเธเธเธฑเธ”เน€เธเนเธเธฅเธเธเธฒเธเธเนเธญเธกเธนเธฅเน€เธฃเธตเธขเธเธฃเนเธญเธขเนเธฅเนเธง</p>
         </div>
 
         <!-- Summary Card of the saved item -->
@@ -589,7 +589,7 @@
             <span id="success-serial" class="font-mono font-bold text-slate-900">-</span>
           </div>
           <div class="flex justify-between items-center">
-            <span class="text-slate-500">โครงการ</span>
+            <span class="text-slate-500">เนเธเธฃเธเธเธฒเธฃ</span>
             <span id="success-project" class="font-medium text-slate-800">-</span>
           </div>
           <div class="flex justify-between items-center">
@@ -597,11 +597,11 @@
             <span id="success-location" class="font-medium text-slate-800">-</span>
           </div>
           <div class="flex justify-between items-center">
-            <span class="text-slate-500">สถานะ</span>
+            <span class="text-slate-500">เธชเธ–เธฒเธเธฐ</span>
             <span id="success-status-pill" class="font-bold px-2 py-0.5 rounded text-[11px]">-</span>
           </div>
           <div class="flex justify-between items-center pt-1 border-t border-slate-200">
-            <span class="text-slate-500">ผู้บันทึก</span>
+            <span class="text-slate-500">เธเธนเนเธเธฑเธเธ—เธถเธ</span>
             <span id="success-tech" class="text-slate-700">-</span>
           </div>
         </div>
@@ -609,11 +609,11 @@
         <!-- Continuous Actions (Critical for Fast Field Operations) -->
         <div class="space-y-2.5 pt-2">
           <button onclick="app.scanNextPanel()" class="touch-press w-full py-3.5 px-6 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white rounded-2xl text-sm font-bold shadow-lg shadow-amber-900/15 transition flex items-center justify-center gap-2">
-            <i data-lucide="scan-line" class="w-5 h-5"></i> สแกนแผงถัดไป (Scan Next)
+            <i data-lucide="scan-line" class="w-5 h-5"></i> เธชเนเธเธเนเธเธเธ–เธฑเธ”เนเธ (Scan Next)
           </button>
           
           <button onclick="app.showView('dashboard')" class="w-full py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition">
-            กลับหน้าหลัก (Dashboard)
+            เธเธฅเธฑเธเธซเธเนเธฒเธซเธฅเธฑเธ (Dashboard)
           </button>
         </div>
 
@@ -633,12 +633,12 @@
             </div>
             <div>
               <div class="flex items-center gap-2">
-                <h2 class="text-lg font-bold">ระบบจัดการฐานข้อมูล (Database Studio)</h2>
+                <h2 class="text-lg font-bold">เธฃเธฐเธเธเธเธฑเธ”เธเธฒเธฃเธเธฒเธเธเนเธญเธกเธนเธฅ (Database Studio)</h2>
                 <span id="db-engine-badge" class="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
                   SQLite
                 </span>
               </div>
-              <p class="text-xs text-slate-400">จัดการข้อมูลแผงโซลาร์, อัปเดตสถานะแบบกลุ่ม, สำรองและกู้คืนข้อมูล</p>
+              <p class="text-xs text-slate-400">เธเธฑเธ”เธเธฒเธฃเธเนเธญเธกเธนเธฅเนเธเธเนเธเธฅเธฒเธฃเน, เธญเธฑเธเน€เธ”เธ•เธชเธ–เธฒเธเธฐเนเธเธเธเธฅเธธเนเธก, เธชเธณเธฃเธญเธเนเธฅเธฐเธเธนเนเธเธทเธเธเนเธญเธกเธนเธฅ</p>
             </div>
           </div>
 
@@ -647,7 +647,7 @@
               <i data-lucide="download" class="w-3.5 h-3.5 text-amber-400"></i> Backup JSON
             </button>
             <button onclick="app.seedDemoDataset()" class="text-xs bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition shadow">
-              <i data-lucide="sparkles" class="w-3.5 h-3.5"></i> เติมข้อมูลทดสอบ
+              <i data-lucide="sparkles" class="w-3.5 h-3.5"></i> เน€เธ•เธดเธกเธเนเธญเธกเธนเธฅเธ—เธ”เธชเธญเธ
             </button>
           </div>
         </div>
@@ -655,19 +655,19 @@
         <!-- Metrics Grid -->
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-2 border-t border-slate-800 text-xs">
           <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700/50">
-            <span class="text-slate-400 text-[11px]">จำนวนแผงทั้งหมด</span>
+            <span class="text-slate-400 text-[11px]">เธเธณเธเธงเธเนเธเธเธ—เธฑเนเธเธซเธกเธ”</span>
             <div id="db-metric-total" class="text-lg font-bold text-white mt-0.5">0</div>
           </div>
           <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700/50">
-            <span class="text-slate-400 text-[11px]">ขนาดไฟล์ฐานข้อมูล</span>
+            <span class="text-slate-400 text-[11px]">เธเธเธฒเธ”เนเธเธฅเนเธเธฒเธเธเนเธญเธกเธนเธฅ</span>
             <div id="db-metric-size" class="text-lg font-bold text-amber-400 mt-0.5">0 KB</div>
           </div>
           <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700/50">
-            <span class="text-slate-400 text-[11px]">ติดตั้งแล้วเสร็จ</span>
+            <span class="text-slate-400 text-[11px]">เธ•เธดเธ”เธ•เธฑเนเธเนเธฅเนเธงเน€เธชเธฃเนเธ</span>
             <div id="db-metric-installed" class="text-lg font-bold text-purple-400 mt-0.5">0</div>
           </div>
           <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700/50">
-            <span class="text-slate-400 text-[11px]">อัปเดตล่าสุด</span>
+            <span class="text-slate-400 text-[11px]">เธญเธฑเธเน€เธ”เธ•เธฅเนเธฒเธชเธธเธ”</span>
             <div id="db-metric-time" class="text-[11px] font-mono text-slate-300 mt-1 truncate">-</div>
           </div>
         </div>
@@ -676,13 +676,13 @@
       <!-- Studio Sub-Navigation Tabs -->
       <div class="flex items-center space-x-2 border-b border-slate-200 pb-2 text-xs font-semibold overflow-x-auto">
         <button id="tab-btn-records" onclick="app.switchDbTab('records')" class="px-3.5 py-2 rounded-xl bg-slate-900 text-white flex items-center gap-1.5 transition shrink-0">
-          <i data-lucide="table" class="w-3.5 h-3.5"></i> ตารางข้อมูลแผงโซลาร์
+          <i data-lucide="table" class="w-3.5 h-3.5"></i> เธ•เธฒเธฃเธฒเธเธเนเธญเธกเธนเธฅเนเธเธเนเธเธฅเธฒเธฃเน
         </button>
         <button id="tab-btn-projects" onclick="app.switchDbTab('projects')" class="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-600 border border-slate-200 flex items-center gap-1.5 transition shrink-0">
-          <i data-lucide="folder-kanban" class="w-3.5 h-3.5"></i> จัดการโครงการ
+          <i data-lucide="folder-kanban" class="w-3.5 h-3.5"></i> เธเธฑเธ”เธเธฒเธฃเนเธเธฃเธเธเธฒเธฃ
         </button>
         <button id="tab-btn-tools" onclick="app.switchDbTab('tools')" class="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-600 border border-slate-200 flex items-center gap-1.5 transition shrink-0">
-          <i data-lucide="wrench" class="w-3.5 h-3.5"></i> เครื่องมือ & กู้คืนข้อมูล
+          <i data-lucide="wrench" class="w-3.5 h-3.5"></i> เน€เธเธฃเธทเนเธญเธเธกเธทเธญ & เธเธนเนเธเธทเธเธเนเธญเธกเธนเธฅ
         </button>
       </div>
 
@@ -692,20 +692,20 @@
         <div id="batch-action-bar" class="hidden p-3 bg-amber-500 text-slate-950 rounded-xl shadow-md flex flex-wrap items-center justify-between gap-2.5">
           <div class="flex items-center gap-2 text-xs font-bold">
             <i data-lucide="check-square" class="w-4 h-4"></i>
-            <span>เลือกแล้ว <span id="batch-selected-count" class="underline">0</span> รายการ</span>
+            <span>เน€เธฅเธทเธญเธเนเธฅเนเธง <span id="batch-selected-count" class="underline">0</span> เธฃเธฒเธขเธเธฒเธฃ</span>
           </div>
           <div class="flex items-center gap-1.5 text-xs">
             <button onclick="app.openBatchStatusModal()" class="bg-slate-900 hover:bg-slate-800 text-white font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1 transition">
-              <i data-lucide="tag" class="w-3.5 h-3.5 text-amber-400"></i> เปลี่ยนสถานะกลุ่ม
+              <i data-lucide="tag" class="w-3.5 h-3.5 text-amber-400"></i> เน€เธเธฅเธตเนเธขเธเธชเธ–เธฒเธเธฐเธเธฅเธธเนเธก
             </button>
             <button onclick="app.openBatchProjectModal()" class="bg-slate-900 hover:bg-slate-800 text-white font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1 transition">
-              <i data-lucide="folder-input" class="w-3.5 h-3.5 text-amber-400"></i> ย้ายโครงการกลุ่ม
+              <i data-lucide="folder-input" class="w-3.5 h-3.5 text-amber-400"></i> เธขเนเธฒเธขเนเธเธฃเธเธเธฒเธฃเธเธฅเธธเนเธก
             </button>
             <button onclick="app.confirmBatchDelete()" class="bg-rose-600 hover:bg-rose-700 text-white font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1 transition">
-              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> ลบที่เลือก
+              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> เธฅเธเธ—เธตเนเน€เธฅเธทเธญเธ
             </button>
             <button onclick="app.clearSelection()" class="bg-amber-600 hover:bg-amber-700 text-slate-950 font-bold px-2 py-1.5 rounded-lg text-[11px] transition">
-              ยกเลิก
+              เธขเธเน€เธฅเธดเธ
             </button>
           </div>
         </div>
@@ -714,20 +714,20 @@
         <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs grid grid-cols-1 sm:grid-cols-4 gap-2.5">
           <div class="relative sm:col-span-2">
             <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
-            <input type="text" id="db-filter-search" oninput="app.handleDbFilterChange()" placeholder="ค้นหา Serial, Inverter, ช่าง, ยี่ห้อ..." class="w-full text-xs pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500">
+            <input type="text" id="db-filter-search" oninput="app.handleDbFilterChange()" placeholder="เธเนเธเธซเธฒ Serial, Inverter, เธเนเธฒเธ, เธขเธตเนเธซเนเธญ..." class="w-full text-xs pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500">
           </div>
           <div>
             <select id="db-filter-project" onchange="app.handleDbFilterChange()" class="w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500">
-              <option value="all">ทุกโครงการ</option>
+              <option value="all">เธ—เธธเธเนเธเธฃเธเธเธฒเธฃ</option>
             </select>
           </div>
           <div>
             <select id="db-filter-status" onchange="app.handleDbFilterChange()" class="w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500">
-              <option value="all">ทุกสถานะ</option>
-              <option value="warehouse">ในคลังสินค้า (Warehouse)</option>
-              <option value="installing">กำลังติดตั้ง (Installing)</option>
-              <option value="installed">ติดตั้งแล้ว (Installed)</option>
-              <option value="damaged">ชำรุด / เคลม (Damaged)</option>
+              <option value="all">เธ—เธธเธเธชเธ–เธฒเธเธฐ</option>
+              <option value="warehouse">เนเธเธเธฅเธฑเธเธชเธดเธเธเนเธฒ (Warehouse)</option>
+              <option value="installing">เธเธณเธฅเธฑเธเธ•เธดเธ”เธ•เธฑเนเธ (Installing)</option>
+              <option value="installed">เธ•เธดเธ”เธ•เธฑเนเธเนเธฅเนเธง (Installed)</option>
+              <option value="damaged">เธเธณเธฃเธธเธ” / เน€เธเธฅเธก (Damaged)</option>
             </select>
           </div>
         </div>
@@ -736,7 +736,7 @@
         <div class="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden">
           <!-- Mobile Cards View -->
           <div id="db-cards-container" class="sm:hidden divide-y divide-slate-100">
-            <div class="py-8 text-center text-slate-400 text-xs">กำลังโหลดข้อมูล...</div>
+            <div class="py-8 text-center text-slate-400 text-xs">เธเธณเธฅเธฑเธเนเธซเธฅเธ”เธเนเธญเธกเธนเธฅ...</div>
           </div>
 
           <!-- Desktop Table View -->
@@ -749,17 +749,17 @@
                   </th>
                   <th class="py-3 px-3 whitespace-nowrap">ID</th>
                   <th class="py-3 px-3 whitespace-nowrap">Serial Number</th>
-                  <th class="py-3 px-3 whitespace-nowrap">โครงการ</th>
-                  <th class="py-3 px-3 whitespace-nowrap">ตำแหน่ง (Inv/Str/#)</th>
-                  <th class="py-3 px-3 whitespace-nowrap">รุ่น / วัตต์</th>
-                  <th class="py-3 px-3 whitespace-nowrap">สถานะ</th>
-                  <th class="py-3 px-3 whitespace-nowrap">ช่างผู้ตรวจ</th>
-                  <th class="py-3 px-3 text-center whitespace-nowrap">จัดการ</th>
+                  <th class="py-3 px-3 whitespace-nowrap">เนเธเธฃเธเธเธฒเธฃ</th>
+                  <th class="py-3 px-3 whitespace-nowrap">เธ•เธณเนเธซเธเนเธ (Inv/Str/#)</th>
+                  <th class="py-3 px-3 whitespace-nowrap">เธฃเธธเนเธ / เธงเธฑเธ•เธ•เน</th>
+                  <th class="py-3 px-3 whitespace-nowrap">เธชเธ–เธฒเธเธฐ</th>
+                  <th class="py-3 px-3 whitespace-nowrap">เธเนเธฒเธเธเธนเนเธ•เธฃเธงเธ</th>
+                  <th class="py-3 px-3 text-center whitespace-nowrap">เธเธฑเธ”เธเธฒเธฃ</th>
                 </tr>
               </thead>
               <tbody id="db-table-body" class="divide-y divide-slate-100 text-slate-700">
                 <tr>
-                  <td colspan="9" class="py-8 text-center text-slate-400">กำลังโหลดข้อมูล...</td>
+                  <td colspan="9" class="py-8 text-center text-slate-400">เธเธณเธฅเธฑเธเนเธซเธฅเธ”เธเนเธญเธกเธนเธฅ...</td>
                 </tr>
               </tbody>
             </table>
@@ -772,19 +772,19 @@
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/90 shadow-sm">
           <div>
             <h3 class="font-bold text-slate-800 text-sm sm:text-base flex items-center gap-2">
-              <i data-lucide="folder-kanban" class="w-4 h-4 text-amber-500"></i> จัดการโครงการโซลาร์เซลล์
+              <i data-lucide="folder-kanban" class="w-4 h-4 text-amber-500"></i> เธเธฑเธ”เธเธฒเธฃเนเธเธฃเธเธเธฒเธฃเนเธเธฅเธฒเธฃเนเน€เธเธฅเธฅเน
             </h3>
-            <p class="text-xs text-slate-500 mt-0.5">เพิ่ม ลบ แก้ไขชื่อโครงการ พร้อมติดตามสถานะและกำลังการผลิตแบบ Real-time</p>
+            <p class="text-xs text-slate-500 mt-0.5">เน€เธเธดเนเธก เธฅเธ เนเธเนเนเธเธเธทเนเธญเนเธเธฃเธเธเธฒเธฃ เธเธฃเนเธญเธกเธ•เธดเธ”เธ•เธฒเธกเธชเธ–เธฒเธเธฐเนเธฅเธฐเธเธณเธฅเธฑเธเธเธฒเธฃเธเธฅเธดเธ•เนเธเธ Real-time</p>
           </div>
           <button onclick="app.openNewProjectModal()" class="touch-press text-xs bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold px-4 py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition shadow-xs shrink-0">
-            <i data-lucide="folder-plus" class="w-4 h-4"></i> เพิ่มโครงการใหม่
+            <i data-lucide="folder-plus" class="w-4 h-4"></i> เน€เธเธดเนเธกเนเธเธฃเธเธเธฒเธฃเนเธซเธกเน
           </button>
         </div>
 
         <div id="db-projects-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <!-- Rendered via JS -->
           <div class="col-span-full p-8 bg-white rounded-2xl border border-slate-200 text-center text-slate-400 text-xs">
-            กำลังโหลดข้อมูลโครงการ...
+            เธเธณเธฅเธฑเธเนเธซเธฅเธ”เธเนเธญเธกเธนเธฅเนเธเธฃเธเธเธฒเธฃ...
           </div>
         </div>
       </div>
@@ -799,15 +799,15 @@
                 <i data-lucide="archive" class="w-5 h-5"></i>
               </div>
               <div>
-                <h4 class="font-bold text-sm text-slate-900">สำรองข้อมูล (JSON Backup)</h4>
-                <p class="text-xs text-slate-500">ดาวน์โหลด Snapshot ฐานข้อมูลเก็บไว้บนเครื่อง</p>
+                <h4 class="font-bold text-sm text-slate-900">เธชเธณเธฃเธญเธเธเนเธญเธกเธนเธฅ (JSON Backup)</h4>
+                <p class="text-xs text-slate-500">เธ”เธฒเธงเธเนเนเธซเธฅเธ” Snapshot เธเธฒเธเธเนเธญเธกเธนเธฅเน€เธเนเธเนเธงเนเธเธเน€เธเธฃเธทเนเธญเธ</p>
               </div>
             </div>
             <p class="text-xs text-slate-600 leading-relaxed">
-              ส่งออกข้อมูลแผงโซลาร์ทั้งหมด รวมถึงประวัติพิกัด GPS, Inverter, String และสถานะล่าสุดในรูปแบบไฟล์ JSON มาตรฐาน
+              เธชเนเธเธญเธญเธเธเนเธญเธกเธนเธฅเนเธเธเนเธเธฅเธฒเธฃเนเธ—เธฑเนเธเธซเธกเธ” เธฃเธงเธกเธ–เธถเธเธเธฃเธฐเธงเธฑเธ•เธดเธเธดเธเธฑเธ” GPS, Inverter, String เนเธฅเธฐเธชเธ–เธฒเธเธฐเธฅเนเธฒเธชเธธเธ”เนเธเธฃเธนเธเนเธเธเนเธเธฅเน JSON เธกเธฒเธ•เธฃเธเธฒเธ
             </p>
             <button onclick="app.downloadJsonBackup()" class="w-full py-2.5 px-4 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-2">
-              <i data-lucide="download" class="w-4 h-4 text-amber-400"></i> ดาวน์โหลดไฟล์ Backup (.json)
+              <i data-lucide="download" class="w-4 h-4 text-amber-400"></i> เธ”เธฒเธงเธเนเนเธซเธฅเธ”เนเธเธฅเน Backup (.json)
             </button>
           </div>
 
@@ -818,17 +818,17 @@
                 <i data-lucide="upload-cloud" class="w-5 h-5"></i>
               </div>
               <div>
-                <h4 class="font-bold text-sm text-slate-900">นำเข้าข้อมูล (Import Panels)</h4>
-                <p class="text-xs text-slate-500">นำเข้าข้อมูลจากไฟล์ JSON หรือ Backup เดิม</p>
+                <h4 class="font-bold text-sm text-slate-900">เธเธณเน€เธเนเธฒเธเนเธญเธกเธนเธฅ (Import Panels)</h4>
+                <p class="text-xs text-slate-500">เธเธณเน€เธเนเธฒเธเนเธญเธกเธนเธฅเธเธฒเธเนเธเธฅเน JSON เธซเธฃเธทเธญ Backup เน€เธ”เธดเธก</p>
               </div>
             </div>
             <p class="text-xs text-slate-600 leading-relaxed">
-              เลือกไฟล์ JSON ที่มีโครงสร้างข้อมูลแผงโซลาร์ ระบบจะทำการ Upsert ข้อมูลลงฐานข้อมูลโดยอัตโนมัติ
+              เน€เธฅเธทเธญเธเนเธเธฅเน JSON เธ—เธตเนเธกเธตเนเธเธฃเธเธชเธฃเนเธฒเธเธเนเธญเธกเธนเธฅเนเธเธเนเธเธฅเธฒเธฃเน เธฃเธฐเธเธเธเธฐเธ—เธณเธเธฒเธฃ Upsert เธเนเธญเธกเธนเธฅเธฅเธเธเธฒเธเธเนเธญเธกเธนเธฅเนเธ”เธขเธญเธฑเธ•เนเธเธกเธฑเธ•เธด
             </p>
             <div class="flex items-center gap-2">
               <input type="file" id="import-json-file" accept=".json" class="text-xs file:mr-2 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 w-full">
               <button onclick="app.handleImportJson()" class="py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold whitespace-nowrap transition">
-                นำเข้า
+                เธเธณเน€เธเนเธฒ
               </button>
             </div>
           </div>
@@ -840,15 +840,15 @@
                 <i data-lucide="sparkles" class="w-5 h-5"></i>
               </div>
               <div>
-                <h4 class="font-bold text-sm text-slate-900">เติมชุดข้อมูลทดสอบ (Demo Seed)</h4>
-                <p class="text-xs text-slate-500">สร้างแผง Longi, Jinko, Trina จำลอง</p>
+                <h4 class="font-bold text-sm text-slate-900">เน€เธ•เธดเธกเธเธธเธ”เธเนเธญเธกเธนเธฅเธ—เธ”เธชเธญเธ (Demo Seed)</h4>
+                <p class="text-xs text-slate-500">เธชเธฃเนเธฒเธเนเธเธ Longi, Jinko, Trina เธเธณเธฅเธญเธ</p>
               </div>
             </div>
             <p class="text-xs text-slate-600 leading-relaxed">
-              ระบบจะสร้างตัวอย่างแผงโซลาร์ 12 แผง พร้อมผูก Inverter, String, ค่าวัตต์, พิกัด GPS และสถานะต่างๆ เพื่อความสะดวกในการทดสอบระบบ
+              เธฃเธฐเธเธเธเธฐเธชเธฃเนเธฒเธเธ•เธฑเธงเธญเธขเนเธฒเธเนเธเธเนเธเธฅเธฒเธฃเน 12 เนเธเธ เธเธฃเนเธญเธกเธเธนเธ Inverter, String, เธเนเธฒเธงเธฑเธ•เธ•เน, เธเธดเธเธฑเธ” GPS เนเธฅเธฐเธชเธ–เธฒเธเธฐเธ•เนเธฒเธเน เน€เธเธทเนเธญเธเธงเธฒเธกเธชเธฐเธ”เธงเธเนเธเธเธฒเธฃเธ—เธ”เธชเธญเธเธฃเธฐเธเธ
             </p>
             <button onclick="app.seedDemoDataset()" class="w-full py-2.5 px-4 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 shadow-xs">
-              <i data-lucide="database" class="w-4 h-4"></i> เติมชุดข้อมูลตัวอย่าง 12 แผง
+              <i data-lucide="database" class="w-4 h-4"></i> เน€เธ•เธดเธกเธเธธเธ”เธเนเธญเธกเธนเธฅเธ•เธฑเธงเธญเธขเนเธฒเธ 12 เนเธเธ
             </button>
           </div>
 
@@ -859,15 +859,15 @@
                 <i data-lucide="alert-triangle" class="w-5 h-5"></i>
               </div>
               <div>
-                <h4 class="font-bold text-sm text-rose-700">จัดการล้างข้อมูลในระบบ (Selective Clear)</h4>
-                <p class="text-xs text-slate-500">เลือกล้างเฉพาะหมวดหมู่ หรือล้างทั้งหมด</p>
+                <h4 class="font-bold text-sm text-rose-700">เธเธฑเธ”เธเธฒเธฃเธฅเนเธฒเธเธเนเธญเธกเธนเธฅเนเธเธฃเธฐเธเธ (Selective Clear)</h4>
+                <p class="text-xs text-slate-500">เน€เธฅเธทเธญเธเธฅเนเธฒเธเน€เธเธเธฒเธฐเธซเธกเธงเธ”เธซเธกเธนเน เธซเธฃเธทเธญเธฅเนเธฒเธเธ—เธฑเนเธเธซเธกเธ”</p>
               </div>
             </div>
             <p class="text-xs text-slate-600 leading-relaxed">
-              สามารถเลือกล้างเฉพาะ <strong>แผงในคลังสินค้า</strong>, <strong>แผงที่ติดตั้งแล้ว</strong>, <strong>แผงชำรุด/ส่งเคลม</strong>, <strong>ล้างเฉพาะรายโครงการ</strong> หรือล้างทั้งหมด 100% พร้อมคำอธิบายและระบบยืนยันความปลอดภัย
+              เธชเธฒเธกเธฒเธฃเธ–เน€เธฅเธทเธญเธเธฅเนเธฒเธเน€เธเธเธฒเธฐ <strong>เนเธเธเนเธเธเธฅเธฑเธเธชเธดเธเธเนเธฒ</strong>, <strong>เนเธเธเธ—เธตเนเธ•เธดเธ”เธ•เธฑเนเธเนเธฅเนเธง</strong>, <strong>เนเธเธเธเธณเธฃเธธเธ”/เธชเนเธเน€เธเธฅเธก</strong>, <strong>เธฅเนเธฒเธเน€เธเธเธฒเธฐเธฃเธฒเธขเนเธเธฃเธเธเธฒเธฃ</strong> เธซเธฃเธทเธญเธฅเนเธฒเธเธ—เธฑเนเธเธซเธกเธ” 100% เธเธฃเนเธญเธกเธเธณเธญเธเธดเธเธฒเธขเนเธฅเธฐเธฃเธฐเธเธเธขเธทเธเธขเธฑเธเธเธงเธฒเธกเธเธฅเธญเธ”เธ เธฑเธข
             </p>
             <button onclick="app.openClearOptionsModal()" class="w-full py-2.5 px-4 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 shadow-xs">
-              <i data-lucide="trash-2" class="w-4 h-4"></i> เปิดตัวเลือกล้างข้อมูล (Selective Clear)
+              <i data-lucide="trash-2" class="w-4 h-4"></i> เน€เธเธดเธ”เธ•เธฑเธงเน€เธฅเธทเธญเธเธฅเนเธฒเธเธเนเธญเธกเธนเธฅ (Selective Clear)
             </button>
           </div>
         </div>
@@ -887,8 +887,8 @@
             <i data-lucide="keyboard" class="w-4 h-4"></i>
           </div>
           <div>
-            <h3 class="font-bold text-slate-900 text-sm">กรอกรหัสด้วยมือ & วางรายการ</h3>
-            <p class="text-[11px] text-slate-500">สำหรับบาร์โค้ดชำรุด หรือมีรายชื่อแผงในมือ</p>
+            <h3 class="font-bold text-slate-900 text-sm">เธเธฃเธญเธเธฃเธซเธฑเธชเธ”เนเธงเธขเธกเธทเธญ & เธงเธฒเธเธฃเธฒเธขเธเธฒเธฃ</h3>
+            <p class="text-[11px] text-slate-500">เธชเธณเธซเธฃเธฑเธเธเธฒเธฃเนเนเธเนเธ”เธเธณเธฃเธธเธ” เธซเธฃเธทเธญเธกเธตเธฃเธฒเธขเธเธทเนเธญเนเธเธเนเธเธกเธทเธญ</p>
           </div>
         </div>
         <button onclick="app.closeManualEntryModal()" class="text-slate-400 hover:text-slate-600">
@@ -899,10 +899,10 @@
       <!-- Mode Tabs: Single Rapid vs Bulk Paste -->
       <div class="flex items-center bg-slate-100 p-1 rounded-xl text-xs font-semibold">
         <button type="button" id="manual-tab-btn-single" onclick="app.switchManualTab('single')" class="flex-1 py-1.5 rounded-lg bg-white text-slate-900 shadow-xs flex items-center justify-center gap-1.5">
-          <i data-lucide="edit-3" class="w-3.5 h-3.5 text-amber-600"></i> พิมพ์ต่อเนื่อง (Enter)
+          <i data-lucide="edit-3" class="w-3.5 h-3.5 text-amber-600"></i> เธเธดเธกเธเนเธ•เนเธญเน€เธเธทเนเธญเธ (Enter)
         </button>
         <button type="button" id="manual-tab-btn-bulk" onclick="app.switchManualTab('bulk')" class="flex-1 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 flex items-center justify-center gap-1.5">
-          <i data-lucide="clipboard-list" class="w-3.5 h-3.5 text-blue-600"></i> แปะ 100+ แผงรวดเดียว
+          <i data-lucide="clipboard-list" class="w-3.5 h-3.5 text-blue-600"></i> เนเธเธฐ 100+ เนเธเธเธฃเธงเธ”เน€เธ”เธตเธขเธง
         </button>
       </div>
 
@@ -913,16 +913,16 @@
             <label class="block text-xs font-semibold text-slate-700">Serial Number <span class="text-red-500">*</span></label>
             <label class="flex items-center gap-1.5 text-[11px] text-amber-700 cursor-pointer select-none">
               <input type="checkbox" id="manual-quick-save" checked class="rounded text-amber-500">
-              <span>⚡ เคาะ Enter เพื่อบันทึกทันที</span>
+              <span>โก เน€เธเธฒเธฐ Enter เน€เธเธทเนเธญเธเธฑเธเธ—เธถเธเธ—เธฑเธเธ—เธต</span>
             </label>
           </div>
-          <input type="text" id="manual-serial-input" required placeholder="เช่น LONGI-LR5-72HBD-550M-001" class="w-full text-xs font-mono font-bold px-3.5 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 uppercase">
+          <input type="text" id="manual-serial-input" required placeholder="เน€เธเนเธ LONGI-LR5-72HBD-550M-001" class="w-full text-xs font-mono font-bold px-3.5 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 uppercase">
         </div>
 
         <!-- Preset location to enable instant auto-save without opening form -->
         <div id="manual-single-presets" class="space-y-2.5 p-3 bg-slate-50 border border-slate-200/80 rounded-xl text-xs">
           <div>
-            <label class="block text-[10px] font-semibold text-slate-600 uppercase mb-0.5">โครงการ</label>
+            <label class="block text-[10px] font-semibold text-slate-600 uppercase mb-0.5">เนเธเธฃเธเธเธฒเธฃ</label>
             <select id="manual-preset-project" class="w-full text-xs px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg">
             </select>
           </div>
@@ -936,7 +936,7 @@
               <input type="text" id="manual-preset-string" placeholder="STR-01" value="STR-01" class="w-full text-xs px-2 py-1.5 bg-white border border-slate-300 rounded-lg font-mono">
             </div>
             <div>
-              <label class="block text-[10px] font-semibold text-slate-600 mb-0.5">เลขแผง (#)</label>
+              <label class="block text-[10px] font-semibold text-slate-600 mb-0.5">เน€เธฅเธเนเธเธ (#)</label>
               <input type="number" id="manual-preset-index" value="1" min="1" class="w-full text-xs px-2 py-1.5 bg-white border border-slate-300 rounded-lg font-mono font-bold text-amber-700">
             </div>
           </div>
@@ -944,10 +944,10 @@
 
         <div class="flex items-center gap-2 pt-1">
           <button type="button" onclick="app.closeManualEntryModal()" class="flex-1 py-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl">
-            ยกเลิก
+            เธขเธเน€เธฅเธดเธ
           </button>
           <button type="submit" class="flex-1 py-2 text-xs font-bold text-white bg-amber-500 hover:bg-amber-600 rounded-xl shadow">
-            บันทึก (Enter)
+            เธเธฑเธเธ—เธถเธ (Enter)
           </button>
         </div>
       </form>
@@ -956,15 +956,15 @@
       <form id="manual-form-bulk" onsubmit="app.handleBulkPasteSubmit(event)" class="hidden space-y-3">
         <div>
           <div class="flex items-center justify-between mb-1">
-            <label class="block text-xs font-semibold text-slate-700">วางรายชื่อ Serial Number ทั้งหมด</label>
-            <span class="text-[11px] text-blue-600 font-bold">ตรวจพบ: <span id="bulk-paste-count">0</span> แผง</span>
+            <label class="block text-xs font-semibold text-slate-700">เธงเธฒเธเธฃเธฒเธขเธเธทเนเธญ Serial Number เธ—เธฑเนเธเธซเธกเธ”</label>
+            <span class="text-[11px] text-blue-600 font-bold">เธ•เธฃเธงเธเธเธ: <span id="bulk-paste-count">0</span> เนเธเธ</span>
           </div>
-          <textarea id="bulk-paste-input" rows="5" oninput="app.updateBulkPasteCount()" placeholder="ก๊อปปี้จาก Excel / LINE / Notepad มาวางที่นี่ (1 แผง ต่อ 1 บรรทัด)&#10;LONGI-550M-240101&#10;LONGI-550M-240102&#10;LONGI-550M-240103..." class="w-full text-xs font-mono px-3.5 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 leading-relaxed"></textarea>
+          <textarea id="bulk-paste-input" rows="5" oninput="app.updateBulkPasteCount()" placeholder="เธเนเธญเธเธเธตเนเธเธฒเธ Excel / LINE / Notepad เธกเธฒเธงเธฒเธเธ—เธตเนเธเธตเน (1 เนเธเธ เธ•เนเธญ 1 เธเธฃเธฃเธ—เธฑเธ”)&#10;LONGI-550M-240101&#10;LONGI-550M-240102&#10;LONGI-550M-240103..." class="w-full text-xs font-mono px-3.5 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 leading-relaxed"></textarea>
         </div>
 
         <div class="space-y-2.5 p-3 bg-slate-50 border border-slate-200/80 rounded-xl text-xs">
           <div>
-            <label class="block text-[10px] font-semibold text-slate-600 mb-0.5">โครงการปลายทาง</label>
+            <label class="block text-[10px] font-semibold text-slate-600 mb-0.5">เนเธเธฃเธเธเธฒเธฃเธเธฅเธฒเธขเธ—เธฒเธ</label>
             <select id="bulk-preset-project" required class="w-full text-xs px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg">
             </select>
           </div>
@@ -977,11 +977,11 @@
               </div>
             </div>
             <div>
-              <label class="block text-[10px] font-semibold text-slate-600 mb-0.5">สถานะ</label>
+              <label class="block text-[10px] font-semibold text-slate-600 mb-0.5">เธชเธ–เธฒเธเธฐ</label>
               <select id="bulk-preset-status" class="w-full text-xs px-2 py-1.5 bg-white border border-slate-300 rounded-lg font-bold">
-                <option value="installed">ติดตั้งแล้ว (Installed)</option>
-                <option value="warehouse">ในคลังสินค้า (Warehouse)</option>
-                <option value="installing">กำลังติดตั้ง (Installing)</option>
+                <option value="installed">เธ•เธดเธ”เธ•เธฑเนเธเนเธฅเนเธง (Installed)</option>
+                <option value="warehouse">เนเธเธเธฅเธฑเธเธชเธดเธเธเนเธฒ (Warehouse)</option>
+                <option value="installing">เธเธณเธฅเธฑเธเธ•เธดเธ”เธ•เธฑเนเธ (Installing)</option>
               </select>
             </div>
           </div>
@@ -989,10 +989,10 @@
 
         <div class="flex items-center gap-2 pt-1">
           <button type="button" onclick="app.closeManualEntryModal()" class="flex-1 py-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl">
-            ยกเลิก
+            เธขเธเน€เธฅเธดเธ
           </button>
           <button type="submit" id="btn-submit-bulk-paste" class="flex-1 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow flex items-center justify-center gap-1.5">
-            <i data-lucide="check" class="w-4 h-4"></i> บันทึกทั้งหมดรวดเดียว
+            <i data-lucide="check" class="w-4 h-4"></i> เธเธฑเธเธ—เธถเธเธ—เธฑเนเธเธซเธกเธ”เธฃเธงเธ”เน€เธ”เธตเธขเธง
           </button>
         </div>
       </form>
@@ -1010,8 +1010,8 @@
             <i data-lucide="folder-plus" class="w-5 h-5"></i>
           </div>
           <div>
-            <h3 class="font-bold text-slate-900 text-sm sm:text-base">เพิ่มโครงการใหม่</h3>
-            <p class="text-xs text-slate-500">สร้างโครงการติดตั้งหรือคลังเก็บแผงโซลาร์</p>
+            <h3 class="font-bold text-slate-900 text-sm sm:text-base">เน€เธเธดเนเธกเนเธเธฃเธเธเธฒเธฃเนเธซเธกเน</h3>
+            <p class="text-xs text-slate-500">เธชเธฃเนเธฒเธเนเธเธฃเธเธเธฒเธฃเธ•เธดเธ”เธ•เธฑเนเธเธซเธฃเธทเธญเธเธฅเธฑเธเน€เธเนเธเนเธเธเนเธเธฅเธฒเธฃเน</p>
           </div>
         </div>
         <button onclick="app.closeNewProjectModal()" class="text-slate-400 hover:text-slate-600 p-1">
@@ -1022,32 +1022,32 @@
       <form onsubmit="app.handleCreateProject(event)" class="space-y-3.5">
         <div>
           <label class="block text-xs font-semibold text-slate-700 mb-1">
-            ชื่อโครงการ (Project Name) <span class="text-red-500">*</span>
+            เธเธทเนเธญเนเธเธฃเธเธเธฒเธฃ (Project Name) <span class="text-red-500">*</span>
           </label>
-          <input type="text" id="new-project-name" required placeholder="เช่น Solar Farm Lopburi Phase 3" class="w-full text-xs sm:text-sm px-3.5 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500">
+          <input type="text" id="new-project-name" required placeholder="เน€เธเนเธ Solar Farm Lopburi Phase 3" class="w-full text-xs sm:text-sm px-3.5 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500">
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label class="block text-xs font-semibold text-slate-700 mb-1">
-              สถานที่ / จังหวัด
+              เธชเธ–เธฒเธเธ—เธตเน / เธเธฑเธเธซเธงเธฑเธ”
             </label>
-            <input type="text" id="new-project-location" placeholder="เช่น ลพบุรี, นิคมฯ อมตะ" class="w-full text-xs sm:text-sm px-3.5 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500">
+            <input type="text" id="new-project-location" placeholder="เน€เธเนเธ เธฅเธเธเธธเธฃเธต, เธเธดเธเธกเธฏ เธญเธกเธ•เธฐ" class="w-full text-xs sm:text-sm px-3.5 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500">
           </div>
           <div>
             <label class="block text-xs font-semibold text-slate-700 mb-1">
-              เป้าหมายกำลังผลิต (kWp)
+              เน€เธเนเธฒเธซเธกเธฒเธขเธเธณเธฅเธฑเธเธเธฅเธดเธ• (kWp)
             </label>
-            <input type="number" id="new-project-capacity" placeholder="เช่น 1200" step="any" min="0" class="w-full text-xs sm:text-sm px-3.5 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 font-mono">
+            <input type="number" id="new-project-capacity" placeholder="เน€เธเนเธ 1200" step="any" min="0" class="w-full text-xs sm:text-sm px-3.5 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 font-mono">
           </div>
         </div>
 
         <div class="flex items-center gap-2 pt-2 border-t border-slate-100">
           <button type="button" onclick="app.closeNewProjectModal()" class="flex-1 py-2.5 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition">
-            ยกเลิก
+            เธขเธเน€เธฅเธดเธ
           </button>
           <button type="submit" id="btn-submit-new-project" class="flex-1 py-2.5 text-xs font-bold text-white bg-amber-500 hover:bg-amber-600 rounded-xl shadow transition flex items-center justify-center gap-1.5">
-            <i data-lucide="check" class="w-4 h-4"></i> เพิ่มโครงการ
+            <i data-lucide="check" class="w-4 h-4"></i> เน€เธเธดเนเธกเนเธเธฃเธเธเธฒเธฃ
           </button>
         </div>
       </form>
@@ -1065,8 +1065,8 @@
             <i data-lucide="edit-3" class="w-5 h-5"></i>
           </div>
           <div>
-            <h3 class="font-bold text-slate-900 text-sm sm:text-base">แก้ไขข้อมูลโครงการ</h3>
-            <p class="text-xs text-slate-500">ปรับเปลี่ยนชื่อ หรือรายละเอียดโครงการ</p>
+            <h3 class="font-bold text-slate-900 text-sm sm:text-base">เนเธเนเนเธเธเนเธญเธกเธนเธฅเนเธเธฃเธเธเธฒเธฃ</h3>
+            <p class="text-xs text-slate-500">เธเธฃเธฑเธเน€เธเธฅเธตเนเธขเธเธเธทเนเธญ เธซเธฃเธทเธญเธฃเธฒเธขเธฅเธฐเน€เธญเธตเธขเธ”เนเธเธฃเธเธเธฒเธฃ</p>
           </div>
         </div>
         <button onclick="app.closeEditProjectModal()" class="text-slate-400 hover:text-slate-600 p-1">
@@ -1079,36 +1079,36 @@
 
         <div>
           <label class="block text-xs font-semibold text-slate-700 mb-1">
-            ชื่อโครงการ (Project Name) <span class="text-red-500">*</span>
+            เธเธทเนเธญเนเธเธฃเธเธเธฒเธฃ (Project Name) <span class="text-red-500">*</span>
           </label>
-          <input type="text" id="edit-project-name" required placeholder="ชื่อโครงการใหม่" class="w-full text-xs sm:text-sm px-3.5 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-900">
+          <input type="text" id="edit-project-name" required placeholder="เธเธทเนเธญเนเธเธฃเธเธเธฒเธฃเนเธซเธกเน" class="w-full text-xs sm:text-sm px-3.5 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-900">
           <p class="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 p-2 rounded-lg mt-1.5 flex items-start gap-1.5">
             <i data-lucide="info" class="w-3.5 h-3.5 shrink-0 mt-0.5"></i>
-            <span>หากเปลี่ยนชื่อโครงการ ระบบจะอัปเดตชื่อโครงการในทุกแผงที่สังกัดโครงการนี้ให้อัตโนมัติ</span>
+            <span>เธซเธฒเธเน€เธเธฅเธตเนเธขเธเธเธทเนเธญเนเธเธฃเธเธเธฒเธฃ เธฃเธฐเธเธเธเธฐเธญเธฑเธเน€เธ”เธ•เธเธทเนเธญเนเธเธฃเธเธเธฒเธฃเนเธเธ—เธธเธเนเธเธเธ—เธตเนเธชเธฑเธเธเธฑเธ”เนเธเธฃเธเธเธฒเธฃเธเธตเนเนเธซเนเธญเธฑเธ•เนเธเธกเธฑเธ•เธด</span>
           </p>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label class="block text-xs font-semibold text-slate-700 mb-1">
-              สถานที่ / จังหวัด
+              เธชเธ–เธฒเธเธ—เธตเน / เธเธฑเธเธซเธงเธฑเธ”
             </label>
-            <input type="text" id="edit-project-location" placeholder="เช่น ลพบุรี, นิคมฯ อมตะ" class="w-full text-xs sm:text-sm px-3.5 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <input type="text" id="edit-project-location" placeholder="เน€เธเนเธ เธฅเธเธเธธเธฃเธต, เธเธดเธเธกเธฏ เธญเธกเธ•เธฐ" class="w-full text-xs sm:text-sm px-3.5 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
           </div>
           <div>
             <label class="block text-xs font-semibold text-slate-700 mb-1">
-              เป้าหมายกำลังผลิต (kWp)
+              เน€เธเนเธฒเธซเธกเธฒเธขเธเธณเธฅเธฑเธเธเธฅเธดเธ• (kWp)
             </label>
-            <input type="number" id="edit-project-capacity" placeholder="เช่น 1200" step="any" min="0" class="w-full text-xs sm:text-sm px-3.5 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono">
+            <input type="number" id="edit-project-capacity" placeholder="เน€เธเนเธ 1200" step="any" min="0" class="w-full text-xs sm:text-sm px-3.5 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono">
           </div>
         </div>
 
         <div class="flex items-center gap-2 pt-2 border-t border-slate-100">
           <button type="button" onclick="app.closeEditProjectModal()" class="flex-1 py-2.5 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition">
-            ยกเลิก
+            เธขเธเน€เธฅเธดเธ
           </button>
           <button type="submit" id="btn-submit-edit-project" class="flex-1 py-2.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow transition flex items-center justify-center gap-1.5">
-            <i data-lucide="check" class="w-4 h-4"></i> บันทึกการแก้ไข
+            <i data-lucide="check" class="w-4 h-4"></i> เธเธฑเธเธ—เธถเธเธเธฒเธฃเนเธเนเนเธ
           </button>
         </div>
       </form>
@@ -1126,8 +1126,8 @@
             <i data-lucide="trash-2" class="w-5 h-5"></i>
           </div>
           <div>
-            <h3 class="font-bold text-slate-900 text-sm sm:text-base">ยืนยันการลบโครงการ</h3>
-            <p class="text-xs text-slate-500">จัดการโครงการและแผงที่สังกัดอยู่</p>
+            <h3 class="font-bold text-slate-900 text-sm sm:text-base">เธขเธทเธเธขเธฑเธเธเธฒเธฃเธฅเธเนเธเธฃเธเธเธฒเธฃ</h3>
+            <p class="text-xs text-slate-500">เธเธฑเธ”เธเธฒเธฃเนเธเธฃเธเธเธฒเธฃเนเธฅเธฐเนเธเธเธ—เธตเนเธชเธฑเธเธเธฑเธ”เธญเธขเธนเน</p>
           </div>
         </div>
         <button onclick="app.closeDeleteProjectModal()" class="text-slate-400 hover:text-slate-600 p-1">
@@ -1138,24 +1138,24 @@
       <input type="hidden" id="delete-project-name-hidden">
 
       <div class="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
-        <div class="text-xs text-slate-500">โครงการที่ต้องการลบ:</div>
+        <div class="text-xs text-slate-500">เนเธเธฃเธเธเธฒเธฃเธ—เธตเนเธ•เนเธญเธเธเธฒเธฃเธฅเธ:</div>
         <div id="delete-project-name-display" class="font-bold text-sm text-slate-900"></div>
         <div class="text-xs text-slate-600 flex items-center gap-1.5 mt-1">
           <i data-lucide="layers" class="w-3.5 h-3.5 text-amber-500"></i>
-          <span>จำนวนแผงปัจจุบันในโครงการ: <strong id="delete-project-count-display" class="text-amber-700">0</strong> แผง</span>
+          <span>เธเธณเธเธงเธเนเธเธเธเธฑเธเธเธธเธเธฑเธเนเธเนเธเธฃเธเธเธฒเธฃ: <strong id="delete-project-count-display" class="text-amber-700">0</strong> เนเธเธ</span>
         </div>
       </div>
 
       <div id="delete-project-options-container" class="space-y-2.5">
-        <label class="block text-xs font-semibold text-slate-700">เลือกแนวทางจัดการแผงในโครงการนี้:</label>
+        <label class="block text-xs font-semibold text-slate-700">เน€เธฅเธทเธญเธเนเธเธงเธ—เธฒเธเธเธฑเธ”เธเธฒเธฃเนเธเธเนเธเนเธเธฃเธเธเธฒเธฃเธเธตเน:</label>
 
         <label class="block cursor-pointer">
           <input type="radio" name="delete-project-action" value="move_warehouse" checked class="sr-only peer">
           <div class="p-3 rounded-xl border border-slate-200 peer-checked:border-emerald-600 peer-checked:bg-emerald-50/70 hover:bg-slate-50 transition flex items-start gap-2.5">
             <i data-lucide="package" class="w-4 h-4 text-emerald-600 shrink-0 mt-0.5"></i>
             <div>
-              <div class="text-xs font-bold text-emerald-950">📦 ย้ายแผงทั้งหมดเข้า "คลังสินค้ากลาง" (แนะนำ)</div>
-              <p class="text-[11px] text-emerald-800/80 mt-0.5">ข้อมูลแผงโซลาร์จะไม่สูญหาย โดยจะถูกเปลี่ยนสถานะเป็น "ในคลัง" พร้อมนำไปใช้โครงการอื่น</p>
+              <div class="text-xs font-bold text-emerald-950">๐“ฆ เธขเนเธฒเธขเนเธเธเธ—เธฑเนเธเธซเธกเธ”เน€เธเนเธฒ "เธเธฅเธฑเธเธชเธดเธเธเนเธฒเธเธฅเธฒเธ" (เนเธเธฐเธเธณ)</div>
+              <p class="text-[11px] text-emerald-800/80 mt-0.5">เธเนเธญเธกเธนเธฅเนเธเธเนเธเธฅเธฒเธฃเนเธเธฐเนเธกเนเธชเธนเธเธซเธฒเธข เนเธ”เธขเธเธฐเธ–เธนเธเน€เธเธฅเธตเนเธขเธเธชเธ–เธฒเธเธฐเน€เธเนเธ "เนเธเธเธฅเธฑเธ" เธเธฃเนเธญเธกเธเธณเนเธเนเธเนเนเธเธฃเธเธเธฒเธฃเธญเธทเนเธ</p>
             </div>
           </div>
         </label>
@@ -1165,8 +1165,8 @@
           <div class="p-3 rounded-xl border border-slate-200 peer-checked:border-rose-600 peer-checked:bg-rose-50/70 hover:bg-slate-50 transition flex items-start gap-2.5">
             <i data-lucide="trash-2" class="w-4 h-4 text-rose-600 shrink-0 mt-0.5"></i>
             <div>
-              <div class="text-xs font-bold text-rose-950">🔴 ลบแผงทั้งหมดในโครงการนี้ทิ้งถาวร</div>
-              <p class="text-[11px] text-rose-800/80 mt-0.5">⚠️ ข้อมูลแผงโซลาร์ทั้งหมดในโครงการนี้จะถูกลบออกจากฐานข้อมูลอย่างถาวร</p>
+              <div class="text-xs font-bold text-rose-950">๐”ด เธฅเธเนเธเธเธ—เธฑเนเธเธซเธกเธ”เนเธเนเธเธฃเธเธเธฒเธฃเธเธตเนเธ—เธดเนเธเธ–เธฒเธงเธฃ</div>
+              <p class="text-[11px] text-rose-800/80 mt-0.5">โ ๏ธ เธเนเธญเธกเธนเธฅเนเธเธเนเธเธฅเธฒเธฃเนเธ—เธฑเนเธเธซเธกเธ”เนเธเนเธเธฃเธเธเธฒเธฃเธเธตเนเธเธฐเธ–เธนเธเธฅเธเธญเธญเธเธเธฒเธเธเธฒเธเธเนเธญเธกเธนเธฅเธญเธขเนเธฒเธเธ–เธฒเธงเธฃ</p>
             </div>
           </div>
         </label>
@@ -1174,10 +1174,10 @@
 
       <div class="flex items-center gap-2 pt-2 border-t border-slate-100">
         <button type="button" onclick="app.closeDeleteProjectModal()" class="flex-1 py-2.5 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition">
-          ยกเลิก
+          เธขเธเน€เธฅเธดเธ
         </button>
         <button type="button" id="btn-confirm-delete-project" onclick="app.executeDeleteProject()" class="flex-1 py-2.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl shadow transition flex items-center justify-center gap-1.5">
-          <i data-lucide="trash-2" class="w-4 h-4"></i> ยืนยันการลบ
+          <i data-lucide="trash-2" class="w-4 h-4"></i> เธขเธทเธเธขเธฑเธเธเธฒเธฃเธฅเธ
         </button>
       </div>
     </div>
@@ -1190,7 +1190,7 @@
     <div class="bg-white rounded-2xl max-w-lg w-full p-5 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
       <div class="flex items-center justify-between border-b border-slate-100 pb-3">
         <h3 class="font-bold text-slate-900 text-sm flex items-center gap-2">
-          <i data-lucide="edit-3" class="w-4 h-4 text-amber-500"></i> แก้ไขข้อมูลแผงโซลาร์
+          <i data-lucide="edit-3" class="w-4 h-4 text-amber-500"></i> เนเธเนเนเธเธเนเธญเธกเธนเธฅเนเธเธเนเธเธฅเธฒเธฃเน
         </h3>
         <button onclick="app.closeEditModal()" class="text-slate-400 hover:text-slate-600">
           <i data-lucide="x" class="w-4 h-4"></i>
@@ -1205,7 +1205,7 @@
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-slate-700 mb-1">โครงการ</label>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">เนเธเธฃเธเธเธฒเธฃ</label>
           <select id="edit-project" required class="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg">
           </select>
         </div>
@@ -1220,48 +1220,48 @@
             <input type="text" id="edit-string" class="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg">
           </div>
           <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">ลำดับแผง</label>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">เธฅเธณเธ”เธฑเธเนเธเธ</label>
             <input type="number" id="edit-index" class="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg">
           </div>
         </div>
 
         <div class="grid grid-cols-2 gap-2">
           <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">สถานะ</label>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">เธชเธ–เธฒเธเธฐ</label>
             <select id="edit-status" class="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg font-bold">
-              <option value="warehouse">ในคลังสินค้า (Warehouse)</option>
-              <option value="installing">กำลังติดตั้ง (Installing)</option>
-              <option value="installed">ติดตั้งแล้ว (Installed)</option>
-              <option value="damaged">ชำรุด / เคลม (Damaged)</option>
+              <option value="warehouse">เนเธเธเธฅเธฑเธเธชเธดเธเธเนเธฒ (Warehouse)</option>
+              <option value="installing">เธเธณเธฅเธฑเธเธ•เธดเธ”เธ•เธฑเนเธ (Installing)</option>
+              <option value="installed">เธ•เธดเธ”เธ•เธฑเนเธเนเธฅเนเธง (Installed)</option>
+              <option value="damaged">เธเธณเธฃเธธเธ” / เน€เธเธฅเธก (Damaged)</option>
             </select>
           </div>
           <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">กำลังวัตต์ (Wp)</label>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">เธเธณเธฅเธฑเธเธงเธฑเธ•เธ•เน (Wp)</label>
             <input type="number" id="edit-wattage" class="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg">
           </div>
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-slate-700 mb-1">ยี่ห้อ / รุ่น</label>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">เธขเธตเนเธซเนเธญ / เธฃเธธเนเธ</label>
           <input type="text" id="edit-brand" class="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg">
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-slate-700 mb-1">ผู้ตรวจ / ช่าง</label>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">เธเธนเนเธ•เธฃเธงเธ / เธเนเธฒเธ</label>
           <input type="text" id="edit-technician" class="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg">
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-slate-700 mb-1">หมายเหตุ</label>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">เธซเธกเธฒเธขเน€เธซเธ•เธธ</label>
           <textarea id="edit-notes" rows="2" class="w-full text-xs px-3 py-1.5 border border-slate-300 rounded-lg"></textarea>
         </div>
 
         <div class="flex items-center gap-2 pt-2 border-t border-slate-100">
           <button type="button" onclick="app.closeEditModal()" class="flex-1 py-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl">
-            ยกเลิก
+            เธขเธเน€เธฅเธดเธ
           </button>
           <button type="submit" class="flex-1 py-2 text-xs font-bold text-white bg-amber-500 hover:bg-amber-600 rounded-xl shadow">
-            บันทึกการแก้ไข
+            เธเธฑเธเธ—เธถเธเธเธฒเธฃเนเธเนเนเธ
           </button>
         </div>
       </form>
@@ -1275,28 +1275,28 @@
     <div class="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl space-y-4">
       <div class="flex items-center justify-between border-b border-slate-100 pb-3">
         <h3 class="font-bold text-slate-900 text-sm flex items-center gap-2">
-          <i data-lucide="tag" class="w-4 h-4 text-amber-500"></i> เปลี่ยนสถานะแบบกลุ่ม
+          <i data-lucide="tag" class="w-4 h-4 text-amber-500"></i> เน€เธเธฅเธตเนเธขเธเธชเธ–เธฒเธเธฐเนเธเธเธเธฅเธธเนเธก
         </h3>
         <button onclick="app.closeBatchStatusModal()" class="text-slate-400 hover:text-slate-600">
           <i data-lucide="x" class="w-4 h-4"></i>
         </button>
       </div>
 
-      <p class="text-xs text-slate-600">เลือกสถานะใหม่สำหรับแผงโซลาร์ที่เลือกทั้งหมด (<span id="batch-status-target-count" class="font-bold">0</span> รายการ):</p>
+      <p class="text-xs text-slate-600">เน€เธฅเธทเธญเธเธชเธ–เธฒเธเธฐเนเธซเธกเนเธชเธณเธซเธฃเธฑเธเนเธเธเนเธเธฅเธฒเธฃเนเธ—เธตเนเน€เธฅเธทเธญเธเธ—เธฑเนเธเธซเธกเธ” (<span id="batch-status-target-count" class="font-bold">0</span> เธฃเธฒเธขเธเธฒเธฃ):</p>
 
       <form onsubmit="app.handleBatchStatusSubmit(event)" class="space-y-3">
         <select id="batch-status-select" class="w-full text-xs px-3.5 py-2.5 border border-slate-300 rounded-xl font-bold">
-          <option value="warehouse">ในคลังสินค้า (Warehouse)</option>
-          <option value="installing">กำลังติดตั้ง (Installing)</option>
-          <option value="installed" selected>ติดตั้งแล้ว (Installed)</option>
-          <option value="damaged">ชำรุด / เคลม (Damaged)</option>
+          <option value="warehouse">เนเธเธเธฅเธฑเธเธชเธดเธเธเนเธฒ (Warehouse)</option>
+          <option value="installing">เธเธณเธฅเธฑเธเธ•เธดเธ”เธ•เธฑเนเธ (Installing)</option>
+          <option value="installed" selected>เธ•เธดเธ”เธ•เธฑเนเธเนเธฅเนเธง (Installed)</option>
+          <option value="damaged">เธเธณเธฃเธธเธ” / เน€เธเธฅเธก (Damaged)</option>
         </select>
         <div class="flex items-center gap-2 pt-2">
           <button type="button" onclick="app.closeBatchStatusModal()" class="flex-1 py-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl">
-            ยกเลิก
+            เธขเธเน€เธฅเธดเธ
           </button>
           <button type="submit" class="flex-1 py-2 text-xs font-bold text-white bg-amber-500 hover:bg-amber-600 rounded-xl shadow">
-            อัปเดตสถานะทั้งหมด
+            เธญเธฑเธเน€เธ”เธ•เธชเธ–เธฒเธเธฐเธ—เธฑเนเธเธซเธกเธ”
           </button>
         </div>
       </form>
@@ -1310,24 +1310,24 @@
     <div class="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl space-y-4">
       <div class="flex items-center justify-between border-b border-slate-100 pb-3">
         <h3 class="font-bold text-slate-900 text-sm flex items-center gap-2">
-          <i data-lucide="folder-input" class="w-4 h-4 text-amber-500"></i> ย้ายโครงการแบบกลุ่ม
+          <i data-lucide="folder-input" class="w-4 h-4 text-amber-500"></i> เธขเนเธฒเธขเนเธเธฃเธเธเธฒเธฃเนเธเธเธเธฅเธธเนเธก
         </h3>
         <button onclick="app.closeBatchProjectModal()" class="text-slate-400 hover:text-slate-600">
           <i data-lucide="x" class="w-4 h-4"></i>
         </button>
       </div>
 
-      <p class="text-xs text-slate-600">เลือกโครงการปลายทางสำหรับแผงที่เลือก (<span id="batch-project-target-count" class="font-bold">0</span> รายการ):</p>
+      <p class="text-xs text-slate-600">เน€เธฅเธทเธญเธเนเธเธฃเธเธเธฒเธฃเธเธฅเธฒเธขเธ—เธฒเธเธชเธณเธซเธฃเธฑเธเนเธเธเธ—เธตเนเน€เธฅเธทเธญเธ (<span id="batch-project-target-count" class="font-bold">0</span> เธฃเธฒเธขเธเธฒเธฃ):</p>
 
       <form onsubmit="app.handleBatchProjectSubmit(event)" class="space-y-3">
         <select id="batch-project-select" required class="w-full text-xs px-3.5 py-2.5 border border-slate-300 rounded-xl font-bold">
         </select>
         <div class="flex items-center gap-2 pt-2">
           <button type="button" onclick="app.closeBatchProjectModal()" class="flex-1 py-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl">
-            ยกเลิก
+            เธขเธเน€เธฅเธดเธ
           </button>
           <button type="submit" class="flex-1 py-2 text-xs font-bold text-white bg-amber-500 hover:bg-amber-600 rounded-xl shadow">
-            ย้ายโครงการทั้งหมด
+            เธขเนเธฒเธขเนเธเธฃเธเธเธฒเธฃเธ—เธฑเนเธเธซเธกเธ”
           </button>
         </div>
       </form>
@@ -1345,8 +1345,8 @@
             <i data-lucide="boxes" class="w-4 h-4"></i>
           </div>
           <div>
-            <h3 class="font-bold text-slate-900 text-sm">บันทึกยกพาเลท (Pallet Bulk)</h3>
-            <p class="text-[11px] text-slate-500">สร้างแผงตามช่วงตัวเลข Serial Number อัตโนมัติ</p>
+            <h3 class="font-bold text-slate-900 text-sm">เธเธฑเธเธ—เธถเธเธขเธเธเธฒเน€เธฅเธ— (Pallet Bulk)</h3>
+            <p class="text-[11px] text-slate-500">เธชเธฃเนเธฒเธเนเธเธเธ•เธฒเธกเธเนเธงเธเธ•เธฑเธงเน€เธฅเธ Serial Number เธญเธฑเธ•เนเธเธกเธฑเธ•เธด</p>
           </div>
         </div>
         <button onclick="app.closePalletRangeModal()" class="text-slate-400 hover:text-slate-600">
@@ -1355,35 +1355,30 @@
       </div>
 
       <div class="p-3 bg-amber-50 border border-amber-200/80 rounded-xl text-xs text-amber-900">
-        💡 แผงโซลาร์ใน 1 พาเลท (30-36 แผง) มักมี Serial Number ต่อเนื่องกัน เพียงกรอกแผงแรกและแผงสุดท้าย ระบบจะสร้างทั้งหมดให้ในคลิกเดียว!
+        ๐’ก เนเธเธเนเธเธฅเธฒเธฃเนเนเธ 1 เธเธฒเน€เธฅเธ— (30-36 เนเธเธ) เธกเธฑเธเธกเธต Serial Number เธ•เนเธญเน€เธเธทเนเธญเธเธเธฑเธ เน€เธเธตเธขเธเธเธฃเธญเธเนเธเธเนเธฃเธเนเธฅเธฐเนเธเธเธชเธธเธ”เธ—เนเธฒเธข เธฃเธฐเธเธเธเธฐเธชเธฃเนเธฒเธเธ—เธฑเนเธเธซเธกเธ”เนเธซเนเนเธเธเธฅเธดเธเน€เธ”เธตเธขเธง!
       </div>
 
       <form onsubmit="app.handlePalletRangeSubmit(event)" class="space-y-3">
         <div>
-          <label class="block text-xs font-semibold text-slate-700 mb-1">โครงการ <span class="text-red-500">*</span></label>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">เนเธเธฃเธเธเธฒเธฃ <span class="text-red-500">*</span></label>
           <select id="pallet-project" required class="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg">
           </select>
         </div>
 
-        <div>
-          <label class="block text-xs font-semibold text-slate-700 mb-1">คำนำหน้ารหัส (Prefix) <span class="text-red-500">*</span></label>
-          <input type="text" id="pallet-prefix" required placeholder="เช่น LONGI-LR5-72HBD-550M-" value="LONGI-LR5-72HBD-550M-" class="w-full text-xs font-mono px-3 py-2 border border-slate-300 rounded-lg">
-        </div>
-
         <div class="grid grid-cols-2 gap-2">
           <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">เลขเริ่มต้น (Start #) <span class="text-red-500">*</span></label>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">เน€เธฅเธเน€เธฃเธดเนเธกเธ•เนเธ (Start #) <span class="text-red-500">*</span></label>
             <input type="number" id="pallet-start-num" required value="240101" oninput="app.calculatePalletCount()" class="w-full text-xs font-mono font-bold px-3 py-2 border border-slate-300 rounded-lg">
           </div>
           <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">เลขสิ้นสุด (End #) <span class="text-red-500">*</span></label>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">เน€เธฅเธเธชเธดเนเธเธชเธธเธ” (End #) <span class="text-red-500">*</span></label>
             <input type="number" id="pallet-end-num" required value="240136" oninput="app.calculatePalletCount()" class="w-full text-xs font-mono font-bold px-3 py-2 border border-slate-300 rounded-lg">
           </div>
         </div>
 
         <div class="p-2.5 bg-slate-100 rounded-xl flex items-center justify-between text-xs">
-          <span class="text-slate-600">จำนวนแผงที่จะสร้าง:</span>
-          <span class="font-extrabold text-amber-600 text-sm"><span id="pallet-calc-count">36</span> แผง</span>
+          <span class="text-slate-600">เธเธณเธเธงเธเนเธเธเธ—เธตเนเธเธฐเธชเธฃเนเธฒเธ:</span>
+          <span class="font-extrabold text-amber-600 text-sm"><span id="pallet-calc-count">36</span> เนเธเธ</span>
         </div>
 
         <div class="grid grid-cols-2 gap-2">
@@ -1395,32 +1390,32 @@
             </div>
           </div>
           <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">สถานะ</label>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">เธชเธ–เธฒเธเธฐ</label>
             <select id="pallet-status" class="w-full text-xs px-2.5 py-2 border border-slate-300 rounded-lg font-bold">
-              <option value="warehouse">ในคลังสินค้า (Warehouse)</option>
-              <option value="installed" selected>ติดตั้งแล้ว (Installed)</option>
-              <option value="installing">กำลังติดตั้ง (Installing)</option>
+              <option value="warehouse">เนเธเธเธฅเธฑเธเธชเธดเธเธเนเธฒ (Warehouse)</option>
+              <option value="installed" selected>เธ•เธดเธ”เธ•เธฑเนเธเนเธฅเนเธง (Installed)</option>
+              <option value="installing">เธเธณเธฅเธฑเธเธ•เธดเธ”เธ•เธฑเนเธ (Installing)</option>
             </select>
           </div>
         </div>
 
         <div class="grid grid-cols-2 gap-2">
           <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">ยี่ห้อ / รุ่น</label>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">เธขเธตเนเธซเนเธญ / เธฃเธธเนเธ</label>
             <input type="text" id="pallet-brand" value="Longi Hi-MO 5 Bifacial" class="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg">
           </div>
           <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">กำลังวัตต์ (Wp)</label>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">เธเธณเธฅเธฑเธเธงเธฑเธ•เธ•เน (Wp)</label>
             <input type="number" id="pallet-wattage" value="550" class="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg">
           </div>
         </div>
 
         <div class="flex items-center gap-2 pt-2 border-t border-slate-100">
           <button type="button" onclick="app.closePalletRangeModal()" class="flex-1 py-2.5 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl">
-            ยกเลิก
+            เธขเธเน€เธฅเธดเธ
           </button>
           <button type="submit" id="btn-submit-pallet-range" class="flex-1 py-2.5 text-xs font-bold text-white bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 rounded-xl shadow flex items-center justify-center gap-1.5">
-            <i data-lucide="check-circle" class="w-4 h-4"></i> บันทึกยกพาเลททันที
+            <i data-lucide="check-circle" class="w-4 h-4"></i> เธเธฑเธเธ—เธถเธเธขเธเธเธฒเน€เธฅเธ—เธ—เธฑเธเธ—เธต
           </button>
         </div>
       </form>
@@ -1438,8 +1433,8 @@
             <i data-lucide="trash-2" class="w-5 h-5"></i>
           </div>
           <div>
-            <h3 class="font-bold text-slate-900 text-sm sm:text-base">ตัวเลือกล้างข้อมูลฐานข้อมูล</h3>
-            <p class="text-xs text-slate-500">เลือกหมวดหมู่ที่ต้องการล้างอย่างชัดเจนและปลอดภัย</p>
+            <h3 class="font-bold text-slate-900 text-sm sm:text-base">เธ•เธฑเธงเน€เธฅเธทเธญเธเธฅเนเธฒเธเธเนเธญเธกเธนเธฅเธเธฒเธเธเนเธญเธกเธนเธฅ</h3>
+            <p class="text-xs text-slate-500">เน€เธฅเธทเธญเธเธซเธกเธงเธ”เธซเธกเธนเนเธ—เธตเนเธ•เนเธญเธเธเธฒเธฃเธฅเนเธฒเธเธญเธขเนเธฒเธเธเธฑเธ”เน€เธเธเนเธฅเธฐเธเธฅเธญเธ”เธ เธฑเธข</p>
           </div>
         </div>
         <button onclick="app.closeClearOptionsModal()" class="text-slate-400 hover:text-slate-600 p-1">
@@ -1447,7 +1442,7 @@
         </button>
       </div>
 
-      <p class="text-xs text-slate-600">กรุณาเลือกขอบเขตข้อมูลแผงโซลาร์ที่ต้องการล้างออกจากระบบ:</p>
+      <p class="text-xs text-slate-600">เธเธฃเธธเธ“เธฒเน€เธฅเธทเธญเธเธเธญเธเน€เธเธ•เธเนเธญเธกเธนเธฅเนเธเธเนเธเธฅเธฒเธฃเนเธ—เธตเนเธ•เนเธญเธเธเธฒเธฃเธฅเนเธฒเธเธญเธญเธเธเธฒเธเธฃเธฐเธเธ:</p>
 
       <!-- Options Radio Cards -->
       <div class="space-y-2.5">
@@ -1460,11 +1455,11 @@
             </div>
             <div class="flex-1 min-w-0">
               <div class="flex items-center justify-between">
-                <span class="text-xs font-bold text-slate-900">📦 ล้างเฉพาะแผงในคลังสินค้า (Warehouse)</span>
-                <span class="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded whitespace-nowrap">ปลอดภัยสูง</span>
+                <span class="text-xs font-bold text-slate-900">๐“ฆ เธฅเนเธฒเธเน€เธเธเธฒเธฐเนเธเธเนเธเธเธฅเธฑเธเธชเธดเธเธเนเธฒ (Warehouse)</span>
+                <span class="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded whitespace-nowrap">เธเธฅเธญเธ”เธ เธฑเธขเธชเธนเธ</span>
               </div>
               <p class="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
-                ลบเฉพาะแผงที่สถานะเป็น "ในคลัง" เพื่อเริ่มนับสต๊อกใหม่ <strong>ไม่กระทบ</strong>แผงที่ติดตั้งตามไซต์งาน
+                เธฅเธเน€เธเธเธฒเธฐเนเธเธเธ—เธตเนเธชเธ–เธฒเธเธฐเน€เธเนเธ "เนเธเธเธฅเธฑเธ" เน€เธเธทเนเธญเน€เธฃเธดเนเธกเธเธฑเธเธชเธ•เนเธญเธเนเธซเธกเน <strong>เนเธกเนเธเธฃเธฐเธ—เธ</strong>เนเธเธเธ—เธตเนเธ•เธดเธ”เธ•เธฑเนเธเธ•เธฒเธกเนเธเธ•เนเธเธฒเธ
               </p>
             </div>
           </div>
@@ -1479,11 +1474,11 @@
             </div>
             <div class="flex-1 min-w-0">
               <div class="flex items-center justify-between">
-                <span class="text-xs font-bold text-slate-900">☀️ ล้างเฉพาะแผงที่ติดตั้งแล้ว (Installed)</span>
-                <span class="text-[10px] bg-purple-100 text-purple-800 font-bold px-2 py-0.5 rounded whitespace-nowrap">เฉพาะไซต์งาน</span>
+                <span class="text-xs font-bold text-slate-900">โ€๏ธ เธฅเนเธฒเธเน€เธเธเธฒเธฐเนเธเธเธ—เธตเนเธ•เธดเธ”เธ•เธฑเนเธเนเธฅเนเธง (Installed)</span>
+                <span class="text-[10px] bg-purple-100 text-purple-800 font-bold px-2 py-0.5 rounded whitespace-nowrap">เน€เธเธเธฒเธฐเนเธเธ•เนเธเธฒเธ</span>
               </div>
               <p class="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
-                ลบเฉพาะแผงที่บันทึกว่าติดตั้งตาม Inverter / String แล้ว แผงในคลังสินค้ายังคงอยู่
+                เธฅเธเน€เธเธเธฒเธฐเนเธเธเธ—เธตเนเธเธฑเธเธ—เธถเธเธงเนเธฒเธ•เธดเธ”เธ•เธฑเนเธเธ•เธฒเธก Inverter / String เนเธฅเนเธง เนเธเธเนเธเธเธฅเธฑเธเธชเธดเธเธเนเธฒเธขเธฑเธเธเธเธญเธขเธนเน
               </p>
             </div>
           </div>
@@ -1498,11 +1493,11 @@
             </div>
             <div class="flex-1 min-w-0">
               <div class="flex items-center justify-between">
-                <span class="text-xs font-bold text-slate-900">⚠️ ล้างเฉพาะแผงที่ชำรุด / ส่งเคลม (Damaged)</span>
-                <span class="text-[10px] bg-rose-100 text-rose-800 font-bold px-2 py-0.5 rounded whitespace-nowrap">เคลียร์ของเสีย</span>
+                <span class="text-xs font-bold text-slate-900">โ ๏ธ เธฅเนเธฒเธเน€เธเธเธฒเธฐเนเธเธเธ—เธตเนเธเธณเธฃเธธเธ” / เธชเนเธเน€เธเธฅเธก (Damaged)</span>
+                <span class="text-[10px] bg-rose-100 text-rose-800 font-bold px-2 py-0.5 rounded whitespace-nowrap">เน€เธเธฅเธตเธขเธฃเนเธเธญเธเน€เธชเธตเธข</span>
               </div>
               <p class="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
-                ลบเฉพาะแผงที่บันทึกว่าชำรุดหรือส่งเคลมเรียบร้อยแล้วออกจากระบบ
+                เธฅเธเน€เธเธเธฒเธฐเนเธเธเธ—เธตเนเธเธฑเธเธ—เธถเธเธงเนเธฒเธเธณเธฃเธธเธ”เธซเธฃเธทเธญเธชเนเธเน€เธเธฅเธกเน€เธฃเธตเธขเธเธฃเนเธญเธขเนเธฅเนเธงเธญเธญเธเธเธฒเธเธฃเธฐเธเธ
               </p>
             </div>
           </div>
@@ -1517,11 +1512,11 @@
             </div>
             <div class="flex-1 min-w-0">
               <div class="flex items-center justify-between">
-                <span class="text-xs font-bold text-slate-900">📁 ล้างเฉพาะโครงการที่เลือก (By Project)</span>
-                <span class="text-[10px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded whitespace-nowrap">แยกตามโครงการ</span>
+                <span class="text-xs font-bold text-slate-900">๐“ เธฅเนเธฒเธเน€เธเธเธฒเธฐเนเธเธฃเธเธเธฒเธฃเธ—เธตเนเน€เธฅเธทเธญเธ (By Project)</span>
+                <span class="text-[10px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded whitespace-nowrap">เนเธขเธเธ•เธฒเธกเนเธเธฃเธเธเธฒเธฃ</span>
               </div>
               <p class="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
-                ลบเฉพาะแผงทั้งหมดในโครงการที่ระบุ โครงการอื่นจะไม่ได้รับผลกระทบ
+                เธฅเธเน€เธเธเธฒเธฐเนเธเธเธ—เธฑเนเธเธซเธกเธ”เนเธเนเธเธฃเธเธเธฒเธฃเธ—เธตเนเธฃเธฐเธเธธ เนเธเธฃเธเธเธฒเธฃเธญเธทเนเธเธเธฐเนเธกเนเนเธ”เนเธฃเธฑเธเธเธฅเธเธฃเธฐเธ—เธ
               </p>
             </div>
           </div>
@@ -1529,7 +1524,7 @@
 
         <!-- Dynamic Project Selector (Visible only when 'project' is selected) -->
         <div id="clear-project-select-container" class="hidden p-3 bg-amber-50/80 border border-amber-200 rounded-xl space-y-1.5 ml-1">
-          <label class="block text-xs font-semibold text-amber-900">เลือกโครงการที่ต้องการลบแผงทั้งหมด:</label>
+          <label class="block text-xs font-semibold text-amber-900">เน€เธฅเธทเธญเธเนเธเธฃเธเธเธฒเธฃเธ—เธตเนเธ•เนเธญเธเธเธฒเธฃเธฅเธเนเธเธเธ—เธฑเนเธเธซเธกเธ”:</label>
           <select id="clear-target-project" class="w-full text-xs px-3 py-2 bg-white border border-slate-300 rounded-lg font-semibold text-slate-800">
           </select>
         </div>
@@ -1543,11 +1538,11 @@
             </div>
             <div class="flex-1 min-w-0">
               <div class="flex items-center justify-between">
-                <span class="text-xs font-bold text-red-700">🔴 ล้างข้อมูลทั้งหมดในระบบ (Wipe All Data)</span>
-                <span class="text-[10px] bg-red-100 text-red-800 font-bold px-2 py-0.5 rounded whitespace-nowrap">ล้าง 100%</span>
+                <span class="text-xs font-bold text-red-700">๐”ด เธฅเนเธฒเธเธเนเธญเธกเธนเธฅเธ—เธฑเนเธเธซเธกเธ”เนเธเธฃเธฐเธเธ (Wipe All Data)</span>
+                <span class="text-[10px] bg-red-100 text-red-800 font-bold px-2 py-0.5 rounded whitespace-nowrap">เธฅเนเธฒเธ 100%</span>
               </div>
               <p class="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
-                ⚠️ ลบแผงโซลาร์ทุกแผง ทุกโครงการ ทุกสถานะออกจากฐานข้อมูลทั้งหมด (เริ่มต้นใหม่)
+                โ ๏ธ เธฅเธเนเธเธเนเธเธฅเธฒเธฃเนเธ—เธธเธเนเธเธ เธ—เธธเธเนเธเธฃเธเธเธฒเธฃ เธ—เธธเธเธชเธ–เธฒเธเธฐเธญเธญเธเธเธฒเธเธเธฒเธเธเนเธญเธกเธนเธฅเธ—เธฑเนเธเธซเธกเธ” (เน€เธฃเธดเนเธกเธ•เนเธเนเธซเธกเน)
               </p>
             </div>
           </div>
@@ -1557,7 +1552,7 @@
       <!-- Live Summary Banner -->
       <div id="clear-impact-preview" class="p-3 rounded-xl bg-slate-100 text-xs text-slate-700 font-medium flex items-center gap-2">
         <i data-lucide="info" class="w-4 h-4 text-slate-500 shrink-0"></i>
-        <span id="clear-impact-text">ระบบจะล้างข้อมูล: แผงโซลาร์ทั้งหมดในระบบ 100% (ข้อมูลจะหายหมด)</span>
+        <span id="clear-impact-text">เธฃเธฐเธเธเธเธฐเธฅเนเธฒเธเธเนเธญเธกเธนเธฅ: เนเธเธเนเธเธฅเธฒเธฃเนเธ—เธฑเนเธเธซเธกเธ”เนเธเธฃเธฐเธเธ 100% (เธเนเธญเธกเธนเธฅเธเธฐเธซเธฒเธขเธซเธกเธ”)</span>
       </div>
 
       <!-- Safety Confirmation Checkbox -->
@@ -1565,7 +1560,7 @@
         <label class="flex items-start gap-2.5 cursor-pointer select-none">
           <input type="checkbox" id="clear-confirm-checkbox" onchange="app.onClearCheckboxToggle()" class="mt-0.5 rounded text-rose-600 focus:ring-rose-500">
           <span class="text-xs font-semibold text-rose-900 leading-snug">
-            ฉันได้ตรวจสอบแล้ว และยืนยันว่าต้องการลบข้อมูลตามตัวเลือกด้านบนอย่างถาวร
+            เธเธฑเธเนเธ”เนเธ•เธฃเธงเธเธชเธญเธเนเธฅเนเธง เนเธฅเธฐเธขเธทเธเธขเธฑเธเธงเนเธฒเธ•เนเธญเธเธเธฒเธฃเธฅเธเธเนเธญเธกเธนเธฅเธ•เธฒเธกเธ•เธฑเธงเน€เธฅเธทเธญเธเธ”เนเธฒเธเธเธเธญเธขเนเธฒเธเธ–เธฒเธงเธฃ
           </span>
         </label>
       </div>
@@ -1573,19 +1568,109 @@
       <!-- Modal Action Buttons -->
       <div class="flex items-center gap-2 pt-2 border-t border-slate-100">
         <button type="button" onclick="app.closeClearOptionsModal()" class="flex-1 py-2.5 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition">
-          ยกเลิก
+          เธขเธเน€เธฅเธดเธ
         </button>
         <button type="button" id="btn-submit-clear-options" onclick="app.handleClearOptionsSubmit()" disabled class="flex-1 py-2.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl shadow transition flex items-center justify-center gap-1.5">
-          <i data-lucide="trash-2" class="w-4 h-4"></i> ยืนยันการล้างข้อมูล
+          <i data-lucide="trash-2" class="w-4 h-4"></i> เธขเธทเธเธขเธฑเธเธเธฒเธฃเธฅเนเธฒเธเธเนเธญเธกเธนเธฅ
         </button>
       </div>
     </div>
   </div>
 
+
+  <!-- ========================================== -->
+  <!-- VIEW: SETTINGS                             -->
+  <!-- ========================================== -->
+  <div id="view-settings" class="view-panel space-y-5 w-full hidden">
+
+    <!-- Header -->
+    <div class="flex items-center gap-3">
+      <button onclick="app.showView('dashboard')" class="p-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-600">
+        <i data-lucide="arrow-left" class="w-4 h-4"></i>
+      </button>
+      <div>
+        <h2 class="font-bold text-slate-900 text-base">ตั้งค่าระบบ</h2>
+        <p class="text-xs text-slate-500">กำหนดค่าเริ่มต้นสำหรับการบันทึกข้อมูล</p>
+      </div>
+    </div>
+
+    <!-- Section: Default Brand / Wattage / Technician -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div class="flex items-center gap-2.5 p-4 border-b border-slate-100 bg-slate-50">
+        <div class="w-8 h-8 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center">
+          <i data-lucide="settings-2" class="w-4 h-4"></i>
+        </div>
+        <div>
+          <h3 class="font-semibold text-slate-800 text-sm">ค่าเริ่มต้นการบันทึก</h3>
+          <p class="text-[11px] text-slate-500">ใช้กับทุกโหมด (คลัง & หน้างาน)</p>
+        </div>
+      </div>
+      <div class="p-4 space-y-3">
+        <!-- Default Brand -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">ยี่ห้อ / รุ่น เริ่มต้น (Default Brand)</label>
+          <input type="text" id="settings-default-brand" list="brand-datalist"
+            placeholder="เช่น Longi Hi-MO 5 Bifacial"
+            class="w-full text-sm px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500">
+          <datalist id="brand-datalist"></datalist>
+          <p class="text-[11px] text-slate-400 mt-1">จะถูกใส่อัตโนมัติเมื่อสแกนแผงใหม่</p>
+        </div>
+        <!-- Default Wattage -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">กำลังวัตต์เริ่มต้น (Wp)</label>
+          <input type="number" id="settings-default-wattage" min="1" max="2000" value="550"
+            class="w-full text-sm px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500">
+        </div>
+        <!-- Default Technician -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">ชื่อช่าง / เจ้าหน้าที่เริ่มต้น</label>
+          <input type="text" id="settings-default-tech"
+            placeholder="เช่น สมชาย รักงาน"
+            class="w-full text-sm px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500">
+        </div>
+        <!-- Save Button -->
+        <button id="btn-save-settings" type="button" onclick="appSettings.handleSaveDefaults()"
+          class="w-full py-2.5 text-sm font-bold text-white bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 rounded-xl shadow flex items-center justify-center gap-2">
+          <i data-lucide="save" class="w-4 h-4"></i> บันทึกค่าตั้งต้น
+        </button>
+      </div>
+    </div>
+
+    <!-- Section: Brand List -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div class="flex items-center gap-2.5 p-4 border-b border-slate-100 bg-slate-50">
+        <div class="w-8 h-8 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center">
+          <i data-lucide="tag" class="w-4 h-4"></i>
+        </div>
+        <div>
+          <h3 class="font-semibold text-slate-800 text-sm">รายการยี่ห้อแผงโซลาร์</h3>
+          <p class="text-[11px] text-slate-500">บันทึกยี่ห้อที่ใช้บ่อยเพื่อเลือกได้เร็ว</p>
+        </div>
+      </div>
+      <div class="p-4 space-y-3">
+        <!-- Add Brand -->
+        <div class="flex gap-2">
+          <input type="text" id="settings-new-brand"
+            placeholder="พิมพ์ชื่อยี่ห้อ / รุ่น..."
+            class="flex-1 text-sm px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <button type="button" onclick="appSettings.handleAddBrand()"
+            class="px-4 py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl flex items-center gap-1.5 shrink-0">
+            <i data-lucide="plus" class="w-4 h-4"></i> เพิ่ม
+          </button>
+        </div>
+        <!-- Brand List -->
+        <div id="settings-brand-list" class="space-y-1.5 max-h-60 overflow-y-auto">
+          <p class="text-xs text-slate-400 text-center py-3">ยังไม่มียี่ห้อที่บันทึกไว้</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
   <!-- Toast Notification Container -->
   <div id="toast-container" class="fixed bottom-4 right-4 left-4 sm:left-auto sm:w-80 z-50 pointer-events-none space-y-2"></div>
 
   <!-- Frontend Logic -->
+  <script src="settings.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * SolarTrack - Field Operations Frontend Application
  * Handles barcode scanning, GPS capture, offline fallback, and UI transitions.
  */
@@ -123,15 +123,15 @@ class SolarTrackingApp {
       const res = await fetch('/api/health', { signal: AbortSignal.timeout(2500) });
       if (res.ok) {
         this.isMockMode = false;
-        this.updateConnectionIndicator(true, 'เชื่อมต่อเซิร์ฟเวอร์');
+        this.updateConnectionIndicator(true, 'เน€เธเธทเนเธญเธกเธ•เนเธญเน€เธเธดเธฃเนเธเน€เธงเธญเธฃเน');
         return;
       }
       throw new Error('Non-200 response');
     } catch (e) {
       this.isMockMode = true;
       this.initLocalStorageMock();
-      this.updateConnectionIndicator(false, 'โหมดออฟไลน์ (Local DB)');
-      this.showToast('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ ระบบสลับไปใช้ Local Storage ชั่วคราว', 'warning');
+      this.updateConnectionIndicator(false, 'เนเธซเธกเธ”เธญเธญเธเนเธฅเธเน (Local DB)');
+      this.showToast('เน€เธเธทเนเธญเธกเธ•เนเธญเน€เธเธดเธฃเนเธเน€เธงเธญเธฃเนเนเธกเนเนเธ”เน เธฃเธฐเธเธเธชเธฅเธฑเธเนเธเนเธเน Local Storage เธเธฑเนเธงเธเธฃเธฒเธง', 'warning');
     }
   }
 
@@ -164,10 +164,10 @@ class SolarTrackingApp {
           brand_model: 'Longi Hi-MO 5 Bifacial',
           wattage: 550,
           status: 'installed',
-          technician_name: 'สมชาย รักงาน',
+          technician_name: 'เธชเธกเธเธฒเธข เธฃเธฑเธเธเธฒเธ',
           gps_lat: 14.8055,
           gps_lng: 100.6534,
-          notes: 'ติดตั้งโครงสร้างเรียบร้อย',
+          notes: 'เธ•เธดเธ”เธ•เธฑเนเธเนเธเธฃเธเธชเธฃเนเธฒเธเน€เธฃเธตเธขเธเธฃเนเธญเธข',
           scanned_mode: 'field',
           updated_at: new Date().toISOString()
         },
@@ -181,27 +181,27 @@ class SolarTrackingApp {
           brand_model: 'Jinko Tiger Neo N-Type',
           wattage: 560,
           status: 'installing',
-          technician_name: 'วิชัย ช่างไฟ',
+          technician_name: 'เธงเธดเธเธฑเธข เธเนเธฒเธเนเธ',
           gps_lat: 13.3611,
           gps_lng: 100.9847,
-          notes: 'กำลังจัดสายลงราง',
+          notes: 'เธเธณเธฅเธฑเธเธเธฑเธ”เธชเธฒเธขเธฅเธเธฃเธฒเธ',
           scanned_mode: 'field',
           updated_at: new Date().toISOString()
         },
         {
           id: 3,
           serial_number: 'TRINA-TSM-NEG19RC.20-580M-01',
-          project_name: 'คลังสินค้ากลาง (Central Warehouse)',
+          project_name: 'เธเธฅเธฑเธเธชเธดเธเธเนเธฒเธเธฅเธฒเธ (Central Warehouse)',
           inverter: '-',
           string_name: '-',
           panel_index: 0,
           brand_model: 'Trina Vertex N Dual-Glass',
           wattage: 580,
           status: 'warehouse',
-          technician_name: 'ประสิทธิ์ สโตร์แมน',
+          technician_name: 'เธเธฃเธฐเธชเธดเธ—เธเธดเน เธชเนเธ•เธฃเนเนเธกเธ',
           gps_lat: 13.6899,
           gps_lng: 100.7501,
-          notes: 'รับเข้าคลังพาเลทที่ #12',
+          notes: 'เธฃเธฑเธเน€เธเนเธฒเธเธฅเธฑเธเธเธฒเน€เธฅเธ—เธ—เธตเน #12',
           scanned_mode: 'warehouse',
           updated_at: new Date().toISOString()
         }
@@ -238,7 +238,7 @@ class SolarTrackingApp {
   // ---------------- Navigation & View Switching ----------------
 
   showView(viewId) {
-    const views = ['dashboard', 'scanner', 'form', 'success', 'database'];
+    const views = ['dashboard', 'scanner', 'form', 'success', 'database', 'settings'];
     views.forEach(v => {
       const el = document.getElementById(`view-${v}`);
       if (el) {
@@ -286,20 +286,20 @@ class SolarTrackingApp {
 
     if (mode === 'warehouse') {
       if (badge) {
-        badge.textContent = 'รับเข้าคลัง (Warehouse)';
+        badge.textContent = 'เธฃเธฑเธเน€เธเนเธฒเธเธฅเธฑเธ (Warehouse)';
         badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500 text-slate-950 uppercase';
       }
       if (formTag) {
-        formTag.textContent = 'โหมดรับเข้าคลัง';
+        formTag.textContent = 'เนเธซเธกเธ”เธฃเธฑเธเน€เธเนเธฒเธเธฅเธฑเธ';
         formTag.className = 'text-xs font-semibold px-2.5 py-1 rounded bg-emerald-500 text-slate-950';
       }
     } else {
       if (badge) {
-        badge.textContent = 'ติดตั้งหน้างาน (Field)';
+        badge.textContent = 'เธ•เธดเธ”เธ•เธฑเนเธเธซเธเนเธฒเธเธฒเธ (Field)';
         badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500 text-slate-950 uppercase';
       }
       if (formTag) {
-        formTag.textContent = 'โหมดติดตั้งหน้างาน';
+        formTag.textContent = 'เนเธซเธกเธ”เธ•เธดเธ”เธ•เธฑเนเธเธซเธเนเธฒเธเธฒเธ';
         formTag.className = 'text-xs font-semibold px-2.5 py-1 rounded bg-amber-500 text-slate-950';
       }
     }
@@ -371,9 +371,9 @@ class SolarTrackingApp {
       this.updateTorchUi();
     } catch (err) {
       console.error('Failed to start camera:', err);
-      let errorMsg = 'ไม่สามารถเปิดกล้องได้: ' + (err.message || err);
+      let errorMsg = 'เนเธกเนเธชเธฒเธกเธฒเธฃเธ–เน€เธเธดเธ”เธเธฅเนเธญเธเนเธ”เน: ' + (err.message || err);
       if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-        errorMsg += ' (บราวเซอร์มือถือจำเป็นต้องใช้ HTTPS หรือ localhost ในการเข้าถึงกล้อง)';
+        errorMsg += ' (เธเธฃเธฒเธงเน€เธเธญเธฃเนเธกเธทเธญเธ–เธทเธญเธเธณเน€เธเนเธเธ•เนเธญเธเนเธเน HTTPS เธซเธฃเธทเธญ localhost เนเธเธเธฒเธฃเน€เธเนเธฒเธ–เธถเธเธเธฅเนเธญเธ)';
       }
       this.showToast(errorMsg, 'error');
     }
@@ -398,17 +398,17 @@ class SolarTrackingApp {
 
   async switchCamera() {
     if (this.availableCameras.length < 2) {
-      this.showToast('พบกล้องเพียงตัวเดียวบนอุปกรณ์นี้', 'info');
+      this.showToast('เธเธเธเธฅเนเธญเธเน€เธเธตเธขเธเธ•เธฑเธงเน€เธ”เธตเธขเธงเธเธเธญเธธเธเธเธฃเธ“เนเธเธตเน', 'info');
       return;
     }
     this.currentCameraIndex++;
-    this.showToast('กำลังสลับกล้อง...', 'info');
+    this.showToast('เธเธณเธฅเธฑเธเธชเธฅเธฑเธเธเธฅเนเธญเธ...', 'info');
     await this.startCameraScanner();
   }
 
   async toggleTorch() {
     if (!this.isScanning || !this.html5QrCode) {
-      this.showToast('กรุณารอให้กล้องเปิดก่อน', 'warning');
+      this.showToast('เธเธฃเธธเธ“เธฒเธฃเธญเนเธซเนเธเธฅเนเธญเธเน€เธเธดเธ”เธเนเธญเธ', 'warning');
       return;
     }
 
@@ -418,12 +418,12 @@ class SolarTrackingApp {
         advanced: [{ torch: this.isTorchOn }]
       });
       this.updateTorchUi();
-      this.showToast(this.isTorchOn ? 'เปิดไฟฉายแล้ว' : 'ปิดไฟฉายแล้ว', 'info');
+      this.showToast(this.isTorchOn ? 'เน€เธเธดเธ”เนเธเธเธฒเธขเนเธฅเนเธง' : 'เธเธดเธ”เนเธเธเธฒเธขเนเธฅเนเธง', 'info');
     } catch (err) {
       console.warn('Torch not supported or failed:', err);
       this.isTorchOn = false;
       this.updateTorchUi();
-      this.showToast('อุปกรณ์หรือบราวเซอร์นี้ไม่รองรับการเปิดไฟฉาย', 'warning');
+      this.showToast('เธญเธธเธเธเธฃเธ“เนเธซเธฃเธทเธญเธเธฃเธฒเธงเน€เธเธญเธฃเนเธเธตเนเนเธกเนเธฃเธญเธเธฃเธฑเธเธเธฒเธฃเน€เธเธดเธ”เนเธเธเธฒเธข', 'warning');
     }
   }
 
@@ -477,7 +477,7 @@ class SolarTrackingApp {
         pill.classList.add('flex');
       }
       this.populateTurboPresets();
-      this.showToast('⚡ เปิดโหมดสแกนรัวต่อเนื่องแล้ว (ยิงรัว 100+ แผง ไม่ต้องแตะหน้าจอ)', 'success');
+      this.showToast('โก เน€เธเธดเธ”เนเธซเธกเธ”เธชเนเธเธเธฃเธฑเธงเธ•เนเธญเน€เธเธทเนเธญเธเนเธฅเนเธง (เธขเธดเธเธฃเธฑเธง 100+ เนเธเธ เนเธกเนเธ•เนเธญเธเนเธ•เธฐเธซเธเนเธฒเธเธญ)', 'success');
       if (drawer) drawer.classList.remove('hidden');
     } else {
       if (pill) {
@@ -485,7 +485,7 @@ class SolarTrackingApp {
         pill.classList.remove('flex');
       }
       if (drawer) drawer.classList.add('hidden');
-      this.showToast('ปิดโหมดสแกนรัวต่อเนื่องแล้ว', 'info');
+      this.showToast('เธเธดเธ”เนเธซเธกเธ”เธชเนเธเธเธฃเธฑเธงเธ•เนเธญเน€เธเธทเนเธญเธเนเธฅเนเธง', 'info');
     }
   }
 
@@ -533,7 +533,7 @@ class SolarTrackingApp {
     const isWarehouse = this.currentMode === 'warehouse';
     const projectSelect = document.getElementById('turbo-preset-project');
     const project = isWarehouse
-      ? 'คลังสินค้ากลาง (Central Warehouse)'
+      ? 'เธเธฅเธฑเธเธชเธดเธเธเนเธฒเธเธฅเธฒเธ (Central Warehouse)'
       : ((projectSelect && projectSelect.value) || this.lastSaved.project_name || 'Solar Farm Lopburi Phase 2');
     const inverter = isWarehouse ? '-' : ((document.getElementById('turbo-preset-inverter')?.value.trim()) || 'INV-01');
     const stringName = isWarehouse ? '-' : ((document.getElementById('turbo-preset-string')?.value.trim()) || 'STR-01');
@@ -550,7 +550,7 @@ class SolarTrackingApp {
       status: status,
       brand_model: 'Standard Tier-1 Solar',
       wattage: 550,
-      technician_name: this.lastSaved.technician_name || (isWarehouse ? 'เจ้าหน้าที่คลัง' : 'ช่างภาคสนาม'),
+      technician_name: this.lastSaved.technician_name || (isWarehouse ? 'เน€เธเนเธฒเธซเธเนเธฒเธ—เธตเนเธเธฅเธฑเธ' : 'เธเนเธฒเธเธ เธฒเธเธชเธเธฒเธก'),
       scanned_mode: this.currentMode
     };
 
@@ -583,12 +583,12 @@ class SolarTrackingApp {
       this.lastSaved.panel_index = currentIndex;
 
       const hudDetails = isWarehouse
-        ? '📦 รับเข้าคลังสินค้ากลาง'
-        : `${inverter} / ${stringName} (แผง #${currentIndex})`;
+        ? '๐“ฆ เธฃเธฑเธเน€เธเนเธฒเธเธฅเธฑเธเธชเธดเธเธเนเธฒเธเธฅเธฒเธ'
+        : `${inverter} / ${stringName} (เนเธเธ #${currentIndex})`;
       this.showTurboHud(serialNumber, hudDetails, `#${this.turboScanCount}`);
     } catch (e) {
       console.error('Turbo save error:', e);
-      this.showToast(`บันทึกไม่สำเร็จ: ${e.message}`, 'error');
+      this.showToast(`เธเธฑเธเธ—เธถเธเนเธกเนเธชเธณเน€เธฃเนเธ: ${e.message}`, 'error');
     }
   }
 
@@ -611,7 +611,7 @@ class SolarTrackingApp {
     if (this.currentView === 'scanner' && this.isTurboMode) {
       this.handleTurboScan(serial);
     } else {
-      this.showToast(`🔫 ปืนยิงบาร์โค้ดอ่านค่า: ${serial}`, 'info');
+      this.showToast(`๐”ซ เธเธทเธเธขเธดเธเธเธฒเธฃเนเนเธเนเธ”เธญเนเธฒเธเธเนเธฒ: ${serial}`, 'info');
       this.prepareDataForm(serial);
     }
   }
@@ -649,46 +649,46 @@ class SolarTrackingApp {
     if (isWarehouse) {
       if (warehouseBanner) warehouseBanner.classList.remove('hidden');
       if (installFields) installFields.classList.add('hidden');
-      if (titleText) titleText.textContent = 'บันทึกรับแผงเข้าคลังสินค้า';
-      if (subtitleText) subtitleText.textContent = 'ยิงบาร์โค้ดแล้วกดบันทึกได้ทันที ไม่ต้องกรอกข้อมูลเพิ่มเติม';
+      if (titleText) titleText.textContent = 'เธเธฑเธเธ—เธถเธเธฃเธฑเธเนเธเธเน€เธเนเธฒเธเธฅเธฑเธเธชเธดเธเธเนเธฒ';
+      if (subtitleText) subtitleText.textContent = 'เธขเธดเธเธเธฒเธฃเนเนเธเนเธ”เนเธฅเนเธงเธเธ”เธเธฑเธเธ—เธถเธเนเธ”เนเธ—เธฑเธเธ—เธต เนเธกเนเธ•เนเธญเธเธเธฃเธญเธเธเนเธญเธกเธนเธฅเน€เธเธดเนเธกเน€เธ•เธดเธก';
       if (modeTag) {
-        modeTag.textContent = 'โหมดรับเข้าคลัง';
+        modeTag.textContent = 'เนเธซเธกเธ”เธฃเธฑเธเน€เธเนเธฒเธเธฅเธฑเธ';
         modeTag.className = 'text-xs font-semibold px-2.5 py-1 rounded bg-emerald-500 text-slate-950';
       }
-      if (labelProject) labelProject.innerHTML = 'คลังสินค้าจัดเก็บ (Warehouse Destination) <span class="text-red-500">*</span>';
+      if (labelProject) labelProject.innerHTML = 'เธเธฅเธฑเธเธชเธดเธเธเนเธฒเธเธฑเธ”เน€เธเนเธ (Warehouse Destination) <span class="text-red-500">*</span>';
       if (saveBtn) {
-        saveBtn.innerHTML = '<i data-lucide="package-check" class="w-4 h-4"></i> บันทึกรับเข้าคลังทันที';
+        saveBtn.innerHTML = '<i data-lucide="package-check" class="w-4 h-4"></i> เธเธฑเธเธ—เธถเธเธฃเธฑเธเน€เธเนเธฒเธเธฅเธฑเธเธ—เธฑเธเธ—เธต';
         saveBtn.className = 'touch-press flex-[2] py-3 px-6 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white rounded-xl text-sm font-bold shadow-md';
       }
 
       if (projectSelect) {
         let found = false;
         for (let opt of projectSelect.options) {
-          if (opt.value.includes('คลัง') || opt.value.toLowerCase().includes('warehouse')) {
+          if (opt.value.includes('เธเธฅเธฑเธ') || opt.value.toLowerCase().includes('warehouse')) {
             projectSelect.value = opt.value;
             found = true;
             break;
           }
         }
         if (!found) {
-          const opt = new Option('คลังสินค้ากลาง (Central Warehouse)', 'คลังสินค้ากลาง (Central Warehouse)', true, true);
+          const opt = new Option('เธเธฅเธฑเธเธชเธดเธเธเนเธฒเธเธฅเธฒเธ (Central Warehouse)', 'เธเธฅเธฑเธเธชเธดเธเธเนเธฒเธเธฅเธฒเธ (Central Warehouse)', true, true);
           projectSelect.add(opt);
-          projectSelect.value = 'คลังสินค้ากลาง (Central Warehouse)';
+          projectSelect.value = 'เธเธฅเธฑเธเธชเธดเธเธเนเธฒเธเธฅเธฒเธ (Central Warehouse)';
         }
       }
       this.setStatusRadio('warehouse');
     } else {
       if (warehouseBanner) warehouseBanner.classList.add('hidden');
       if (installFields) installFields.classList.remove('hidden');
-      if (titleText) titleText.textContent = 'บันทึกข้อมูลติดตั้งหน้างาน';
-      if (subtitleText) subtitleText.textContent = 'กรอกรายละเอียดเพื่อบันทึกลงฐานข้อมูล';
+      if (titleText) titleText.textContent = 'เธเธฑเธเธ—เธถเธเธเนเธญเธกเธนเธฅเธ•เธดเธ”เธ•เธฑเนเธเธซเธเนเธฒเธเธฒเธ';
+      if (subtitleText) subtitleText.textContent = 'เธเธฃเธญเธเธฃเธฒเธขเธฅเธฐเน€เธญเธตเธขเธ”เน€เธเธทเนเธญเธเธฑเธเธ—เธถเธเธฅเธเธเธฒเธเธเนเธญเธกเธนเธฅ';
       if (modeTag) {
-        modeTag.textContent = 'โหมดติดตั้งหน้างาน';
+        modeTag.textContent = 'เนเธซเธกเธ”เธ•เธดเธ”เธ•เธฑเนเธเธซเธเนเธฒเธเธฒเธ';
         modeTag.className = 'text-xs font-semibold px-2.5 py-1 rounded bg-amber-500 text-slate-950';
       }
-      if (labelProject) labelProject.innerHTML = 'ชื่อโครงการ (Project Name) <span class="text-red-500">*</span>';
+      if (labelProject) labelProject.innerHTML = 'เธเธทเนเธญเนเธเธฃเธเธเธฒเธฃ (Project Name) <span class="text-red-500">*</span>';
       if (saveBtn) {
-        saveBtn.innerHTML = '<i data-lucide="save" class="w-4 h-4"></i> บันทึกข้อมูลแผงโซลาร์';
+        saveBtn.innerHTML = '<i data-lucide="save" class="w-4 h-4"></i> เธเธฑเธเธ—เธถเธเธเนเธญเธกเธนเธฅเนเธเธเนเธเธฅเธฒเธฃเน';
         saveBtn.className = 'touch-press flex-[2] py-3 px-6 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white rounded-xl text-sm font-bold shadow-md';
       }
       this.setStatusRadio('installed');
@@ -716,8 +716,8 @@ class SolarTrackingApp {
     if (existing) {
       alertEl.classList.remove('hidden');
       descEl.textContent = isWarehouse
-        ? `แผงนี้มีประวัติในระบบแล้ว (โครงการเดิม: ${existing.project_name}, สถานะ: ${this.translateStatus(existing.status)})`
-        : `แผงนี้ถูกบันทึกแล้วในโครงการ: ${existing.project_name} (${existing.inverter || '-'} / ${existing.string_name || '-'}), สถานะ: ${this.translateStatus(existing.status)}`;
+        ? `เนเธเธเธเธตเนเธกเธตเธเธฃเธฐเธงเธฑเธ•เธดเนเธเธฃเธฐเธเธเนเธฅเนเธง (เนเธเธฃเธเธเธฒเธฃเน€เธ”เธดเธก: ${existing.project_name}, เธชเธ–เธฒเธเธฐ: ${this.translateStatus(existing.status)})`
+        : `เนเธเธเธเธตเนเธ–เธนเธเธเธฑเธเธ—เธถเธเนเธฅเนเธงเนเธเนเธเธฃเธเธเธฒเธฃ: ${existing.project_name} (${existing.inverter || '-'} / ${existing.string_name || '-'}), เธชเธ–เธฒเธเธฐ: ${this.translateStatus(existing.status)}`;
 
       if (!isWarehouse && existing.project_name) {
         document.getElementById('input-project').value = existing.project_name;
@@ -782,23 +782,23 @@ class SolarTrackingApp {
     const lngEl = document.getElementById('input-lng');
 
     if (!navigator.geolocation) {
-      if (!silent) this.showToast('เบราว์เซอร์นี้ไม่รองรับ Geolocation', 'warning');
+      if (!silent) this.showToast('เน€เธเธฃเธฒเธงเนเน€เธเธญเธฃเนเธเธตเนเนเธกเนเธฃเธญเธเธฃเธฑเธ Geolocation', 'warning');
       return;
     }
 
-    latEl.placeholder = 'กำลังค้นหา GPS...';
-    lngEl.placeholder = 'กำลังค้นหา GPS...';
+    latEl.placeholder = 'เธเธณเธฅเธฑเธเธเนเธเธซเธฒ GPS...';
+    lngEl.placeholder = 'เธเธณเธฅเธฑเธเธเนเธเธซเธฒ GPS...';
 
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         latEl.value = pos.coords.latitude.toFixed(6);
         lngEl.value = pos.coords.longitude.toFixed(6);
-        if (!silent) this.showToast('บันทึกพิกัด GPS สำเร็จ', 'success');
+        if (!silent) this.showToast('เธเธฑเธเธ—เธถเธเธเธดเธเธฑเธ” GPS เธชเธณเน€เธฃเนเธ', 'success');
       },
       (err) => {
         latEl.placeholder = 'Latitude';
         lngEl.placeholder = 'Longitude';
-        if (!silent) this.showToast('ไม่สามารถดึงพิกัด GPS: ' + err.message, 'warning');
+        if (!silent) this.showToast('เนเธกเนเธชเธฒเธกเธฒเธฃเธ–เธ”เธถเธเธเธดเธเธฑเธ” GPS: ' + err.message, 'warning');
       },
       {
         enableHighAccuracy: true,
@@ -818,15 +818,15 @@ class SolarTrackingApp {
     let projectName = document.getElementById('input-project').value.trim();
 
     if (isWarehouse && !projectName) {
-      projectName = 'คลังสินค้ากลาง (Central Warehouse)';
+      projectName = 'เธเธฅเธฑเธเธชเธดเธเธเนเธฒเธเธฅเธฒเธ (Central Warehouse)';
     }
 
     if (!serialNumber) {
-      this.showToast('กรุณาระบุ Serial Number', 'error');
+      this.showToast('เธเธฃเธธเธ“เธฒเธฃเธฐเธเธธ Serial Number', 'error');
       return;
     }
     if (!projectName) {
-      this.showToast('กรุณาเลือกโครงการ', 'error');
+      this.showToast('เธเธฃเธธเธ“เธฒเน€เธฅเธทเธญเธเนเธเธฃเธเธเธฒเธฃ', 'error');
       return;
     }
 
@@ -839,7 +839,7 @@ class SolarTrackingApp {
       brand_model: document.getElementById('input-brand')?.value.trim() || 'Standard Tier-1 Solar',
       wattage: parseInt(document.getElementById('input-wattage')?.value, 10) || 550,
       status: isWarehouse ? 'warehouse' : this.getStatusRadio(),
-      technician_name: document.getElementById('input-technician')?.value.trim() || (isWarehouse ? 'เจ้าหน้าที่คลัง' : 'ช่างหน้างาน'),
+      technician_name: document.getElementById('input-technician')?.value.trim() || (isWarehouse ? 'เน€เธเนเธฒเธซเธเนเธฒเธ—เธตเนเธเธฅเธฑเธ' : 'เธเนเธฒเธเธซเธเนเธฒเธเธฒเธ'),
       gps_lat: isWarehouse ? null : (parseFloat(document.getElementById('input-lat')?.value) || null),
       gps_lng: isWarehouse ? null : (parseFloat(document.getElementById('input-lng')?.value) || null),
       notes: document.getElementById('input-notes')?.value.trim() || '',
@@ -848,7 +848,7 @@ class SolarTrackingApp {
 
     const saveBtn = document.getElementById('btn-save-panel');
     saveBtn.disabled = true;
-    saveBtn.innerHTML = `<span class="animate-spin inline-block mr-2">🌀</span> กำลังบันทึก...`;
+    saveBtn.innerHTML = `<span class="animate-spin inline-block mr-2">๐€</span> เธเธณเธฅเธฑเธเธเธฑเธเธ—เธถเธ...`;
 
     try {
       let result;
@@ -878,13 +878,13 @@ class SolarTrackingApp {
       }
     } catch (err) {
       console.error('Save error:', err);
-      this.showToast('เกิดข้อผิดพลาดในการบันทึก: ' + err.message, 'error');
+      this.showToast('เน€เธเธดเธ”เธเนเธญเธเธดเธ”เธเธฅเธฒเธ”เนเธเธเธฒเธฃเธเธฑเธเธ—เธถเธ: ' + err.message, 'error');
     } finally {
       saveBtn.disabled = false;
       if (isWarehouse) {
-        saveBtn.innerHTML = `<i data-lucide="package-check" class="w-4 h-4"></i> บันทึกรับเข้าคลังทันที`;
+        saveBtn.innerHTML = `<i data-lucide="package-check" class="w-4 h-4"></i> เธเธฑเธเธ—เธถเธเธฃเธฑเธเน€เธเนเธฒเธเธฅเธฑเธเธ—เธฑเธเธ—เธต`;
       } else {
-        saveBtn.innerHTML = `<i data-lucide="save" class="w-4 h-4"></i> บันทึกข้อมูลแผงโซลาร์`;
+        saveBtn.innerHTML = `<i data-lucide="save" class="w-4 h-4"></i> เธเธฑเธเธ—เธถเธเธเนเธญเธกเธนเธฅเนเธเธเนเธเธฅเธฒเธฃเน`;
       }
       this.refreshIcons();
     }
@@ -895,8 +895,8 @@ class SolarTrackingApp {
     document.getElementById('success-project').textContent = panel.project_name;
     const isWarehouse = panel.status === 'warehouse';
     document.getElementById('success-location').textContent = isWarehouse
-      ? 'คลังสินค้า (สต๊อกพร้อมใช้งาน)'
-      : `${panel.inverter || '-'} / ${panel.string_name || '-'} (แผง #${panel.panel_index || 0})`;
+      ? 'เธเธฅเธฑเธเธชเธดเธเธเนเธฒ (เธชเธ•เนเธญเธเธเธฃเนเธญเธกเนเธเนเธเธฒเธ)'
+      : `${panel.inverter || '-'} / ${panel.string_name || '-'} (เนเธเธ #${panel.panel_index || 0})`;
     document.getElementById('success-tech').textContent = panel.technician_name || '-';
 
     const pill = document.getElementById('success-status-pill');
@@ -960,7 +960,7 @@ class SolarTrackingApp {
       const emptyHtml = `
         <div class="py-8 text-center text-slate-400 text-xs">
           <i data-lucide="inbox" class="w-7 h-7 mx-auto mb-1 text-slate-300"></i>
-          ไม่พบข้อมูลแผงโซลาร์ตามเงื่อนไขที่เลือก
+          เนเธกเนเธเธเธเนเธญเธกเธนเธฅเนเธเธเนเธเธฅเธฒเธฃเนเธ•เธฒเธกเน€เธเธทเนเธญเธเนเธเธ—เธตเนเน€เธฅเธทเธญเธ
         </div>
       `;
       if (cardsContainer) cardsContainer.innerHTML = emptyHtml;
@@ -969,7 +969,7 @@ class SolarTrackingApp {
           <tr>
             <td colspan="7" class="py-10 text-center text-slate-400">
               <i data-lucide="inbox" class="w-8 h-8 mx-auto mb-2 text-slate-300"></i>
-              ไม่พบข้อมูลแผงโซลาร์ตามเงื่อนไขที่เลือก
+              เนเธกเนเธเธเธเนเธญเธกเธนเธฅเนเธเธเนเธเธฅเธฒเธฃเนเธ•เธฒเธกเน€เธเธทเนเธญเธเนเธเธ—เธตเนเน€เธฅเธทเธญเธ
             </td>
           </tr>
         `;
@@ -996,7 +996,7 @@ class SolarTrackingApp {
               <span class="font-mono text-slate-600">${this.escapeHtml(p.inverter || '-')} / ${this.escapeHtml(p.string_name || '-')} (#${p.panel_index || 0})</span>
               <div class="flex items-center gap-2">
                 <span>${timeStr}</span>
-                <button onclick="app.editPanelBySerial('${this.escapeHtml(p.serial_number)}')" class="p-1 hover:bg-slate-200 rounded text-slate-600" title="แก้ไข">
+                <button onclick="app.editPanelBySerial('${this.escapeHtml(p.serial_number)}')" class="p-1 hover:bg-slate-200 rounded text-slate-600" title="เนเธเนเนเธ">
                   <i data-lucide="edit-2" class="w-3.5 h-3.5"></i>
                 </button>
               </div>
@@ -1019,7 +1019,7 @@ class SolarTrackingApp {
             <td class="py-3 px-4 text-slate-600 whitespace-nowrap">${this.escapeHtml(p.technician_name || '-')}</td>
             <td class="py-3 px-4 text-right text-slate-400 text-[11px] whitespace-nowrap">${timeStr}</td>
             <td class="py-3 px-3 text-center whitespace-nowrap">
-              <button onclick="app.editPanelBySerial('${this.escapeHtml(p.serial_number)}')" class="p-1 hover:bg-slate-200 rounded text-slate-600 hover:text-slate-900 transition" title="แก้ไข">
+              <button onclick="app.editPanelBySerial('${this.escapeHtml(p.serial_number)}')" class="p-1 hover:bg-slate-200 rounded text-slate-600 hover:text-slate-900 transition" title="เนเธเนเนเธ">
                 <i data-lucide="edit-2" class="w-3.5 h-3.5"></i>
               </button>
             </td>
@@ -1071,19 +1071,19 @@ class SolarTrackingApp {
 
     if (filterSelect) {
       const currentVal = filterSelect.value;
-      filterSelect.innerHTML = `<option value="all">ทุกโครงการ (${projects.length})</option>` + optionsHtml;
+      filterSelect.innerHTML = `<option value="all">เธ—เธธเธเนเธเธฃเธเธเธฒเธฃ (${projects.length})</option>` + optionsHtml;
       if (currentVal && projects.includes(currentVal)) filterSelect.value = currentVal;
     }
 
     if (formSelect) {
       const currentVal = formSelect.value;
-      formSelect.innerHTML = `<option value="">-- เลือกโครงการ --</option>` + optionsHtml;
+      formSelect.innerHTML = `<option value="">-- เน€เธฅเธทเธญเธเนเธเธฃเธเธเธฒเธฃ --</option>` + optionsHtml;
       if (currentVal && projects.includes(currentVal)) formSelect.value = currentVal;
     }
 
     if (dbFilterSelect) {
       const currentVal = dbFilterSelect.value;
-      dbFilterSelect.innerHTML = `<option value="all">ทุกโครงการ (${projects.length})</option>` + optionsHtml;
+      dbFilterSelect.innerHTML = `<option value="all">เธ—เธธเธเนเธเธฃเธเธเธฒเธฃ (${projects.length})</option>` + optionsHtml;
       if (currentVal && projects.includes(currentVal)) dbFilterSelect.value = currentVal;
     }
 
@@ -1130,11 +1130,11 @@ class SolarTrackingApp {
   async handleCreateProject(e) {
     e.preventDefault();
     const name = document.getElementById('new-project-name').value.trim();
-    const location = document.getElementById('new-project-location').value.trim() || 'ภาคสนาม';
+    const location = document.getElementById('new-project-location').value.trim() || 'เธ เธฒเธเธชเธเธฒเธก';
     const capacity = parseFloat(document.getElementById('new-project-capacity').value) || 0;
 
     if (!name) {
-      this.showToast('กรุณาระบุชื่อโครงการ', 'error');
+      this.showToast('เธเธฃเธธเธ“เธฒเธฃเธฐเธเธธเธเธทเนเธญเนเธเธฃเธเธเธฒเธฃ', 'error');
       return;
     }
 
@@ -1153,12 +1153,12 @@ class SolarTrackingApp {
         });
         if (!res.ok) {
           const errData = await res.json().catch(() => ({}));
-          throw new Error(errData.error || 'สร้างโครงการไม่สำเร็จ');
+          throw new Error(errData.error || 'เธชเธฃเนเธฒเธเนเธเธฃเธเธเธฒเธฃเนเธกเนเธชเธณเน€เธฃเนเธ');
         }
       }
 
       this.closeNewProjectModal();
-      this.showToast(`🎉 เพิ่มโครงการ "${name}" สำเร็จ!`, 'success');
+      this.showToast(`๐ เน€เธเธดเนเธกเนเธเธฃเธเธเธฒเธฃ "${name}" เธชเธณเน€เธฃเนเธ!`, 'success');
 
       await this.loadProjects();
 
@@ -1170,7 +1170,7 @@ class SolarTrackingApp {
         await this.loadDashboardData();
       }
     } catch (err) {
-      this.showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
+      this.showToast('เน€เธเธดเธ”เธเนเธญเธเธดเธ”เธเธฅเธฒเธ”: ' + err.message, 'error');
     } finally {
       if (btn) btn.disabled = false;
     }
@@ -1180,7 +1180,7 @@ class SolarTrackingApp {
     const proj = (this.cachedProjects || []).find(p => p.name === projectName) || { name: projectName };
     document.getElementById('edit-project-old-name').value = projectName;
     document.getElementById('edit-project-name').value = projectName;
-    document.getElementById('edit-project-location').value = proj.location || 'ภาคสนาม';
+    document.getElementById('edit-project-location').value = proj.location || 'เธ เธฒเธเธชเธเธฒเธก';
     document.getElementById('edit-project-capacity').value = proj.target_capacity_kw || '';
 
     document.getElementById('modal-edit-project').classList.remove('hidden');
@@ -1196,11 +1196,11 @@ class SolarTrackingApp {
     e.preventDefault();
     const oldName = document.getElementById('edit-project-old-name').value.trim();
     const newName = document.getElementById('edit-project-name').value.trim();
-    const location = document.getElementById('edit-project-location').value.trim() || 'ภาคสนาม';
+    const location = document.getElementById('edit-project-location').value.trim() || 'เธ เธฒเธเธชเธเธฒเธก';
     const capacity = parseFloat(document.getElementById('edit-project-capacity').value) || 0;
 
     if (!newName) {
-      this.showToast('กรุณาระบุชื่อโครงการ', 'error');
+      this.showToast('เธเธฃเธธเธ“เธฒเธฃเธฐเธเธธเธเธทเนเธญเนเธเธฃเธเธเธฒเธฃ', 'error');
       return;
     }
 
@@ -1239,7 +1239,7 @@ class SolarTrackingApp {
       }
 
       this.closeEditProjectModal();
-      this.showToast(`✏️ แก้ไขโครงการ "${newName}" เรียบร้อยแล้ว`, 'success');
+      this.showToast(`โ๏ธ เนเธเนเนเธเนเธเธฃเธเธเธฒเธฃ "${newName}" เน€เธฃเธตเธขเธเธฃเนเธญเธขเนเธฅเนเธง`, 'success');
       await this.loadProjects();
       await this.loadDbProjects();
       await this.loadDbRecords();
@@ -1247,7 +1247,7 @@ class SolarTrackingApp {
         await this.loadDashboardData();
       }
     } catch (err) {
-      this.showToast('เกิดข้อผิดพลาดในการแก้ไขโครงการ: ' + err.message, 'error');
+      this.showToast('เน€เธเธดเธ”เธเนเธญเธเธดเธ”เธเธฅเธฒเธ”เนเธเธเธฒเธฃเนเธเนเนเธเนเธเธฃเธเธเธฒเธฃ: ' + err.message, 'error');
     } finally {
       if (btn) btn.disabled = false;
     }
@@ -1297,7 +1297,7 @@ class SolarTrackingApp {
         } else {
           list.forEach(p => {
             if (p.project_name === name) {
-              p.project_name = 'คลังสินค้ากลาง (Central Warehouse)';
+              p.project_name = 'เธเธฅเธฑเธเธชเธดเธเธเนเธฒเธเธฅเธฒเธ (Central Warehouse)';
               p.status = 'warehouse';
             }
           });
@@ -1320,7 +1320,7 @@ class SolarTrackingApp {
               await Promise.all(targets.map(p => fetch('/api/panels', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...p, project_name: 'คลังสินค้ากลาง (Central Warehouse)', status: 'warehouse' })
+                body: JSON.stringify({ ...p, project_name: 'เธเธฅเธฑเธเธชเธดเธเธเนเธฒเธเธฅเธฒเธ (Central Warehouse)', status: 'warehouse' })
               })));
             }
           }
@@ -1328,7 +1328,7 @@ class SolarTrackingApp {
       }
 
       this.closeDeleteProjectModal();
-      this.showToast(`🗑️ ลบโครงการ "${name}" เรียบร้อยแล้ว`, 'success');
+      this.showToast(`๐—‘๏ธ เธฅเธเนเธเธฃเธเธเธฒเธฃ "${name}" เน€เธฃเธตเธขเธเธฃเนเธญเธขเนเธฅเนเธง`, 'success');
       await this.loadProjects();
       await this.loadDbProjects();
       await this.loadDbRecords();
@@ -1336,7 +1336,7 @@ class SolarTrackingApp {
         await this.loadDashboardData();
       }
     } catch (err) {
-      this.showToast('เกิดข้อผิดพลาดในการลบโครงการ: ' + err.message, 'error');
+      this.showToast('เน€เธเธดเธ”เธเนเธญเธเธดเธ”เธเธฅเธฒเธ”เนเธเธเธฒเธฃเธฅเธเนเธเธฃเธเธเธฒเธฃ: ' + err.message, 'error');
     } finally {
       if (btn) btn.disabled = false;
     }
@@ -1392,16 +1392,16 @@ class SolarTrackingApp {
       if (singleProj) {
         let found = false;
         for (let opt of singleProj.options) {
-          if (opt.value.includes('คลัง') || opt.value.toLowerCase().includes('warehouse')) {
+          if (opt.value.includes('เธเธฅเธฑเธ') || opt.value.toLowerCase().includes('warehouse')) {
             singleProj.value = opt.value;
             found = true;
             break;
           }
         }
         if (!found) {
-          const opt = new Option('คลังสินค้ากลาง (Central Warehouse)', 'คลังสินค้ากลาง (Central Warehouse)', true, true);
+          const opt = new Option('เธเธฅเธฑเธเธชเธดเธเธเนเธฒเธเธฅเธฒเธ (Central Warehouse)', 'เธเธฅเธฑเธเธชเธดเธเธเนเธฒเธเธฅเธฒเธ (Central Warehouse)', true, true);
           singleProj.add(opt);
-          singleProj.value = 'คลังสินค้ากลาง (Central Warehouse)';
+          singleProj.value = 'เธเธฅเธฑเธเธชเธดเธเธเนเธฒเธเธฅเธฒเธ (Central Warehouse)';
         }
       }
       const bulkStatus = document.getElementById('bulk-preset-status');
@@ -1466,7 +1466,7 @@ class SolarTrackingApp {
     this.playBeep();
     const isWarehouse = this.currentMode === 'warehouse';
     const project = isWarehouse
-      ? (document.getElementById('manual-preset-project')?.value || 'คลังสินค้ากลาง (Central Warehouse)')
+      ? (document.getElementById('manual-preset-project')?.value || 'เธเธฅเธฑเธเธชเธดเธเธเนเธฒเธเธฅเธฒเธ (Central Warehouse)')
       : (document.getElementById('manual-preset-project')?.value || 'Solar Farm Lopburi Phase 2');
     const inverter = isWarehouse ? '-' : ((document.getElementById('manual-preset-inverter')?.value.trim()) || 'INV-01');
     const stringName = isWarehouse ? '-' : ((document.getElementById('manual-preset-string')?.value.trim()) || 'STR-01');
@@ -1482,7 +1482,7 @@ class SolarTrackingApp {
       status: isWarehouse ? 'warehouse' : 'installed',
       brand_model: 'Standard Solar',
       wattage: 550,
-      technician_name: this.lastSaved.technician_name || (isWarehouse ? 'เจ้าหน้าที่คลัง' : 'ช่างคีย์ข้อมูล'),
+      technician_name: this.lastSaved.technician_name || (isWarehouse ? 'เน€เธเนเธฒเธซเธเนเธฒเธ—เธตเนเธเธฅเธฑเธ' : 'เธเนเธฒเธเธเธตเธขเนเธเนเธญเธกเธนเธฅ'),
       scanned_mode: this.currentMode || 'manual'
     };
 
@@ -1504,7 +1504,7 @@ class SolarTrackingApp {
       }
       this.lastSaved.project_name = project;
 
-      this.showToast(isWarehouse ? `📦 บันทึกรับเข้าคลัง [${serial}] สำเร็จ!` : `✅ บันทึกแผง #${currentIndex} [${serial}] สำเร็จ!`, 'success');
+      this.showToast(isWarehouse ? `๐“ฆ เธเธฑเธเธ—เธถเธเธฃเธฑเธเน€เธเนเธฒเธเธฅเธฑเธ [${serial}] เธชเธณเน€เธฃเนเธ!` : `โ… เธเธฑเธเธ—เธถเธเนเธเธ #${currentIndex} [${serial}] เธชเธณเน€เธฃเนเธ!`, 'success');
 
       serialInput.value = '';
       serialInput.focus();
@@ -1513,7 +1513,7 @@ class SolarTrackingApp {
         this.loadDashboardData();
       }
     } catch (err) {
-      this.showToast('บันทึกไม่สำเร็จ: ' + err.message, 'error');
+      this.showToast('เธเธฑเธเธ—เธถเธเนเธกเนเธชเธณเน€เธฃเนเธ: ' + err.message, 'error');
     }
   }
 
@@ -1529,7 +1529,7 @@ class SolarTrackingApp {
     const lines = raw.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
 
     if (lines.length === 0) {
-      this.showToast('กรุณาวางรายการ Serial Number อย่างน้อย 1 รายการ', 'warning');
+      this.showToast('เธเธฃเธธเธ“เธฒเธงเธฒเธเธฃเธฒเธขเธเธฒเธฃ Serial Number เธญเธขเนเธฒเธเธเนเธญเธข 1 เธฃเธฒเธขเธเธฒเธฃ', 'warning');
       return;
     }
 
@@ -1540,7 +1540,7 @@ class SolarTrackingApp {
 
     const btn = document.getElementById('btn-submit-bulk-paste');
     btn.disabled = true;
-    btn.innerHTML = `กำลังบันทึก ${lines.length} แผง...`;
+    btn.innerHTML = `เธเธณเธฅเธฑเธเธเธฑเธเธ—เธถเธ ${lines.length} เนเธเธ...`;
 
     const panelsToCreate = lines.map((serial, idx) => ({
       serial_number: serial,
@@ -1551,8 +1551,8 @@ class SolarTrackingApp {
       brand_model: 'Standard Solar',
       wattage: 550,
       status: status,
-      technician_name: 'แปะรายการชุด',
-      notes: `นำเข้าพร้อมกัน ${lines.length} แผง`,
+      technician_name: 'เนเธเธฐเธฃเธฒเธขเธเธฒเธฃเธเธธเธ”',
+      notes: `เธเธณเน€เธเนเธฒเธเธฃเนเธญเธกเธเธฑเธ ${lines.length} เนเธเธ`,
       scanned_mode: 'bulk-paste'
     }));
 
@@ -1583,17 +1583,17 @@ class SolarTrackingApp {
       }
 
       this.closeManualEntryModal();
-      this.showToast(`🎉 บันทึกแผงโซลาร์สำเร็จรวดเดียว ${lines.length} แผง!`, 'success');
+      this.showToast(`๐ เธเธฑเธเธ—เธถเธเนเธเธเนเธเธฅเธฒเธฃเนเธชเธณเน€เธฃเนเธเธฃเธงเธ”เน€เธ”เธตเธขเธง ${lines.length} เนเธเธ!`, 'success');
       if (this.currentView === 'dashboard') {
         await this.loadDashboardData();
       } else if (this.currentView === 'database') {
         await this.loadDatabaseStudioData();
       }
     } catch (err) {
-      this.showToast('เกิดข้อผิดพลาดในการบันทึก: ' + err.message, 'error');
+      this.showToast('เน€เธเธดเธ”เธเนเธญเธเธดเธ”เธเธฅเธฒเธ”เนเธเธเธฒเธฃเธเธฑเธเธ—เธถเธ: ' + err.message, 'error');
     } finally {
       btn.disabled = false;
-      btn.innerHTML = `<i data-lucide="check" class="w-4 h-4"></i> บันทึกทั้งหมดรวดเดียว`;
+      btn.innerHTML = `<i data-lucide="check" class="w-4 h-4"></i> เธเธฑเธเธ—เธถเธเธ—เธฑเนเธเธซเธกเธ”เธฃเธงเธ”เน€เธ”เธตเธขเธง`;
       this.refreshIcons();
     }
   }
@@ -1628,7 +1628,7 @@ class SolarTrackingApp {
       a.download = `solar_panels_local_${Date.now()}.csv`;
       a.click();
       URL.revokeObjectURL(url);
-      this.showToast('ดาวน์โหลด CSV จาก Local DB สำเร็จ', 'success');
+      this.showToast('เธ”เธฒเธงเธเนเนเธซเธฅเธ” CSV เธเธฒเธ Local DB เธชเธณเน€เธฃเนเธ', 'success');
     } else {
       window.location.href = '/api/export/csv';
     }
@@ -1638,10 +1638,10 @@ class SolarTrackingApp {
 
   translateStatus(status) {
     switch (status) {
-      case 'warehouse': return 'ในคลังสินค้า';
-      case 'installing': return 'กำลังติดตั้ง';
-      case 'installed': return 'ติดตั้งแล้ว';
-      case 'damaged': return 'ชำรุด / เคลม';
+      case 'warehouse': return 'เนเธเธเธฅเธฑเธเธชเธดเธเธเนเธฒ';
+      case 'installing': return 'เธเธณเธฅเธฑเธเธ•เธดเธ”เธ•เธฑเนเธ';
+      case 'installed': return 'เธ•เธดเธ”เธ•เธฑเนเธเนเธฅเนเธง';
+      case 'damaged': return 'เธเธณเธฃเธธเธ” / เน€เธเธฅเธก';
       default: return status || '-';
     }
   }
@@ -1791,11 +1791,11 @@ class SolarTrackingApp {
               info = {
                 engine: 'SQLite (solar_panels.db)',
                 fileName: 'solar_panels.db',
-                fileSizeFormatted: 'คำนวณจาก API',
+                fileSizeFormatted: 'เธเธณเธเธงเธ“เธเธฒเธ API',
                 lastModified: new Date().toISOString(),
                 stats: statsJson.stats || { total: 0, installed: 0 }
               };
-              this.showToast('💡 เพื่อเปิดใช้งานฟังก์ชันเต็ม กรุณา Restart เซิร์ฟเวอร์', 'info');
+              this.showToast('๐’ก เน€เธเธทเนเธญเน€เธเธดเธ”เนเธเนเธเธฒเธเธเธฑเธเธเนเธเธฑเธเน€เธ•เนเธก เธเธฃเธธเธ“เธฒ Restart เน€เธเธดเธฃเนเธเน€เธงเธญเธฃเน', 'info');
             }
           } catch (e2) {}
         }
@@ -1839,10 +1839,10 @@ class SolarTrackingApp {
     const optionsHtml = projects.map(p => `<option value="${this.escapeHtml(p)}">${this.escapeHtml(p)}</option>`).join('');
 
     if (filterSelect) {
-      filterSelect.innerHTML = `<option value="all">ทุกโครงการ (${projects.length})</option>` + optionsHtml;
+      filterSelect.innerHTML = `<option value="all">เธ—เธธเธเนเธเธฃเธเธเธฒเธฃ (${projects.length})</option>` + optionsHtml;
     }
     if (batchSelect) {
-      batchSelect.innerHTML = `<option value="">-- เลือกโครงการปลายทาง --</option>` + optionsHtml;
+      batchSelect.innerHTML = `<option value="">-- เน€เธฅเธทเธญเธเนเธเธฃเธเธเธฒเธฃเธเธฅเธฒเธขเธ—เธฒเธ --</option>` + optionsHtml;
     }
     if (editSelect) {
       editSelect.innerHTML = optionsHtml;
@@ -1899,7 +1899,7 @@ class SolarTrackingApp {
       const emptyHtml = `
         <div class="py-10 text-center text-slate-400 text-xs">
           <i data-lucide="inbox" class="w-8 h-8 mx-auto mb-2 text-slate-300"></i>
-          ไม่พบรายการข้อมูลในฐานข้อมูลตามเงื่อนไขที่เลือก
+          เนเธกเนเธเธเธฃเธฒเธขเธเธฒเธฃเธเนเธญเธกเธนเธฅเนเธเธเธฒเธเธเนเธญเธกเธนเธฅเธ•เธฒเธกเน€เธเธทเนเธญเธเนเธเธ—เธตเนเน€เธฅเธทเธญเธ
         </div>
       `;
       if (cardsContainer) cardsContainer.innerHTML = emptyHtml;
@@ -1908,7 +1908,7 @@ class SolarTrackingApp {
           <tr>
             <td colspan="9" class="py-10 text-center text-slate-400">
               <i data-lucide="inbox" class="w-8 h-8 mx-auto mb-2 text-slate-300"></i>
-              ไม่พบรายการข้อมูลในฐานข้อมูลตามเงื่อนไขที่เลือก
+              เนเธกเนเธเธเธฃเธฒเธขเธเธฒเธฃเธเนเธญเธกเธนเธฅเนเธเธเธฒเธเธเนเธญเธกเธนเธฅเธ•เธฒเธกเน€เธเธทเนเธญเธเนเธเธ—เธตเนเน€เธฅเธทเธญเธ
             </td>
           </tr>
         `;
@@ -1937,10 +1937,10 @@ class SolarTrackingApp {
               <div class="text-[11px] text-slate-500 flex items-center justify-between pt-1 border-t border-slate-100">
                 <span class="font-mono">${this.escapeHtml(p.inverter || '-')} / ${this.escapeHtml(p.string_name || '-')} (#${p.panel_index || 0})</span>
                 <div class="flex items-center gap-1.5">
-                  <button onclick="app.openEditModal(${p.id})" class="p-1 hover:bg-slate-200 rounded text-slate-600" title="แก้ไข">
+                  <button onclick="app.openEditModal(${p.id})" class="p-1 hover:bg-slate-200 rounded text-slate-600" title="เนเธเนเนเธ">
                     <i data-lucide="edit-2" class="w-3.5 h-3.5"></i>
                   </button>
-                  <button onclick="app.confirmDeletePanel(${p.id}, '${this.escapeHtml(p.serial_number)}')" class="p-1 hover:bg-rose-100 text-slate-400 hover:text-rose-600 rounded" title="ลบ">
+                  <button onclick="app.confirmDeletePanel(${p.id}, '${this.escapeHtml(p.serial_number)}')" class="p-1 hover:bg-rose-100 text-slate-400 hover:text-rose-600 rounded" title="เธฅเธ">
                     <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
                   </button>
                 </div>
@@ -1969,10 +1969,10 @@ class SolarTrackingApp {
             <td class="py-3 px-3 text-slate-600 whitespace-nowrap">${this.escapeHtml(p.technician_name || '-')}</td>
             <td class="py-3 px-3 text-center whitespace-nowrap">
               <div class="flex items-center justify-center gap-1">
-                <button onclick="app.openEditModal(${p.id})" class="p-1 hover:bg-slate-200 rounded text-slate-600 hover:text-slate-900 transition" title="แก้ไข">
+                <button onclick="app.openEditModal(${p.id})" class="p-1 hover:bg-slate-200 rounded text-slate-600 hover:text-slate-900 transition" title="เนเธเนเนเธ">
                   <i data-lucide="edit-2" class="w-3.5 h-3.5"></i>
                 </button>
-                <button onclick="app.confirmDeletePanel(${p.id}, '${this.escapeHtml(p.serial_number)}')" class="p-1 hover:bg-rose-100 text-slate-400 hover:text-rose-600 rounded transition" title="ลบ">
+                <button onclick="app.confirmDeletePanel(${p.id}, '${this.escapeHtml(p.serial_number)}')" class="p-1 hover:bg-rose-100 text-slate-400 hover:text-rose-600 rounded transition" title="เธฅเธ">
                   <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
                 </button>
               </div>
@@ -2034,7 +2034,7 @@ class SolarTrackingApp {
     const ids = Array.from(this.selectedIds);
     if (ids.length === 0) return;
 
-    if (!confirm(`⚠️ คุณแน่ใจหรือไม่ที่จะลบแผงโซลาร์ที่เลือกจำนวน ${ids.length} รายการออกจากฐานข้อมูล?`)) {
+    if (!confirm(`โ ๏ธ เธเธธเธ“เนเธเนเนเธเธซเธฃเธทเธญเนเธกเนเธ—เธตเนเธเธฐเธฅเธเนเธเธเนเธเธฅเธฒเธฃเนเธ—เธตเนเน€เธฅเธทเธญเธเธเธณเธเธงเธ ${ids.length} เธฃเธฒเธขเธเธฒเธฃเธญเธญเธเธเธฒเธเธเธฒเธเธเนเธญเธกเธนเธฅ?`)) {
       return;
     }
 
@@ -2054,11 +2054,11 @@ class SolarTrackingApp {
         }
       }
 
-      this.showToast(`ลบข้อมูล ${ids.length} รายการเรียบร้อยแล้ว`, 'success');
+      this.showToast(`เธฅเธเธเนเธญเธกเธนเธฅ ${ids.length} เธฃเธฒเธขเธเธฒเธฃเน€เธฃเธตเธขเธเธฃเนเธญเธขเนเธฅเนเธง`, 'success');
       this.selectedIds.clear();
       await this.loadDatabaseStudioData();
     } catch (e) {
-      this.showToast('เกิดข้อผิดพลาดในการลบกลุ่ม: ' + e.message, 'error');
+      this.showToast('เน€เธเธดเธ”เธเนเธญเธเธดเธ”เธเธฅเธฒเธ”เนเธเธเธฒเธฃเธฅเธเธเธฅเธธเนเธก: ' + e.message, 'error');
     }
   }
 
@@ -2103,11 +2103,11 @@ class SolarTrackingApp {
       }
 
       this.closeBatchStatusModal();
-      this.showToast(`อัปเดตสถานะ ${ids.length} รายการเป็น "${this.translateStatus(status)}" สำเร็จ`, 'success');
+      this.showToast(`เธญเธฑเธเน€เธ”เธ•เธชเธ–เธฒเธเธฐ ${ids.length} เธฃเธฒเธขเธเธฒเธฃเน€เธเนเธ "${this.translateStatus(status)}" เธชเธณเน€เธฃเนเธ`, 'success');
       this.selectedIds.clear();
       await this.loadDatabaseStudioData();
     } catch (err) {
-      this.showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
+      this.showToast('เน€เธเธดเธ”เธเนเธญเธเธดเธ”เธเธฅเธฒเธ”: ' + err.message, 'error');
     }
   }
 
@@ -2128,7 +2128,7 @@ class SolarTrackingApp {
     e.preventDefault();
     const projectName = document.getElementById('batch-project-select').value;
     if (!projectName) {
-      this.showToast('กรุณาเลือกโครงการปลายทาง', 'warning');
+      this.showToast('เธเธฃเธธเธ“เธฒเน€เธฅเธทเธญเธเนเธเธฃเธเธเธฒเธฃเธเธฅเธฒเธขเธ—เธฒเธ', 'warning');
       return;
     }
     const ids = Array.from(this.selectedIds);
@@ -2149,18 +2149,18 @@ class SolarTrackingApp {
       }
 
       this.closeBatchProjectModal();
-      this.showToast(`ย้าย ${ids.length} แผงไปยังโครงการ "${projectName}" สำเร็จ`, 'success');
+      this.showToast(`เธขเนเธฒเธข ${ids.length} เนเธเธเนเธเธขเธฑเธเนเธเธฃเธเธเธฒเธฃ "${projectName}" เธชเธณเน€เธฃเนเธ`, 'success');
       this.selectedIds.clear();
       await this.loadDatabaseStudioData();
     } catch (err) {
-      this.showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
+      this.showToast('เน€เธเธดเธ”เธเนเธญเธเธดเธ”เธเธฅเธฒเธ”: ' + err.message, 'error');
     }
   }
 
   async openEditModal(id) {
     let panel = this.cachedDbPanels.find(p => p.id === id);
     if (!panel) {
-      this.showToast('ไม่พบข้อมูลแผง', 'error');
+      this.showToast('เนเธกเนเธเธเธเนเธญเธกเธนเธฅเนเธเธ', 'error');
       return;
     }
 
@@ -2198,7 +2198,7 @@ class SolarTrackingApp {
       status: document.getElementById('edit-status').value,
       wattage: parseInt(document.getElementById('edit-wattage').value, 10) || 550,
       brand_model: document.getElementById('edit-brand').value.trim() || 'Standard Tier-1 Solar',
-      technician_name: document.getElementById('edit-technician').value.trim() || 'ช่างตรวจ',
+      technician_name: document.getElementById('edit-technician').value.trim() || 'เธเนเธฒเธเธ•เธฃเธงเธ',
       notes: document.getElementById('edit-notes').value.trim()
     };
 
@@ -2215,15 +2215,15 @@ class SolarTrackingApp {
       }
 
       this.closeEditModal();
-      this.showToast(`แก้ไขข้อมูลแผง ${payload.serial_number} สำเร็จ`, 'success');
+      this.showToast(`เนเธเนเนเธเธเนเธญเธกเธนเธฅเนเธเธ ${payload.serial_number} เธชเธณเน€เธฃเนเธ`, 'success');
       await this.loadDatabaseStudioData();
     } catch (err) {
-      this.showToast('เกิดข้อผิดพลาดในการบันทึก: ' + err.message, 'error');
+      this.showToast('เน€เธเธดเธ”เธเนเธญเธเธดเธ”เธเธฅเธฒเธ”เนเธเธเธฒเธฃเธเธฑเธเธ—เธถเธ: ' + err.message, 'error');
     }
   }
 
   async confirmDeletePanel(id, serial) {
-    if (!confirm(`คุณต้องการลบแผง ${serial} (ID: ${id}) ออกจากฐานข้อมูลใช่หรือไม่?`)) {
+    if (!confirm(`เธเธธเธ“เธ•เนเธญเธเธเธฒเธฃเธฅเธเนเธเธ ${serial} (ID: ${id}) เธญเธญเธเธเธฒเธเธเธฒเธเธเนเธญเธกเธนเธฅเนเธเนเธซเธฃเธทเธญเนเธกเน?`)) {
       return;
     }
 
@@ -2237,10 +2237,10 @@ class SolarTrackingApp {
       }
 
       this.selectedIds.delete(id);
-      this.showToast(`ลบแผง ${serial} สำเร็จ`, 'success');
+      this.showToast(`เธฅเธเนเธเธ ${serial} เธชเธณเน€เธฃเนเธ`, 'success');
       await this.loadDatabaseStudioData();
     } catch (err) {
-      this.showToast('เกิดข้อผิดพลาดในการลบ: ' + err.message, 'error');
+      this.showToast('เน€เธเธดเธ”เธเนเธญเธเธดเธ”เธเธฅเธฒเธ”เนเธเธเธฒเธฃเธฅเธ: ' + err.message, 'error');
     }
   }
 
@@ -2297,7 +2297,7 @@ class SolarTrackingApp {
         grid.innerHTML = `
           <div class="col-span-full py-8 text-center text-slate-400 text-xs">
             <i data-lucide="folder" class="w-8 h-8 mx-auto mb-2 text-slate-300"></i>
-            ยังไม่มีข้อมูลโครงการในระบบ
+            เธขเธฑเธเนเธกเนเธกเธตเธเนเธญเธกเธนเธฅเนเธเธฃเธเธเธฒเธฃเนเธเธฃเธฐเธเธ
           </div>
         `;
         this.refreshIcons();
@@ -2315,7 +2315,7 @@ class SolarTrackingApp {
         const pct = total > 0 ? Math.round((installed / total) * 100) : 0;
         const kwp = ((proj.total_wattage || 0) / 1000).toFixed(1);
         const targetKwp = proj.target_capacity_kw ? Number(proj.target_capacity_kw).toFixed(1) : null;
-        const locationText = proj.location || 'ภาคสนาม';
+        const locationText = proj.location || 'เธ เธฒเธเธชเธเธฒเธก';
 
         return `
           <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/90 shadow-sm hover:shadow-md transition space-y-3.5 flex flex-col justify-between">
@@ -2329,9 +2329,9 @@ class SolarTrackingApp {
                     <h4 class="font-bold text-sm sm:text-base text-slate-900 truncate" title="${this.escapeHtml(proj.name)}">${this.escapeHtml(proj.name)}</h4>
                     <div class="flex items-center gap-1.5 text-[11px] text-slate-500 flex-wrap mt-0.5">
                       <span class="inline-flex items-center gap-0.5 text-slate-600"><i data-lucide="map-pin" class="w-3 h-3 text-slate-400"></i> ${this.escapeHtml(locationText)}</span>
-                      <span>•</span>
-                      <span>ติดตั้งจริง: <strong class="text-slate-800">${kwp} kWp</strong></span>
-                      ${targetKwp ? `<span class="text-slate-400 font-medium">/ เป้า ${targetKwp} kWp</span>` : ''}
+                      <span>โ€ข</span>
+                      <span>เธ•เธดเธ”เธ•เธฑเนเธเธเธฃเธดเธ: <strong class="text-slate-800">${kwp} kWp</strong></span>
+                      ${targetKwp ? `<span class="text-slate-400 font-medium">/ เน€เธเนเธฒ ${targetKwp} kWp</span>` : ''}
                     </div>
                   </div>
                 </div>
@@ -2340,8 +2340,8 @@ class SolarTrackingApp {
 
               <div class="space-y-1">
                 <div class="flex justify-between text-[11px] text-slate-500 font-medium">
-                  <span>ติดตั้งแล้ว: <strong class="text-slate-800">${installed}</strong> / ${total} แผง</span>
-                  <span>${pct}% เสร็จสิ้น</span>
+                  <span>เธ•เธดเธ”เธ•เธฑเนเธเนเธฅเนเธง: <strong class="text-slate-800">${installed}</strong> / ${total} เนเธเธ</span>
+                  <span>${pct}% เน€เธชเธฃเนเธเธชเธดเนเธ</span>
                 </div>
                 <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
                   <div class="bg-gradient-to-r from-amber-500 to-emerald-500 h-2 rounded-full transition-all duration-500" style="width: ${pct}%"></div>
@@ -2351,32 +2351,32 @@ class SolarTrackingApp {
               <div class="grid grid-cols-4 gap-1.5 text-center text-[10px] pt-1">
                 <div class="bg-emerald-50 text-emerald-800 p-1.5 rounded-lg border border-emerald-100">
                   <div class="font-bold text-xs">${warehouse}</div>
-                  <div class="text-emerald-700/80">ในคลัง</div>
+                  <div class="text-emerald-700/80">เนเธเธเธฅเธฑเธ</div>
                 </div>
                 <div class="bg-blue-50 text-blue-800 p-1.5 rounded-lg border border-blue-100">
                   <div class="font-bold text-xs">${installing}</div>
-                  <div class="text-blue-700/80">กำลังติด</div>
+                  <div class="text-blue-700/80">เธเธณเธฅเธฑเธเธ•เธดเธ”</div>
                 </div>
                 <div class="bg-purple-50 text-purple-800 p-1.5 rounded-lg border border-purple-100">
                   <div class="font-bold text-xs">${installed}</div>
-                  <div class="text-purple-700/80">ติดตั้งแล้ว</div>
+                  <div class="text-purple-700/80">เธ•เธดเธ”เธ•เธฑเนเธเนเธฅเนเธง</div>
                 </div>
                 <div class="bg-rose-50 text-rose-800 p-1.5 rounded-lg border border-rose-100">
                   <div class="font-bold text-xs">${damaged}</div>
-                  <div class="text-rose-700/80">ชำรุด</div>
+                  <div class="text-rose-700/80">เธเธณเธฃเธธเธ”</div>
                 </div>
               </div>
             </div>
 
             <div class="pt-2 flex items-center justify-between gap-1.5 border-t border-slate-100 text-xs">
               <button onclick="app.filterByProjectAndShow('${this.escapeHtml(proj.name)}')" class="touch-press flex-1 py-1.5 px-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg flex items-center justify-center gap-1">
-                <i data-lucide="eye" class="w-3.5 h-3.5 text-slate-500"></i> ดูแผง
+                <i data-lucide="eye" class="w-3.5 h-3.5 text-slate-500"></i> เธ”เธนเนเธเธ
               </button>
               <button onclick="app.openEditProjectModal('${this.escapeHtml(proj.name)}')" class="touch-press py-1.5 px-3 bg-blue-50 hover:bg-blue-100 text-blue-700 font-medium rounded-lg flex items-center gap-1">
-                <i data-lucide="edit-2" class="w-3.5 h-3.5"></i> แก้ไข
+                <i data-lucide="edit-2" class="w-3.5 h-3.5"></i> เนเธเนเนเธ
               </button>
               <button onclick="app.openDeleteProjectModal('${this.escapeHtml(proj.name)}', ${total})" class="touch-press py-1.5 px-3 bg-rose-50 hover:bg-rose-100 text-rose-600 font-medium rounded-lg flex items-center gap-1">
-                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> ลบ
+                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> เธฅเธ
               </button>
             </div>
           </div>
@@ -2418,7 +2418,7 @@ class SolarTrackingApp {
             a.download = `solartrack_backup_${new Date().toISOString().slice(0, 10)}.json`;
             a.click();
             URL.revokeObjectURL(url);
-            this.showToast('ดาวน์โหลด JSON Backup เรียบร้อย', 'success');
+            this.showToast('เธ”เธฒเธงเธเนเนเธซเธฅเธ” JSON Backup เน€เธฃเธตเธขเธเธฃเนเธญเธข', 'success');
             return;
           }
         } catch (e) {}
@@ -2442,17 +2442,17 @@ class SolarTrackingApp {
         a.download = `solartrack_backup_${new Date().toISOString().slice(0, 10)}.json`;
         a.click();
         URL.revokeObjectURL(url);
-        this.showToast('ดาวน์โหลด JSON Backup เรียบร้อย', 'success');
+        this.showToast('เธ”เธฒเธงเธเนเนเธซเธฅเธ” JSON Backup เน€เธฃเธตเธขเธเธฃเนเธญเธข', 'success');
       }
     } catch (err) {
-      this.showToast('เกิดข้อผิดพลาดในการดาวน์โหลด Backup: ' + err.message, 'error');
+      this.showToast('เน€เธเธดเธ”เธเนเธญเธเธดเธ”เธเธฅเธฒเธ”เนเธเธเธฒเธฃเธ”เธฒเธงเธเนเนเธซเธฅเธ” Backup: ' + err.message, 'error');
     }
   }
 
   handleImportJson() {
     const fileInput = document.getElementById('import-json-file');
     if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
-      this.showToast('กรุณาเลือกไฟล์ JSON เพื่อนำเข้า', 'warning');
+      this.showToast('เธเธฃเธธเธ“เธฒเน€เธฅเธทเธญเธเนเธเธฅเน JSON เน€เธเธทเนเธญเธเธณเน€เธเนเธฒ', 'warning');
       return;
     }
 
@@ -2465,7 +2465,7 @@ class SolarTrackingApp {
         const panels = Array.isArray(content) ? content : (content.panels || []);
 
         if (!Array.isArray(panels) || panels.length === 0) {
-          throw new Error('ไม่พบรายการข้อมูลแผงโซลาร์ในไฟล์ JSON');
+          throw new Error('เนเธกเนเธเธเธฃเธฒเธขเธเธฒเธฃเธเนเธญเธกเธนเธฅเนเธเธเนเธเธฅเธฒเธฃเนเนเธเนเธเธฅเน JSON');
         }
 
         if (this.isMockMode) {
@@ -2492,10 +2492,10 @@ class SolarTrackingApp {
         }
 
         fileInput.value = '';
-        this.showToast(`นำเข้าข้อมูลแผงโซลาร์ ${panels.length} รายการสำเร็จ!`, 'success');
+        this.showToast(`เธเธณเน€เธเนเธฒเธเนเธญเธกเธนเธฅเนเธเธเนเธเธฅเธฒเธฃเน ${panels.length} เธฃเธฒเธขเธเธฒเธฃเธชเธณเน€เธฃเนเธ!`, 'success');
         await this.loadDatabaseStudioData();
       } catch (err) {
-        this.showToast('เกิดข้อผิดพลาดในการอ่านไฟล์ JSON: ' + err.message, 'error');
+        this.showToast('เน€เธเธดเธ”เธเนเธญเธเธดเธ”เธเธฅเธฒเธ”เนเธเธเธฒเธฃเธญเนเธฒเธเนเธเธฅเน JSON: ' + err.message, 'error');
       }
     };
 
@@ -2503,7 +2503,7 @@ class SolarTrackingApp {
   }
 
   async seedDemoDataset() {
-    if (!confirm('ระบบจะเพิ่มข้อมูลตัวอย่างแผงโซลาร์เซลล์เพื่อความสะดวกในการใช้งาน คุณยืนยันหรือไม่?')) {
+    if (!confirm('เธฃเธฐเธเธเธเธฐเน€เธเธดเนเธกเธเนเธญเธกเธนเธฅเธ•เธฑเธงเธญเธขเนเธฒเธเนเธเธเนเธเธฅเธฒเธฃเนเน€เธเธฅเธฅเนเน€เธเธทเนเธญเธเธงเธฒเธกเธชเธฐเธ”เธงเธเนเธเธเธฒเธฃเนเธเนเธเธฒเธ เธเธธเธ“เธขเธทเธเธขเธฑเธเธซเธฃเธทเธญเนเธกเน?')) {
       return;
     }
 
@@ -2514,12 +2514,12 @@ class SolarTrackingApp {
         const res = await fetch('/api/database/seed', { method: 'POST' });
         if (!res.ok) {
           const samplePanels = [
-            { serial_number: 'LONGI-LR5-72HBD-550M-001', project_name: 'Solar Farm Lopburi Phase 2', inverter: 'INV-01', string_name: 'STR-01', panel_index: 1, brand_model: 'Longi Hi-MO 5 Bifacial', wattage: 550, status: 'installed', technician_name: 'สมชาย รักงาน', notes: 'ติดตั้งเรียบร้อย' },
-            { serial_number: 'LONGI-LR5-72HBD-550M-002', project_name: 'Solar Farm Lopburi Phase 2', inverter: 'INV-01', string_name: 'STR-01', panel_index: 2, brand_model: 'Longi Hi-MO 5 Bifacial', wattage: 550, status: 'installed', technician_name: 'สมชาย รักงาน', notes: 'ติดตั้งเรียบร้อย' },
-            { serial_number: 'JINKO-JKM560N-72HL4-101', project_name: 'Rooftop Factory Amata Chonburi', inverter: 'INV-02', string_name: 'STR-03', panel_index: 1, brand_model: 'Jinko Tiger Neo N-Type', wattage: 560, status: 'installing', technician_name: 'วิชัย ช่างไฟ', notes: 'กำลังติดตั้ง' },
-            { serial_number: 'JINKO-JKM560N-72HL4-102', project_name: 'Rooftop Factory Amata Chonburi', inverter: 'INV-02', string_name: 'STR-03', panel_index: 2, brand_model: 'Jinko Tiger Neo N-Type', wattage: 560, status: 'installing', technician_name: 'วิชัย ช่างไฟ', notes: 'กำลังติดตั้ง' },
-            { serial_number: 'TRINA-TSM-NEG19RC-580-001', project_name: 'Floating Solar Ubon Ratchathani', inverter: 'FL-INV-01', string_name: 'STR-01', panel_index: 1, brand_model: 'Trina Vertex N', wattage: 580, status: 'installed', technician_name: 'ชวนชื่น', notes: 'ติดตั้งบนพื้นที่น้ำ' },
-            { serial_number: 'WH-LONGI-550-PALLET-08', project_name: 'คลังสินค้ากลาง (Central Warehouse)', inverter: '-', string_name: '-', panel_index: 0, brand_model: 'Longi', wattage: 550, status: 'warehouse', technician_name: 'เจ้าหน้าที่คลัง', notes: 'อยู่ในคลัง' }
+            { serial_number: 'LONGI-LR5-72HBD-550M-001', project_name: 'Solar Farm Lopburi Phase 2', inverter: 'INV-01', string_name: 'STR-01', panel_index: 1, brand_model: 'Longi Hi-MO 5 Bifacial', wattage: 550, status: 'installed', technician_name: 'เธชเธกเธเธฒเธข เธฃเธฑเธเธเธฒเธ', notes: 'เธ•เธดเธ”เธ•เธฑเนเธเน€เธฃเธตเธขเธเธฃเนเธญเธข' },
+            { serial_number: 'LONGI-LR5-72HBD-550M-002', project_name: 'Solar Farm Lopburi Phase 2', inverter: 'INV-01', string_name: 'STR-01', panel_index: 2, brand_model: 'Longi Hi-MO 5 Bifacial', wattage: 550, status: 'installed', technician_name: 'เธชเธกเธเธฒเธข เธฃเธฑเธเธเธฒเธ', notes: 'เธ•เธดเธ”เธ•เธฑเนเธเน€เธฃเธตเธขเธเธฃเนเธญเธข' },
+            { serial_number: 'JINKO-JKM560N-72HL4-101', project_name: 'Rooftop Factory Amata Chonburi', inverter: 'INV-02', string_name: 'STR-03', panel_index: 1, brand_model: 'Jinko Tiger Neo N-Type', wattage: 560, status: 'installing', technician_name: 'เธงเธดเธเธฑเธข เธเนเธฒเธเนเธ', notes: 'เธเธณเธฅเธฑเธเธ•เธดเธ”เธ•เธฑเนเธ' },
+            { serial_number: 'JINKO-JKM560N-72HL4-102', project_name: 'Rooftop Factory Amata Chonburi', inverter: 'INV-02', string_name: 'STR-03', panel_index: 2, brand_model: 'Jinko Tiger Neo N-Type', wattage: 560, status: 'installing', technician_name: 'เธงเธดเธเธฑเธข เธเนเธฒเธเนเธ', notes: 'เธเธณเธฅเธฑเธเธ•เธดเธ”เธ•เธฑเนเธ' },
+            { serial_number: 'TRINA-TSM-NEG19RC-580-001', project_name: 'Floating Solar Ubon Ratchathani', inverter: 'FL-INV-01', string_name: 'STR-01', panel_index: 1, brand_model: 'Trina Vertex N', wattage: 580, status: 'installed', technician_name: 'เธเธงเธเธเธทเนเธ', notes: 'เธ•เธดเธ”เธ•เธฑเนเธเธเธเธเธทเนเธเธ—เธตเนเธเนเธณ' },
+            { serial_number: 'WH-LONGI-550-PALLET-08', project_name: 'เธเธฅเธฑเธเธชเธดเธเธเนเธฒเธเธฅเธฒเธ (Central Warehouse)', inverter: '-', string_name: '-', panel_index: 0, brand_model: 'Longi', wattage: 550, status: 'warehouse', technician_name: 'เน€เธเนเธฒเธซเธเนเธฒเธ—เธตเนเธเธฅเธฑเธ', notes: 'เธญเธขเธนเนเนเธเธเธฅเธฑเธ' }
           ];
           await Promise.all(samplePanels.map(p => fetch('/api/panels', {
             method: 'POST',
@@ -2529,13 +2529,13 @@ class SolarTrackingApp {
         }
       }
 
-      this.showToast('เติมชุดข้อมูลทดสอบเรียบร้อยแล้��!', 'success');
+      this.showToast('เน€เธ•เธดเธกเธเธธเธ”เธเนเธญเธกเธนเธฅเธ—เธ”เธชเธญเธเน€เธฃเธตเธขเธเธฃเนเธญเธขเนเธฅเน๏ฟฝ๏ฟฝ!', 'success');
       await this.loadDatabaseStudioData();
       if (this.currentView === 'dashboard') {
         await this.loadDashboardData();
       }
     } catch (err) {
-      this.showToast('เกิดข้อผิดพลาดในการเติมข้อมูล: ' + err.message, 'error');
+      this.showToast('เน€เธเธดเธ”เธเนเธญเธเธดเธ”เธเธฅเธฒเธ”เนเธเธเธฒเธฃเน€เธ•เธดเธกเธเนเธญเธกเธนเธฅ: ' + err.message, 'error');
     }
   }
 
@@ -2558,7 +2558,7 @@ class SolarTrackingApp {
         projects = [];
       }
       if (projects.length === 0) {
-        projectSelect.innerHTML = '<option value="">-- ไม่มีโครงการ --</option>';
+        projectSelect.innerHTML = '<option value="">-- เนเธกเนเธกเธตเนเธเธฃเธเธเธฒเธฃ --</option>';
       } else {
         projectSelect.innerHTML = projects.map(p => `<option value="${this.escapeHtml(p)}">${this.escapeHtml(p)}</option>`).join('');
       }
@@ -2601,18 +2601,18 @@ class SolarTrackingApp {
     if (scope === 'project') {
       if (projectContainer) projectContainer.classList.remove('hidden');
       const prj = document.getElementById('clear-target-project')?.value || '';
-      if (previewText) previewText.textContent = `📁 ระบบจะล้างข้อมูล: เฉพาะแผงในโครงการ "${prj || 'ที่เลือก'}"`;
+      if (previewText) previewText.textContent = `๐“ เธฃเธฐเธเธเธเธฐเธฅเนเธฒเธเธเนเธญเธกเธนเธฅ: เน€เธเธเธฒเธฐเนเธเธเนเธเนเธเธฃเธเธเธฒเธฃ "${prj || 'เธ—เธตเนเน€เธฅเธทเธญเธ'}"`;
     } else {
       if (projectContainer) projectContainer.classList.add('hidden');
       if (previewText) {
         if (scope === 'warehouse') {
-          previewText.textContent = '📦 ระบบจะล้างข้อมูล: เฉพาะแผงในคลังสินค้า (สถานะ: ในคลัง) โดยไม่แตะโครงการอื่น';
+          previewText.textContent = '๐“ฆ เธฃเธฐเธเธเธเธฐเธฅเนเธฒเธเธเนเธญเธกเธนเธฅ: เน€เธเธเธฒเธฐเนเธเธเนเธเธเธฅเธฑเธเธชเธดเธเธเนเธฒ (เธชเธ–เธฒเธเธฐ: เนเธเธเธฅเธฑเธ) เนเธ”เธขเนเธกเนเนเธ•เธฐเนเธเธฃเธเธเธฒเธฃเธญเธทเนเธ';
         } else if (scope === 'installed') {
-          previewText.textContent = '☀️ ระบบจะล้างข้อมูล: เฉพาะแผงที่ติดตั้งแล้ว (สถานะ: ติดตั้งแล้ว/กำลังติดตั้ง)';
+          previewText.textContent = 'โ€๏ธ เธฃเธฐเธเธเธเธฐเธฅเนเธฒเธเธเนเธญเธกเธนเธฅ: เน€เธเธเธฒเธฐเนเธเธเธ—เธตเนเธ•เธดเธ”เธ•เธฑเนเธเนเธฅเนเธง (เธชเธ–เธฒเธเธฐ: เธ•เธดเธ”เธ•เธฑเนเธเนเธฅเนเธง/เธเธณเธฅเธฑเธเธ•เธดเธ”เธ•เธฑเนเธ)';
         } else if (scope === 'damaged') {
-          previewText.textContent = '⚠️ ระบบจะล้างข้อมูล: เฉพาะแผงที่ชำรุด / ส่งเคลม';
+          previewText.textContent = 'โ ๏ธ เธฃเธฐเธเธเธเธฐเธฅเนเธฒเธเธเนเธญเธกเธนเธฅ: เน€เธเธเธฒเธฐเนเธเธเธ—เธตเนเธเธณเธฃเธธเธ” / เธชเนเธเน€เธเธฅเธก';
         } else {
-          previewText.textContent = '🔴 ระบบจะล้างข้อมูล: แผงโซลาร์ทั้งหมดในระบบ 100%';
+          previewText.textContent = '๐”ด เธฃเธฐเธเธเธเธฐเธฅเนเธฒเธเธเนเธญเธกเธนเธฅ: เนเธเธเนเธเธฅเธฒเธฃเนเธ—เธฑเนเธเธซเธกเธ”เนเธเธฃเธฐเธเธ 100%';
         }
       }
     }
@@ -2629,7 +2629,7 @@ class SolarTrackingApp {
   async handleClearOptionsSubmit() {
     const chk = document.getElementById('clear-confirm-checkbox');
     if (!chk || !chk.checked) {
-      this.showToast('กรุณากดยืนยันความเข้าใจก่อนล้างข้อมูล', 'warning');
+      this.showToast('เธเธฃเธธเธ“เธฒเธเธ”เธขเธทเธเธขเธฑเธเธเธงเธฒเธกเน€เธเนเธฒเนเธเธเนเธญเธเธฅเนเธฒเธเธเนเธญเธกเธนเธฅ', 'warning');
       return;
     }
 
@@ -2647,7 +2647,7 @@ class SolarTrackingApp {
     const btn = document.getElementById('btn-submit-clear-options');
     if (btn) {
       btn.disabled = true;
-      btn.innerHTML = `<span class="animate-spin mr-1.5">🌀</span> กำลังล้างข้อมูล...`;
+      btn.innerHTML = `<span class="animate-spin mr-1.5">๐€</span> เธเธณเธฅเธฑเธเธฅเนเธฒเธเธเนเธญเธกเธนเธฅ...`;
     }
 
     try {
@@ -2732,23 +2732,23 @@ class SolarTrackingApp {
       this.closeClearOptionsModal();
       this.selectedIds.clear();
 
-      let scopeLabel = 'ข้อมูลทั้งหมด';
-      if (scope === 'warehouse') scopeLabel = 'แผงในคลังสินค้า';
-      else if (scope === 'installed') scopeLabel = 'แผงที่ติดตั้งแล้ว';
-      else if (scope === 'damaged') scopeLabel = 'แผงชำรุด/เคลม';
-      else if (scope === 'project') scopeLabel = `โครงการ "${project}"`;
+      let scopeLabel = 'เธเนเธญเธกเธนเธฅเธ—เธฑเนเธเธซเธกเธ”';
+      if (scope === 'warehouse') scopeLabel = 'เนเธเธเนเธเธเธฅเธฑเธเธชเธดเธเธเนเธฒ';
+      else if (scope === 'installed') scopeLabel = 'เนเธเธเธ—เธตเนเธ•เธดเธ”เธ•เธฑเนเธเนเธฅเนเธง';
+      else if (scope === 'damaged') scopeLabel = 'เนเธเธเธเธณเธฃเธธเธ”/เน€เธเธฅเธก';
+      else if (scope === 'project') scopeLabel = `เนเธเธฃเธเธเธฒเธฃ "${project}"`;
 
-      this.showToast(`🗑️ ล้าง${scopeLabel}เรียบร้อยแล้ว (ลบออก ${deletedCount} รายการ)`, 'success');
+      this.showToast(`๐—‘๏ธ เธฅเนเธฒเธ${scopeLabel}เน€เธฃเธตเธขเธเธฃเนเธญเธขเนเธฅเนเธง (เธฅเธเธญเธญเธ ${deletedCount} เธฃเธฒเธขเธเธฒเธฃ)`, 'success');
       await this.loadDatabaseStudioData();
       if (this.currentView === 'dashboard') {
         await this.loadDashboardData();
       }
     } catch (err) {
-      this.showToast('เกิดข้อผิดพลาดในการล้างข้อมูล: ' + err.message, 'error');
+      this.showToast('เน€เธเธดเธ”เธเนเธญเธเธดเธ”เธเธฅเธฒเธ”เนเธเธเธฒเธฃเธฅเนเธฒเธเธเนเธญเธกเธนเธฅ: ' + err.message, 'error');
     } finally {
       if (btn) {
         btn.disabled = false;
-        btn.innerHTML = `<i data-lucide="trash-2" class="w-4 h-4"></i> ยืนยันการล้างข้อมูล`;
+        btn.innerHTML = `<i data-lucide="trash-2" class="w-4 h-4"></i> เธขเธทเธเธขเธฑเธเธเธฒเธฃเธฅเนเธฒเธเธเนเธญเธกเธนเธฅ`;
         this.refreshIcons();
       }
     }
@@ -2809,18 +2809,18 @@ class SolarTrackingApp {
     const wattage = parseInt(document.getElementById('pallet-wattage').value, 10) || 550;
 
     if (end < start) {
-      this.showToast('เลขสิ้นสุดต้องมากกว่าหรือเท่ากับเลขเริ่มต้น', 'error');
+      this.showToast('เน€เธฅเธเธชเธดเนเธเธชเธธเธ”เธ•เนเธญเธเธกเธฒเธเธเธงเนเธฒเธซเธฃเธทเธญเน€เธ—เนเธฒเธเธฑเธเน€เธฅเธเน€เธฃเธดเนเธกเธ•เนเธ', 'error');
       return;
     }
 
     const totalPanels = end - start + 1;
     if (totalPanels > 500) {
-      if (!confirm(`คุณกำลังจะสร้างแผงจำนวนมาก (${totalPanels} แผง) ยืนยันหรือไม่?`)) return;
+      if (!confirm(`เธเธธเธ“เธเธณเธฅเธฑเธเธเธฐเธชเธฃเนเธฒเธเนเธเธเธเธณเธเธงเธเธกเธฒเธ (${totalPanels} เนเธเธ) เธขเธทเธเธขเธฑเธเธซเธฃเธทเธญเนเธกเน?`)) return;
     }
 
     const submitBtn = document.getElementById('btn-submit-pallet-range');
     submitBtn.disabled = true;
-    submitBtn.innerHTML = `กำลังบันทึก ${totalPanels} แผง...`;
+    submitBtn.innerHTML = `เธเธณเธฅเธฑเธเธเธฑเธเธ—เธถเธ ${totalPanels} เนเธเธ...`;
 
     const paddingLength = String(document.getElementById('pallet-start-num').value).length;
     const panelsToCreate = [];
@@ -2839,8 +2839,8 @@ class SolarTrackingApp {
         brand_model: brand,
         wattage: wattage,
         status: status,
-        technician_name: 'ช่างพาเลท',
-        notes: `สร้างอัตโนมัติจากช่วงรหัสพาเลท (#${start} - #${end})`,
+        technician_name: 'เธเนเธฒเธเธเธฒเน€เธฅเธ—',
+        notes: `เธชเธฃเนเธฒเธเธญเธฑเธ•เนเธเธกเธฑเธ•เธดเธเธฒเธเธเนเธงเธเธฃเธซเธฑเธชเธเธฒเน€เธฅเธ— (#${start} - #${end})`,
         scanned_mode: 'warehouse'
       });
     }
@@ -2874,17 +2874,17 @@ class SolarTrackingApp {
       }
 
       this.closePalletRangeModal();
-      this.showToast(`สร้างและบันทึกพาเลทสำเร็จเรียบร้อย (${totalPanels} แผง)!`, 'success');
+      this.showToast(`เธชเธฃเนเธฒเธเนเธฅเธฐเธเธฑเธเธ—เธถเธเธเธฒเน€เธฅเธ—เธชเธณเน€เธฃเนเธเน€เธฃเธตเธขเธเธฃเนเธญเธข (${totalPanels} เนเธเธ)!`, 'success');
       if (this.currentView === 'dashboard') {
         await this.loadDashboardData();
       } else if (this.currentView === 'database') {
         await this.loadDatabaseStudioData();
       }
     } catch (err) {
-      this.showToast('เกิดข้อผิดพลาดในการสร้างพาเลท: ' + err.message, 'error');
+      this.showToast('เน€เธเธดเธ”เธเนเธญเธเธดเธ”เธเธฅเธฒเธ”เนเธเธเธฒเธฃเธชเธฃเนเธฒเธเธเธฒเน€เธฅเธ—: ' + err.message, 'error');
     } finally {
       submitBtn.disabled = false;
-      submitBtn.innerHTML = `<i data-lucide="check-circle" class="w-4 h-4"></i> บันทึกยกพาเลททันที`;
+      submitBtn.innerHTML = `<i data-lucide="check-circle" class="w-4 h-4"></i> เธเธฑเธเธ—เธถเธเธขเธเธเธฒเน€เธฅเธ—เธ—เธฑเธเธ—เธต`;
       this.refreshIcons();
     }
   }
