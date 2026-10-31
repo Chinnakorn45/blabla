@@ -21,13 +21,19 @@ const DEFAULT_PROJECT_NAMES = [
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    // Handle CORS preflight
+    if (request.method === 'OPTIONS') {
+      return new Response(null, {
+        status: 204,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+        }
+      });
+    }
+
     if (url.pathname.startsWith('/api/')) {
-      if (!env.STORE || typeof env.STORE.get !== 'function' || typeof env.STORE.put !== 'function') {
-        return json({
-          success: false,
-          error: 'Persistent storage is unavailable. Bind a Cloudflare KV namespace as STORE.'
-        }, 503);
-      }
       try {
         return await handleApi(request, env, url);
       } catch (err) {
@@ -41,7 +47,13 @@ export default {
 function json(data, status = 200, headers = {}) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { 'Content-Type': 'application/json; charset=utf-8', ...headers }
+    headers: {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      ...headers
+    }
   });
 }
 
@@ -51,11 +63,13 @@ async function handleApi(request, env, url) {
   const store = new DataStore(env.STORE);
 
   if (path === '/api/health' && method === 'GET') {
+    const isKvBound = Boolean(env.STORE && typeof env.STORE.get === 'function' && typeof env.STORE.put === 'function');
     return json({
       status: 'ok',
       appName: 'Solar Panel Tracking API',
       timestamp: new Date().toISOString(),
-      runtime: 'cloudflare-worker'
+      runtime: 'cloudflare-worker',
+      storage: isKvBound ? 'kv' : 'memory'
     });
   }
 
@@ -185,7 +199,8 @@ async function handleApi(request, env, url) {
       panels: data
     };
     const filename = `solartrack_backup_${new Date().toISOString().slice(0, 10)}.json`;
-    return json(backupData, 200, { 'Content-Disposition': `attachment; filename="${filename}"` });
+    return json(backupData, 200, { 'Content-Disposition': `attachment; filename="${filename}"`,
+      'Access-Control-Allow-Origin': '*' });
   }
   if (path === '/api/database/projects-detail' && method === 'GET') {
     return json({ success: true, projects: await store.getProjectsFull() });
@@ -235,23 +250,33 @@ function csvResponse(data) {
   });
 }
 
+let inMemoryStore = null;
+
 class DataStore {
   constructor(kv) {
-    this.kv = kv;
+    this.kv = (kv && typeof kv.get === 'function' && typeof kv.put === 'function') ? kv : null;
     this.cache = null;
   }
 
   emptyStore() {
-    return { panels: [], projects: DEFAULT_PROJECTS.map((p) => ({ ...p })) };
+    return { panels: demoPanels(), projects: DEFAULT_PROJECTS.map((p) => ({ ...p })) };
   }
 
   async load() {
     if (this.cache) return this.cache;
     if (!this.kv) {
-      this.cache = this.emptyStore();
+      if (!inMemoryStore) {
+        inMemoryStore = this.emptyStore();
+      }
+      this.cache = inMemoryStore;
       return this.cache;
     }
-    const raw = await this.kv.get(STORE_KEY);
+    let raw = null;
+    try {
+      raw = await this.kv.get(STORE_KEY);
+    } catch (err) {
+      console.error('Failed to get from KV:', err);
+    }
     if (!raw) {
       this.cache = this.emptyStore();
       await this.save();
@@ -269,7 +294,11 @@ class DataStore {
 
   async save() {
     if (this.kv && this.cache) {
-      await this.kv.put(STORE_KEY, JSON.stringify(this.cache));
+      try {
+        await this.kv.put(STORE_KEY, JSON.stringify(this.cache));
+      } catch (err) {
+        console.error('KV save error:', err);
+      }
     }
   }
 
@@ -538,16 +567,23 @@ class DataStore {
 
   async getDatabaseInfo() {
     const stats = await this.getStats();
-    const raw = this.kv ? await this.kv.get(STORE_KEY) : JSON.stringify(this.cache || {});
-    const fileSizeBytes = raw ? new TextEncoder().encode(raw).length : 0;
+    const isKvBound = Boolean(this.kv);
+    let fileSizeBytes = 0;
+    try {
+      const raw = isKvBound ? await this.kv.get(STORE_KEY) : JSON.stringify(this.cache || {});
+      fileSizeBytes = raw ? new TextEncoder().encode(raw).length : 0;
+    } catch {
+      fileSizeBytes = 0;
+    }
     return {
-      engine: 'Cloudflare KV',
-      filePath: 'kv://STORE/solartrack',
+      engine: isKvBound ? 'Cloudflare KV' : 'In-Memory (Fallback - No KV Bound)',
+      filePath: isKvBound ? 'kv://STORE/solartrack' : 'in-memory (ephemeral)',
       fileName: 'solartrack',
       fileSizeBytes,
       fileSizeFormatted: (fileSizeBytes / 1024).toFixed(2) + ' KB',
       lastModified: new Date().toISOString(),
-      stats
+      stats,
+      kv_bound: isKvBound
     };
   }
 
