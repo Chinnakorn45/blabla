@@ -21,6 +21,12 @@ app.use(express.urlencoded({ extended: true }));
 
 // Serve frontend static files
 app.use(express.static(path.join(__dirname, 'public')));
+app.get('/vendor/lucide.js', (req, res) => {
+  res.sendFile(path.join(__dirname, 'node_modules', 'lucide', 'dist', 'umd', 'lucide.min.js'));
+});
+app.get('/vendor/html5-qrcode.js', (req, res) => {
+  res.sendFile(path.join(__dirname, 'node_modules', 'html5-qrcode', 'html5-qrcode.min.js'));
+});
 
 // ---------------- API Routes ----------------
 
@@ -76,15 +82,25 @@ app.post('/api/panels', async (req, res) => {
   try {
     const body = req.body || {};
     const serialNumber = typeof body.serial_number === 'string' ? body.serial_number.trim() : '';
-    const isWarehouse = body.status === 'warehouse' || body.scanned_mode === 'warehouse';
+    const isWarehouse = body.scanned_mode === 'warehouse';
+    const isDatabaseEdit = body.scanned_mode === 'database-edit';
+    if (!isWarehouse && !isDatabaseEdit && body.status === 'warehouse') {
+      return res.status(400).json({ success: false, error: 'กรุณาใช้โหมดรับเข้าคลังเพื่อบันทึกแผงเข้าสต๊อก' });
+    }
     const projectName = isWarehouse
       ? WAREHOUSE_PROJECT_NAME
       : (typeof body.project_name === 'string' ? body.project_name.trim() : '');
     if (!serialNumber) {
       return res.status(400).json({ success: false, error: 'Serial number is required.' });
     }
+    if (isWarehouse && !(typeof body.brand_model === 'string' && body.brand_model.trim())) {
+      return res.status(400).json({ success: false, error: 'กรุณาระบุยี่ห้อหรือรุ่นแผงก่อนรับเข้าคลัง' });
+    }
     if (!projectName) {
       return res.status(400).json({ success: false, error: 'Project name is required.' });
+    }
+    if (!isWarehouse && projectName.toLowerCase() === WAREHOUSE_PROJECT_NAME.toLowerCase() && !isDatabaseEdit) {
+      return res.status(400).json({ success: false, error: 'คลังสินค้ากลางเป็นสต๊อก ไม่ใช่โครงการปลายทาง' });
     }
 
     const result = await db.savePanel({
@@ -92,11 +108,11 @@ app.post('/api/panels', async (req, res) => {
       serial_number: serialNumber,
       project_name: projectName,
       ...(isWarehouse ? { status: 'warehouse', scanned_mode: 'warehouse' } : {})
-    });
+    }, { requireWarehouseStock: !isWarehouse && !isDatabaseEdit });
     res.status(200).json(result);
   } catch (err) {
     console.error('Error saving panel:', err);
-    res.status(500).json({ success: false, error: err.message });
+    res.status(err.code === 'STOCK_CONFLICT' ? 409 : 500).json({ success: false, error: err.message });
   }
 });
 
@@ -159,6 +175,83 @@ app.delete('/api/projects/:name', async (req, res) => {
     res.json(result);
   } catch (err) {
     console.error('Error deleting project:', err);
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+// Equipment catalog and issue history
+app.get('/api/equipment', async (req, res) => {
+  try {
+    const equipment = await db.getEquipmentCatalog();
+    res.json({ success: true, equipment });
+  } catch (err) {
+    console.error('Error fetching equipment catalog:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/equipment', async (req, res) => {
+  try {
+    const result = await db.saveEquipmentCatalogItem(req.body || {});
+    res.status(201).json(result);
+  } catch (err) {
+    console.error('Error creating equipment catalog item:', err);
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+app.put('/api/equipment/:id', async (req, res) => {
+  try {
+    const result = await db.saveEquipmentCatalogItem({ ...(req.body || {}), id: req.params.id });
+    res.json(result);
+  } catch (err) {
+    console.error('Error updating equipment catalog item:', err);
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+app.delete('/api/equipment/:id', async (req, res) => {
+  try {
+    res.json(await db.deleteEquipmentCatalogItem(req.params.id));
+  } catch (err) {
+    console.error('Error deleting equipment catalog item:', err);
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+app.get('/api/equipment/issues', async (req, res) => {
+  try {
+    const issues = await db.getEquipmentIssues();
+    res.json({ success: true, issues });
+  } catch (err) {
+    console.error('Error fetching equipment issue history:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/equipment/issues', async (req, res) => {
+  try {
+    res.status(201).json(await db.saveEquipmentIssue(req.body || {}));
+  } catch (err) {
+    console.error('Error creating equipment issue:', err);
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+app.put('/api/equipment/issues/:id', async (req, res) => {
+  try {
+    res.json(await db.saveEquipmentIssue(req.body || {}, req.params.id));
+  } catch (err) {
+    console.error('Error updating equipment issue:', err);
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+app.delete('/api/equipment/issues/:id', async (req, res) => {
+  try {
+    res.json(await db.deleteEquipmentIssue(req.params.id));
+  } catch (err) {
+    console.error('Error deleting equipment issue:', err);
     res.status(400).json({ success: false, error: err.message });
   }
 });
@@ -261,15 +354,15 @@ app.post('/api/database/clear-selective', async (req, res) => {
 // Bulk Import Panels from JSON
 app.post('/api/database/import', async (req, res) => {
   try {
-    const { panels } = req.body;
+    const { panels, requireWarehouseStock = false } = req.body;
     if (!panels || !Array.isArray(panels)) {
       return res.status(400).json({ success: false, error: 'Expected array of panels' });
     }
-    const result = await db.importPanels(panels);
+    const result = await db.importPanels(panels, { requireWarehouseStock: requireWarehouseStock === true });
     res.json(result);
   } catch (err) {
     console.error('Error importing panels:', err);
-    res.status(500).json({ success: false, error: err.message });
+    res.status(err.code === 'STOCK_CONFLICT' ? 409 : 500).json({ success: false, error: err.message });
   }
 });
 

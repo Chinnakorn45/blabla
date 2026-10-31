@@ -30,6 +30,7 @@
     if (!Array.isArray(list)) return [];
     return list.filter(item => {
       const name = normalizeProjectName(item && item.project_name ? item.project_name : item);
+      if (item && typeof item === 'object' && item.status === 'warehouse') return true;
       return name && !isBuiltInProject(name);
     });
   }

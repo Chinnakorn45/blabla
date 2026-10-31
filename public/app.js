@@ -48,6 +48,11 @@ class SolarTrackingApp {
       status: 'all'
     };
     this.cachedDbPanels = [];
+    this.equipmentCatalog = [];
+    this.equipmentIssues = [];
+    this.expandedEquipmentIssueIds = new Set();
+    this.pendingConfirmation = null;
+    this.confirmationReturnFocus = null;
 
     this.init();
   }
@@ -65,6 +70,26 @@ class SolarTrackingApp {
     window.addEventListener('popstate', (e) => {
       if (this.currentView === 'scanner') {
         this.stopScannerAndReturn();
+      }
+    });
+
+    [['input-brand', 'input-wattage'], ['pallet-brand', 'pallet-wattage']].forEach(([brandId, wattageId]) => {
+      const brandInput = document.getElementById(brandId);
+      const wattageInput = document.getElementById(wattageId);
+      if (!brandInput || !wattageInput) return;
+      const syncWattage = () => {
+        const selectedBrand = appSettings.getBrandEntries().find(brand =>
+          brand.name.toLocaleLowerCase() === brandInput.value.trim().toLocaleLowerCase()
+        );
+        wattageInput.value = selectedBrand ? String(selectedBrand.wattage) : '';
+      };
+      brandInput.addEventListener('change', syncWattage);
+      brandInput.addEventListener('input', syncWattage);
+    });
+
+    window.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && this.pendingConfirmation) {
+        this.finishConfirmation(false);
       }
     });
 
@@ -127,16 +152,26 @@ class SolarTrackingApp {
     try {
       const res = await fetch('/api/health', { signal: AbortSignal.timeout(2500) });
       if (res.ok) {
+        if (window.location.protocol === 'file:') {
+          window.location.replace('http://localhost:3000/');
+          return;
+        }
         this.isMockMode = false;
         this.updateConnectionIndicator(true, 'เชื่อมต่อเซิร์ฟเวอร์');
         return;
       }
-      throw new Error('Non-200 response');
+      throw new Error(`เซิร์ฟเวอร์ตอบกลับ HTTP ${res.status}`);
     } catch (e) {
       this.isMockMode = true;
       this.initLocalStorageMock();
-      this.updateConnectionIndicator(false, 'โหมดออฟไลน์ (Local DB)');
-      this.showToast('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ ระบบสลับไปใช้ Local Storage ชั่วคราว', 'warning');
+      const openedFromFile = window.location.protocol === 'file:';
+      this.updateConnectionIndicator(false, openedFromFile ? 'ยังไม่เชื่อมต่อเซิร์ฟเวอร์' : 'โหมดออฟไลน์ (Local DB)');
+      this.showToast(
+        openedFromFile
+          ? 'กำลังเปิดจากไฟล์โดยตรง: เริ่มเซิร์ฟเวอร์ด้วย npm start แล้วเปิด http://localhost:3000 เพื่อใช้ฐานข้อมูลและรายชื่อโครงการ'
+          : `เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ (${e.message}) ระบบสลับไปใช้ Local Storage ชั่วคราว`,
+        'warning'
+      );
     }
   }
 
@@ -155,11 +190,15 @@ class SolarTrackingApp {
   }
 
   getDefaultBrand() {
-    return appSettings.getDefaultBrand() || 'Standard Tier-1 Solar';
+    return appSettings.getDefaultBrand();
   }
 
-  getDefaultWattage() {
-    const wattage = Number(appSettings.getDefaultWattage());
+  getDefaultWattage(brandModel = '') {
+    const configuredWattage = brandModel
+      ? appSettings.getWattageForBrand(brandModel)
+      : appSettings.getDefaultWattage();
+    if (brandModel && !configuredWattage) return 0;
+    const wattage = Number(configuredWattage);
     return Number.isInteger(wattage) && wattage > 0 ? wattage : 550;
   }
 
@@ -176,8 +215,22 @@ class SolarTrackingApp {
     return result;
   }
 
-  async importPanels(panels) {
-    const result = await this.postJson('/api/database/import', { panels });
+  async requestJson(path, { method = 'GET', body } = {}) {
+    const options = { method, headers: {} };
+    if (body !== undefined) {
+      options.headers['Content-Type'] = 'application/json';
+      options.body = JSON.stringify(body);
+    }
+    const response = await fetch(path, options);
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || result.success === false) {
+      throw new Error(result.error || `Request failed (${response.status})`);
+    }
+    return result;
+  }
+
+  async importPanels(panels, { requireWarehouseStock = false } = {}) {
+    const result = await this.postJson('/api/database/import', { panels, requireWarehouseStock });
     if (result.count !== panels.length) {
       throw new Error(`Only ${result.count || 0} of ${panels.length} panels were saved`);
     }
@@ -188,69 +241,10 @@ class SolarTrackingApp {
 
   initLocalStorageMock() {
     if (!localStorage.getItem('solartrack_projects')) {
-      const defaultProjects = [
-        { id: 1, name: 'Solar Farm Lopburi Phase 2', location: 'ลพบุรี', target_capacity_kw: 5000 },
-        { id: 2, name: 'Rooftop Factory Amata Chonburi', location: 'ชลบุรี', target_capacity_kw: 1200 },
-        { id: 3, name: 'Floating Solar Ubon Ratchathani', location: 'อุบลราชธานี', target_capacity_kw: 3500 },
-        { id: 4, name: 'คลังสินค้ากลาง (Central Warehouse)', location: 'สมุทรปราการ', target_capacity_kw: 0 }
-      ];
-      localStorage.setItem('solartrack_projects', JSON.stringify(defaultProjects));
+      localStorage.setItem('solartrack_projects', JSON.stringify([]));
     }
     if (!localStorage.getItem('solartrack_panels')) {
-      const initialSeed = [
-        {
-          id: 1,
-          serial_number: 'LONGI-LR5-72HBD-550M-202401',
-          project_name: 'Solar Farm Lopburi Phase 2',
-          inverter: 'INV-01',
-          string_name: 'STR-01',
-          panel_index: 1,
-          brand_model: 'Longi Hi-MO 5 Bifacial',
-          wattage: 550,
-          status: 'installed',
-          technician_name: 'สมชาย รักงาน',
-          gps_lat: 14.8055,
-          gps_lng: 100.6534,
-          notes: 'ติดตั้งโครงสร้างเรียบร้อย',
-          scanned_mode: 'field',
-          updated_at: new Date().toISOString()
-        },
-        {
-          id: 2,
-          serial_number: 'JINKO-JKM560N-72HL4-202410',
-          project_name: 'Rooftop Factory Amata Chonburi',
-          inverter: 'INV-02',
-          string_name: 'STR-05',
-          panel_index: 1,
-          brand_model: 'Jinko Tiger Neo N-Type',
-          wattage: 560,
-          status: 'installing',
-          technician_name: 'วิชัย ช่างไฟ',
-          gps_lat: 13.3611,
-          gps_lng: 100.9847,
-          notes: 'กำลังจัดสายลงราง',
-          scanned_mode: 'field',
-          updated_at: new Date().toISOString()
-        },
-        {
-          id: 3,
-          serial_number: 'TRINA-TSM-NEG19RC.20-580M-01',
-          project_name: 'คลังสินค้ากลาง (Central Warehouse)',
-          inverter: '-',
-          string_name: '-',
-          panel_index: 0,
-          brand_model: 'Trina Vertex N Dual-Glass',
-          wattage: 580,
-          status: 'warehouse',
-          technician_name: 'ประสิทธิ์ สโตร์แมน',
-          gps_lat: 13.6899,
-          gps_lng: 100.7501,
-          notes: 'รับเข้าคลังพาเลทที่ #12',
-          scanned_mode: 'warehouse',
-          updated_at: new Date().toISOString()
-        }
-      ];
-      localStorage.setItem('solartrack_panels', JSON.stringify(initialSeed));
+      localStorage.setItem('solartrack_panels', JSON.stringify([]));
     }
   }
 
@@ -261,27 +255,51 @@ class SolarTrackingApp {
   getMockProjects() {
     try {
       const raw = localStorage.getItem('solartrack_projects');
-      if (raw) return JSON.parse(raw);
+      if (raw) return JSON.parse(raw).filter(project => project.name !== WAREHOUSE_PROJECT_NAME);
     } catch {}
-    return [
-      { id: 1, name: 'Solar Farm Lopburi Phase 2', location: 'ลพบุรี', target_capacity_kw: 5000 },
-      { id: 2, name: 'Rooftop Factory Amata Chonburi', location: 'ชลบุรี', target_capacity_kw: 1200 },
-      { id: 3, name: 'Floating Solar Ubon Ratchathani', location: 'อุบลราชธานี', target_capacity_kw: 3500 },
-      { id: 4, name: 'คลังสินค้ากลาง (Central Warehouse)', location: 'สมุทรปราการ', target_capacity_kw: 0 }
-    ];
+    return [];
   }
 
   saveMockProjects(projects) {
     localStorage.setItem('solartrack_projects', JSON.stringify(projects));
   }
 
-  saveMockPanel(panel) {
+  saveMockPanel(panel, { requireWarehouseStock = false } = {}) {
     const list = this.getMockPanels();
     const idx = list.findIndex(p => p.serial_number.toLowerCase() === panel.serial_number.toLowerCase());
+    const isWarehouse = panel.status === 'warehouse' || panel.scanned_mode === 'warehouse';
+    if (!isWarehouse && panel.project_name === WAREHOUSE_PROJECT_NAME) {
+      throw new Error('คลังสินค้ากลางเป็นสต๊อก ไม่ใช่โครงการปลายทาง');
+    }
+    if (requireWarehouseStock && panel.status === 'warehouse' && panel.scanned_mode !== 'warehouse') {
+      throw new Error('กรุณาใช้โหมดรับเข้าคลังเพื่อบันทึกแผงเข้าสต๊อก');
+    }
+    if (requireWarehouseStock && !isWarehouse) {
+      if (idx < 0) {
+        throw new Error(`ไม่พบ SN ${panel.serial_number} ในคลังสินค้า กรุณารับเข้าสต๊อกก่อนเบิกไปหน้างาน`);
+      }
+      const current = list[idx];
+      if (current.status !== 'warehouse') {
+        throw new Error(`SN ${panel.serial_number} ถูกเบิกไปแล้วที่ ${current.project_name} (สถานะ: ${this.translateStatus(current.status)})`);
+      }
+      if (panel.project_name === WAREHOUSE_PROJECT_NAME) {
+        throw new Error('กรุณาเลือกโครงการปลายทาง การเบิกแผงออกจากคลังต้องระบุหน้างาน');
+      }
+    }
+
     const now = new Date().toISOString();
     let record;
     if (idx >= 0) {
-      record = { ...list[idx], ...panel, updated_at: now };
+      const current = list[idx];
+      record = {
+        ...current,
+        ...panel,
+        ...(requireWarehouseStock && !isWarehouse ? {
+          brand_model: current.brand_model,
+          wattage: current.wattage
+        } : {}),
+        updated_at: now
+      };
       list[idx] = record;
     } else {
       record = {
@@ -313,7 +331,7 @@ class SolarTrackingApp {
 
     this.currentView = viewId;
     this.updateNavButtons(viewId);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo(0, 0);
     this.refreshIcons();
 
     if (viewId === 'dashboard') {
@@ -327,27 +345,43 @@ class SolarTrackingApp {
 
   updateNavButtons(viewId) {
     const navDashboard = document.getElementById('nav-btn-dashboard');
-    const navDatabase = document.getElementById('nav-btn-database');
     const navSettings = document.getElementById('nav-btn-settings');
     const activeClass = 'text-xs px-2.5 sm:px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 bg-amber-500 text-slate-950 font-bold shadow-xs';
     const inactiveClass = 'text-xs px-2.5 sm:px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 text-slate-300 hover:text-white';
     if (navDashboard) navDashboard.className = viewId === 'dashboard' ? activeClass : inactiveClass;
-    if (navDatabase) navDatabase.className = viewId === 'database' ? activeClass : inactiveClass;
-    if (navSettings) navSettings.className = viewId === 'settings' ? activeClass : inactiveClass;
+    if (navSettings) navSettings.className = viewId === 'settings' || viewId === 'database' ? activeClass : inactiveClass;
+  }
+
+  setPageHeaderMode(mode) {
+    ['view-scanner', 'view-form'].forEach(viewId => {
+      const header = document.querySelector(`#${viewId} .page-header-dark`);
+      if (!header) return;
+      header.classList.toggle('page-header-field', mode === 'field');
+    });
   }
 
   startScanMode(mode) {
     this.currentMode = mode;
+    this.setPageHeaderMode(mode);
     const badge = document.getElementById('scanner-mode-badge');
     const formTag = document.getElementById('form-mode-tag');
     const turboFieldSettings = document.getElementById('turbo-field-settings');
     const turboFieldIndex = document.getElementById('turbo-field-index');
     const turboDrawer = document.getElementById('turbo-preset-drawer');
+    const turboBrandField = document.getElementById('turbo-preset-brand-field');
+    const turboFieldPresets = [
+      'turbo-preset-project-field',
+      'turbo-preset-location-field',
+      'turbo-preset-index-field',
+      'turbo-preset-status-field'
+    ].map(id => document.getElementById(id));
 
     if (mode === 'warehouse') {
+      turboFieldPresets.forEach(field => field?.classList.add('hidden'));
       if (turboFieldSettings) turboFieldSettings.classList.add('hidden');
       if (turboFieldIndex) turboFieldIndex.classList.add('hidden');
-      if (turboDrawer) turboDrawer.classList.add('hidden');
+      if (turboDrawer) turboDrawer.classList.remove('hidden');
+      if (turboBrandField) turboBrandField.classList.remove('hidden');
       if (badge) {
         badge.textContent = 'รับเข้าคลัง (Warehouse)';
         badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500 text-slate-950 uppercase';
@@ -357,6 +391,9 @@ class SolarTrackingApp {
         formTag.className = 'text-xs font-semibold px-2.5 py-1 rounded bg-emerald-500 text-slate-950';
       }
     } else {
+      turboFieldPresets.forEach(field => field?.classList.remove('hidden'));
+      if (turboDrawer) turboDrawer.classList.add('hidden');
+      if (turboBrandField) turboBrandField.classList.add('hidden');
       if (badge) {
         badge.textContent = 'ติดตั้งหน้างาน (Field)';
         badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500 text-slate-950 uppercase';
@@ -600,26 +637,35 @@ class SolarTrackingApp {
   async populateTurboPresets() {
     if (this.currentMode === 'warehouse') return;
     const select = document.getElementById('turbo-preset-project');
-    if (!select || select.children.length > 0) return;
+    if (!select) return;
 
     let projects = [];
     try {
       if (this.isMockMode) {
         const mockProjs = this.getMockProjects().map(p => p.name);
         const panels = this.getMockPanels();
-        const fromPanels = panels.map(p => p.project_name);
-        projects = Array.from(new Set(['คลังสินค้ากลาง (Central Warehouse)', ...mockProjs, ...fromPanels])).filter(Boolean);
+        const fromPanels = panels
+          .filter(p => p.status !== 'warehouse' && p.project_name !== WAREHOUSE_PROJECT_NAME)
+          .map(p => p.project_name);
+        projects = Array.from(new Set([...mockProjs, ...fromPanels])).filter(Boolean);
       } else {
         const res = await fetch('/api/projects');
+        if (!res.ok) throw new Error(`โหลดรายชื่อโครงการไม่สำเร็จ (HTTP ${res.status})`);
         const json = await res.json();
         projects = json.projects || [];
       }
     } catch (e) {
-      projects = ['Solar Farm Lopburi Phase 2', 'Rooftop Factory Amata Chonburi'];
+      projects = [];
+      this.showToast(`โหลดรายชื่อโครงการไม่สำเร็จ: ${e.message}`, 'error');
     }
 
-    select.innerHTML = projects.map(p => `<option value="${this.escapeHtml(p)}">${this.escapeHtml(p)}</option>`).join('');
-    if (this.lastSaved.project_name) select.value = this.lastSaved.project_name;
+    const currentProject = select.value;
+    select.innerHTML = `<option value="">${projects.length ? '-- เลือกโครงการปลายทาง --' : 'ยังไม่มีโครงการปลายทาง'}</option>` +
+      projects.map(p => `<option value="${this.escapeHtml(p)}">${this.escapeHtml(p)}</option>`).join('');
+    if (projects.includes(currentProject)) select.value = currentProject;
+    if (this.lastSaved.project_name && this.lastSaved.project_name !== WAREHOUSE_PROJECT_NAME) {
+      select.value = this.lastSaved.project_name;
+    }
     if (this.lastSaved.inverter) document.getElementById('turbo-preset-inverter').value = this.lastSaved.inverter;
     if (this.lastSaved.string_name) document.getElementById('turbo-preset-string').value = this.lastSaved.string_name;
   }
@@ -635,10 +681,25 @@ class SolarTrackingApp {
     this.playBeep();
 
     const isWarehouse = this.currentMode === 'warehouse';
+    this.setPageHeaderMode(isWarehouse ? 'warehouse' : 'field');
+    const warehouseBrand = document.getElementById('turbo-preset-brand')?.value.trim() || '';
+    if (isWarehouse && !warehouseBrand) {
+      this.showToast('กรุณาเลือกรุ่นหรือยี่ห้อแผงก่อนสแกนรับเข้าคลัง', 'warning');
+      return;
+    }
+    if (isWarehouse && !appSettings.getWattageForBrand(warehouseBrand)) {
+      this.showToast('กรุณาเลือกรุ่นที่บันทึกไว้ เพื่อกำหนดกำลังวัตต์ให้แผง', 'warning');
+      return;
+    }
     const projectSelect = document.getElementById('turbo-preset-project');
     const project = isWarehouse
       ? WAREHOUSE_PROJECT_NAME
-      : ((projectSelect && projectSelect.value) || this.lastSaved.project_name || 'Solar Farm Lopburi Phase 2');
+      : ((projectSelect && projectSelect.value) ||
+        (this.lastSaved.project_name === WAREHOUSE_PROJECT_NAME ? '' : this.lastSaved.project_name) || '');
+    if (!isWarehouse && !project) {
+      this.showToast('กรุณาเลือกโครงการปลายทางก่อนเบิกแผง', 'warning');
+      return;
+    }
     const inverter = isWarehouse ? '-' : ((document.getElementById('turbo-preset-inverter')?.value.trim()) || 'INV-01');
     const stringName = isWarehouse ? '-' : ((document.getElementById('turbo-preset-string')?.value.trim()) || 'STR-01');
     const indexInput = document.getElementById('turbo-preset-index');
@@ -652,15 +713,15 @@ class SolarTrackingApp {
       string_name: stringName,
       panel_index: currentIndex,
       status: status,
-      brand_model: this.getDefaultBrand(),
-      wattage: this.getDefaultWattage(),
+      brand_model: isWarehouse ? warehouseBrand : this.getDefaultBrand(),
+      wattage: this.getDefaultWattage(isWarehouse ? warehouseBrand : this.getDefaultBrand()),
       technician_name: this.lastSaved.technician_name || appSettings.getDefaultTechnician() || (isWarehouse ? 'Warehouse staff' : 'Field technician'),
       scanned_mode: this.currentMode
     };
 
     try {
       if (this.isMockMode) {
-        this.saveMockPanel(payload);
+        this.saveMockPanel(payload, { requireWarehouseStock: !isWarehouse });
       } else {
         await this.postJson('/api/panels', payload);
       }
@@ -730,13 +791,14 @@ class SolarTrackingApp {
     await this.prepareDataForm(cleanSerial);
   }
 
-  async prepareDataForm(serialNumber) {
+  async prepareDataForm(serialNumber, { brandModel = '' } = {}) {
     this.showView('form');
 
     const inputSerial = document.getElementById('input-serial');
     inputSerial.value = serialNumber;
 
     const isWarehouse = this.currentMode === 'warehouse';
+    this.setPageHeaderMode(isWarehouse ? 'warehouse' : 'field');
     const installFields = document.getElementById('field-installation-fields');
     const warehouseBanner = document.getElementById('warehouse-mode-banner');
     const titleText = document.getElementById('form-title-text');
@@ -747,6 +809,16 @@ class SolarTrackingApp {
     const projectSelect = document.getElementById('input-project');
     const projectWrapper = document.getElementById('field-project-wrapper');
     const technicianFields = document.getElementById('field-technician-gps');
+    const inputBrand = document.getElementById('input-brand');
+    const labelBrand = document.getElementById('label-brand');
+    if (inputBrand) inputBrand.required = isWarehouse;
+    if (labelBrand) {
+      labelBrand.innerHTML = `ยี่ห้อ / รุ่น (Brand & Model)${isWarehouse ? ' <span class="text-red-500">*</span>' : ''}`;
+    }
+    const warehouseStatusInput = document.querySelector('input[name="form-status"][value="warehouse"]');
+    const warehouseStatusLabel = warehouseStatusInput?.closest('label');
+    if (warehouseStatusLabel) warehouseStatusLabel.classList.toggle('hidden', !isWarehouse);
+    if (saveBtn) saveBtn.disabled = !isWarehouse;
 
     if (isWarehouse) {
       if (projectWrapper) projectWrapper.classList.add('hidden');
@@ -765,43 +837,34 @@ class SolarTrackingApp {
         saveBtn.className = 'touch-press flex-[2] py-3 px-6 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white rounded-xl text-sm font-bold shadow-md';
       }
 
-      if (projectSelect) {
-        let found = false;
-        for (let opt of projectSelect.options) {
-          if (opt.value.includes('คลัง') || opt.value.toLowerCase().includes('warehouse')) {
-            projectSelect.value = opt.value;
-            found = true;
-            break;
-          }
-        }
-        if (!found) {
-          const opt = new Option('คลังสินค้ากลาง (Central Warehouse)', 'คลังสินค้ากลาง (Central Warehouse)', true, true);
-          projectSelect.add(opt);
-          projectSelect.value = 'คลังสินค้ากลาง (Central Warehouse)';
-        }
-      }
       this.setStatusRadio('warehouse');
     } else {
       if (projectWrapper) projectWrapper.classList.remove('hidden');
       if (warehouseBanner) warehouseBanner.classList.add('hidden');
       if (installFields) installFields.classList.remove('hidden');
       if (technicianFields) technicianFields.classList.remove('hidden');
-      if (titleText) titleText.textContent = 'บันทึกข้อมูลติดตั้งหน้างาน';
-      if (subtitleText) subtitleText.textContent = 'กรอกรายละเอียดเพื่อบันทึกลงฐานข้อมูล';
+      if (titleText) titleText.textContent = 'เบิกแผงจากสต๊อกไปหน้างาน';
+      if (subtitleText) subtitleText.textContent = 'เลือกโครงการปลายทาง ระบบจะตัดแผง SN นี้ออกจากคลังกลาง';
       if (modeTag) {
         modeTag.textContent = 'โหมดติดตั้งหน้างาน';
         modeTag.className = 'text-xs font-semibold px-2.5 py-1 rounded bg-amber-500 text-slate-950';
       }
       if (labelProject) labelProject.innerHTML = 'ชื่อโครงการ (Project Name) <span class="text-red-500">*</span>';
       if (saveBtn) {
-        saveBtn.innerHTML = '<i data-lucide="save" class="w-4 h-4"></i> บันทึกข้อมูลแผงโซลาร์';
+        saveBtn.innerHTML = '<i data-lucide="package-minus" class="w-4 h-4"></i> ยืนยันเบิกไปหน้างาน';
         saveBtn.className = 'touch-press flex-[2] py-3 px-6 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white rounded-xl text-sm font-bold shadow-md';
+      }
+      if (projectSelect) {
+        projectSelect.value = this.lastSaved.project_name === WAREHOUSE_PROJECT_NAME
+          ? ''
+          : this.lastSaved.project_name;
       }
       this.setStatusRadio('installed');
     }
 
     // Check if serial already exists
     let existing = null;
+    let lookupError = null;
     try {
       if (this.isMockMode) {
         existing = this.getMockPanels().find(p => p.serial_number.toLowerCase() === serialNumber.toLowerCase());
@@ -810,10 +873,13 @@ class SolarTrackingApp {
         if (res.ok) {
           const json = await res.json();
           existing = json.panel;
+        } else if (res.status !== 404) {
+          throw new Error(`ไม่สามารถตรวจสอบ SN ได้ (HTTP ${res.status})`);
         }
       }
     } catch (e) {
       console.warn('Error checking existing panel:', e);
+      lookupError = e;
     }
 
     const alertEl = document.getElementById('existing-panel-alert');
@@ -821,26 +887,42 @@ class SolarTrackingApp {
 
     if (existing) {
       alertEl.classList.remove('hidden');
+      const location = this.getPanelLocationLabel(existing);
       descEl.textContent = isWarehouse
-        ? `แผงนี้มีประวัติในระบบแล้ว (โครงการเดิม: ${existing.project_name}, สถานะ: ${this.translateStatus(existing.status)})`
-        : `แผงนี้ถูกบันทึกแล้วในโครงการ: ${existing.project_name} (${existing.inverter || '-'} / ${existing.string_name || '-'}), สถานะ: ${this.translateStatus(existing.status)}`;
+        ? `พบ SN นี้ในระบบแล้ว (ตำแหน่ง: ${location}, สถานะ: ${this.translateStatus(existing.status)})`
+        : existing.status === 'warehouse'
+          ? 'พบแผง SN นี้ในสต๊อกกลาง สามารถเลือกโครงการเพื่อเบิกไปหน้างานได้'
+          : `SN นี้ถูกเบิกไปที่ ${location} (${existing.inverter || '-'} / ${existing.string_name || '-'}), สถานะ: ${this.translateStatus(existing.status)} ไม่สามารถเบิกซ้ำได้`;
 
-      if (!isWarehouse && existing.project_name) {
+      if (!isWarehouse && existing.status !== 'warehouse' && existing.project_name) {
         document.getElementById('input-project').value = existing.project_name;
       }
       document.getElementById('input-inverter').value = existing.inverter || '';
       document.getElementById('input-string').value = existing.string_name || '';
       document.getElementById('input-index').value = existing.panel_index || '';
-      document.getElementById('input-brand').value = existing.brand_model || '';
-      document.getElementById('input-wattage').value = existing.wattage || 550;
+      const selectedBrand = (isWarehouse && brandModel) || existing.brand_model || '';
+      document.getElementById('input-brand').value = selectedBrand;
+      const selectedWattage = isWarehouse && brandModel
+        ? this.getDefaultWattage(brandModel)
+        : (existing.wattage || this.getDefaultWattage(existing.brand_model));
+      document.getElementById('input-wattage').value = selectedWattage > 0 ? selectedWattage : '';
       document.getElementById('input-technician').value = existing.technician_name || this.lastSaved.technician_name || '';
       document.getElementById('input-notes').value = existing.notes || '';
 
       this.setStatusRadio(isWarehouse ? 'warehouse' : 'installed');
     } else {
-      alertEl.classList.add('hidden');
-      document.getElementById('input-brand').value = this.getDefaultBrand();
-      document.getElementById('input-wattage').value = this.getDefaultWattage();
+      if (!isWarehouse) {
+        alertEl.classList.remove('hidden');
+        descEl.textContent = lookupError
+          ? `ตรวจสอบ SN ไม่สำเร็จ (${lookupError.message}) จึงยังไม่สามารถเบิกแผงได้`
+          : 'ไม่พบ SN นี้ในสต๊อกกลาง กรุณาสแกนรับเข้าสต๊อกก่อน แล้วจึงเบิกไปหน้างาน';
+      } else {
+        alertEl.classList.add('hidden');
+      }
+      document.getElementById('input-brand').value = isWarehouse ? (brandModel || '') : this.getDefaultBrand();
+      const selectedBrand = document.getElementById('input-brand').value;
+      const selectedWattage = selectedBrand ? this.getDefaultWattage(selectedBrand) : 0;
+      document.getElementById('input-wattage').value = selectedWattage > 0 ? selectedWattage : '';
       document.getElementById('input-technician').value = appSettings.getDefaultTechnician();
 
       if (!isWarehouse) {
@@ -860,6 +942,12 @@ class SolarTrackingApp {
         document.getElementById('input-index').value = (this.lastSaved.panel_index || 0) + 1;
         this.setStatusRadio('installed');
       }
+    }
+
+    if (!isWarehouse && saveBtn) {
+      saveBtn.disabled = Boolean(lookupError) || !existing || existing.status !== 'warehouse';
+    } else if (saveBtn) {
+      saveBtn.disabled = false;
     }
 
     if (!isWarehouse && this.currentMode === 'field') {
@@ -936,6 +1024,18 @@ class SolarTrackingApp {
       this.showToast('กรุณาเลือกโครงการ', 'error');
       return;
     }
+    const brandModel = document.getElementById('input-brand')?.value.trim() || '';
+    if (isWarehouse && !brandModel) {
+      this.showToast('กรุณาเลือกรุ่นหรือยี่ห้อแผงก่อนรับเข้าคลัง', 'warning');
+      document.getElementById('input-brand')?.focus();
+      return;
+    }
+    const wattage = parseInt(document.getElementById('input-wattage')?.value, 10);
+    if (!Number.isInteger(wattage) || wattage < 1 || wattage > 2000) {
+      this.showToast('กรุณาระบุกำลังวัตต์ระหว่าง 1 ถึง 2000 Wp', 'warning');
+      document.getElementById('input-wattage')?.focus();
+      return;
+    }
 
     const payload = {
       serial_number: serialNumber,
@@ -943,8 +1043,8 @@ class SolarTrackingApp {
       inverter: isWarehouse ? '-' : (document.getElementById('input-inverter')?.value.trim() || '-'),
       string_name: isWarehouse ? '-' : (document.getElementById('input-string')?.value.trim() || '-'),
       panel_index: isWarehouse ? 0 : (parseInt(document.getElementById('input-index')?.value, 10) || 0),
-      brand_model: document.getElementById('input-brand')?.value.trim() || this.getDefaultBrand(),
-      wattage: parseInt(document.getElementById('input-wattage')?.value, 10) || this.getDefaultWattage(),
+      brand_model: brandModel || this.getDefaultBrand(),
+      wattage,
       status: isWarehouse ? 'warehouse' : this.getStatusRadio(),
       technician_name: document.getElementById('input-technician')?.value.trim() || appSettings.getDefaultTechnician() || (isWarehouse ? 'Warehouse staff' : 'Field technician'),
       gps_lat: isWarehouse ? null : (parseFloat(document.getElementById('input-lat')?.value) || null),
@@ -960,7 +1060,7 @@ class SolarTrackingApp {
     try {
       let result;
       if (this.isMockMode) {
-        result = this.saveMockPanel(payload);
+        result = this.saveMockPanel(payload, { requireWarehouseStock: !isWarehouse });
       } else {
         result = await this.postJson('/api/panels', payload);
       }
@@ -986,7 +1086,7 @@ class SolarTrackingApp {
       if (isWarehouse) {
         saveBtn.innerHTML = `<i data-lucide="package-check" class="w-4 h-4"></i> บันทึกรับเข้าคลังทันที`;
       } else {
-        saveBtn.innerHTML = `<i data-lucide="save" class="w-4 h-4"></i> บันทึกข้อมูลแผงโซลาร์`;
+        saveBtn.innerHTML = `<i data-lucide="package-minus" class="w-4 h-4"></i> ยืนยันเบิกไปหน้างาน`;
       }
       this.refreshIcons();
     }
@@ -994,8 +1094,8 @@ class SolarTrackingApp {
 
   showSuccessView(panel) {
     document.getElementById('success-serial').textContent = panel.serial_number;
-    document.getElementById('success-project').textContent = panel.project_name;
     const isWarehouse = panel.status === 'warehouse';
+    document.getElementById('success-project').textContent = this.getPanelLocationLabel(panel);
     document.getElementById('success-location').textContent = isWarehouse
       ? 'คลังสินค้า (สต๊อกพร้อมใช้งาน)'
       : `${panel.inverter || '-'} / ${panel.string_name || '-'} (แผง #${panel.panel_index || 0})`;
@@ -1025,7 +1125,9 @@ class SolarTrackingApp {
           installing: all.filter(p => p.status === 'installing').length,
           installed: all.filter(p => p.status === 'installed').length,
           damaged: all.filter(p => p.status === 'damaged').length,
-          projects: [...new Set(all.map(p => p.project_name))].length
+          projects: [...new Set(all
+            .filter(p => p.status !== 'warehouse' && p.project_name !== WAREHOUSE_PROJECT_NAME)
+            .map(p => p.project_name))].filter(Boolean).length
         };
         panelsData = { total: all.length, data: all };
       } else {
@@ -1092,7 +1194,7 @@ class SolarTrackingApp {
             </div>
             <div class="text-xs text-slate-700 flex items-center gap-1.5">
               <i data-lucide="folder" class="w-3.5 h-3.5 text-amber-500 shrink-0"></i>
-              <span class="truncate font-medium">${this.escapeHtml(p.project_name)}</span>
+              <span class="truncate font-medium">${this.escapeHtml(this.getPanelLocationLabel(p))}</span>
             </div>
             <div class="flex items-center justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-100">
               <span class="font-mono text-slate-600">${this.escapeHtml(p.inverter || '-')} / ${this.escapeHtml(p.string_name || '-')} (#${p.panel_index || 0})</span>
@@ -1115,7 +1217,7 @@ class SolarTrackingApp {
         return `
           <tr class="hover:bg-slate-50 transition border-b border-slate-100">
             <td class="py-3 px-4 font-mono font-bold text-slate-900 whitespace-nowrap">${this.escapeHtml(p.serial_number)}</td>
-            <td class="py-3 px-4 font-medium whitespace-nowrap">${this.escapeHtml(p.project_name)}</td>
+            <td class="py-3 px-4 font-medium whitespace-nowrap">${this.escapeHtml(this.getPanelLocationLabel(p))}</td>
             <td class="py-3 px-4 font-mono text-slate-600 whitespace-nowrap">${this.escapeHtml(p.inverter || '-')} / ${this.escapeHtml(p.string_name || '-')} (#${p.panel_index || 0})</td>
             <td class="py-3 px-4 whitespace-nowrap">${statusBadge}</td>
             <td class="py-3 px-4 text-slate-600 whitespace-nowrap">${this.escapeHtml(p.technician_name || '-')}</td>
@@ -1146,16 +1248,23 @@ class SolarTrackingApp {
     let projects = [];
     try {
       if (this.isMockMode) {
+        const savedProjects = this.getMockProjects().map(project => project.name);
         const panels = this.getMockPanels();
-        projects = Array.from(new Set(panels.map(p => p.project_name))).filter(Boolean);
+        const panelProjects = panels
+          .filter(p => p.status !== 'warehouse' && p.project_name !== WAREHOUSE_PROJECT_NAME)
+          .map(p => p.project_name);
+        projects = Array.from(new Set([...savedProjects, ...panelProjects])).filter(Boolean);
       } else {
         const res = await fetch('/api/projects');
+        if (!res.ok) throw new Error(`โหลดรายชื่อโครงการไม่สำเร็จ (HTTP ${res.status})`);
         const data = await res.json();
+        if (data.success === false) throw new Error(data.error || 'โหลดรายชื่อโครงการไม่สำเร็จ');
         projects = data.projects || [];
       }
     } catch (e) {
       console.warn('Failed loading projects:', e);
       projects = [];
+      this.showToast(`โหลดรายชื่อโครงการไม่สำเร็จ: ${e.message}`, 'error');
     }
 
     this.cachedProjectsList = projects;
@@ -1178,7 +1287,9 @@ class SolarTrackingApp {
 
     if (formSelect) {
       const currentVal = formSelect.value;
-      formSelect.innerHTML = `<option value="">-- เลือกโครงการ --</option>` + optionsHtml;
+      formSelect.innerHTML = projects.length
+        ? `<option value="">-- เลือกโครงการ --</option>` + optionsHtml
+        : '<option value="">ยังไม่มีโครงการ - กดปุ่ม “โครงการใหม่” เพื่อเพิ่ม</option>';
       if (currentVal && projects.includes(currentVal)) formSelect.value = currentVal;
     }
 
@@ -1198,7 +1309,7 @@ class SolarTrackingApp {
 
     if (singleProjSelect) {
       const currentVal = singleProjSelect.value;
-      singleProjSelect.innerHTML = optionsHtml;
+      singleProjSelect.innerHTML = `<option value="">-- เลือกโครงการ --</option>` + optionsHtml;
       if (currentVal && projects.includes(currentVal)) singleProjSelect.value = currentVal;
     }
 
@@ -1230,6 +1341,10 @@ class SolarTrackingApp {
 
     if (!name) {
       this.showToast('กรุณาระบุชื่อโครงการ', 'error');
+      return;
+    }
+    if (name.toLowerCase() === WAREHOUSE_PROJECT_NAME.toLowerCase()) {
+      this.showToast('คลังสินค้ากลางเป็นสต๊อก ไม่ใช่โครงการ', 'error');
       return;
     }
 
@@ -1300,6 +1415,11 @@ class SolarTrackingApp {
 
     if (!newName) {
       this.showToast('กรุณาระบุชื่อโครงการ', 'error');
+      return;
+    }
+    if (oldName.toLowerCase() === WAREHOUSE_PROJECT_NAME.toLowerCase() ||
+        newName.toLowerCase() === WAREHOUSE_PROJECT_NAME.toLowerCase()) {
+      this.showToast('คลังสินค้ากลางเป็นสต๊อก ไม่ใช่โครงการ', 'error');
       return;
     }
 
@@ -1468,7 +1588,11 @@ class SolarTrackingApp {
     if (!isWarehouse) {
       try {
         if (this.isMockMode) {
-          projects = Array.from(new Set(this.getMockPanels().map(p => p.project_name))).filter(Boolean);
+          const savedProjects = this.getMockProjects().map(project => project.name);
+          const panelProjects = this.getMockPanels()
+            .filter(p => p.status !== 'warehouse' && p.project_name !== WAREHOUSE_PROJECT_NAME)
+            .map(p => p.project_name);
+          projects = Array.from(new Set([...savedProjects, ...panelProjects])).filter(Boolean);
         } else {
           const res = await fetch('/api/projects');
           if (!res.ok) throw new Error(`Unable to load projects (${res.status})`);
@@ -1482,16 +1606,21 @@ class SolarTrackingApp {
       }
     }
 
-    const optionsHtml = projects.map(p => `<option value="${this.escapeHtml(p)}">${this.escapeHtml(p)}</option>`).join('');
+    const optionsHtml = `<option value="">-- เลือกโครงการ --</option>` +
+      projects.map(p => `<option value="${this.escapeHtml(p)}">${this.escapeHtml(p)}</option>`).join('');
     const singleProj = document.getElementById('manual-preset-project');
     const bulkProj = document.getElementById('bulk-preset-project');
     if (singleProj) {
       singleProj.innerHTML = optionsHtml;
-      if (this.lastSaved.project_name) singleProj.value = this.lastSaved.project_name;
+      if (this.lastSaved.project_name && this.lastSaved.project_name !== WAREHOUSE_PROJECT_NAME) {
+        singleProj.value = this.lastSaved.project_name;
+      }
     }
     if (bulkProj) {
-      bulkProj.innerHTML = `<option value="">-- เลือกโครงการ --</option>` + optionsHtml;
-      if (this.lastSaved.project_name) bulkProj.value = this.lastSaved.project_name;
+      bulkProj.innerHTML = optionsHtml;
+      if (this.lastSaved.project_name && this.lastSaved.project_name !== WAREHOUSE_PROJECT_NAME) {
+        bulkProj.value = this.lastSaved.project_name;
+      }
     }
 
     if (this.lastSaved.inverter) {
@@ -1508,6 +1637,13 @@ class SolarTrackingApp {
 
     document.getElementById('manual-single-presets')?.classList.toggle('hidden', isWarehouse);
     document.getElementById('bulk-preset-fields')?.classList.toggle('hidden', isWarehouse);
+    const brandSelector = document.getElementById('manual-brand-selector');
+    const brandInput = document.getElementById('manual-panel-brand');
+    if (brandSelector) brandSelector.classList.toggle('hidden', !isWarehouse);
+    if (brandInput) {
+      brandInput.required = isWarehouse;
+      brandInput.value = '';
+    }
     if (isWarehouse) {
       const bulkStatus = document.getElementById('bulk-preset-status');
       if (bulkStatus) bulkStatus.value = 'warehouse';
@@ -1518,7 +1654,7 @@ class SolarTrackingApp {
 
     const inp = document.getElementById('manual-serial-input');
     inp.value = '';
-    setTimeout(() => inp.focus(), 60);
+    setTimeout(() => (isWarehouse ? brandInput : inp)?.focus(), 60);
     this.refreshIcons();
   }
 
@@ -1561,18 +1697,33 @@ class SolarTrackingApp {
 
     const quickSaveCheck = document.getElementById('manual-quick-save');
     const isQuickSave = quickSaveCheck ? quickSaveCheck.checked : false;
+    const isWarehouse = this.currentMode === 'warehouse';
+    const brandModel = document.getElementById('manual-panel-brand')?.value.trim() || '';
+    if (isWarehouse && !brandModel) {
+      this.showToast('กรุณาเลือกรุ่นแผงก่อนกรอก SN รับเข้าคลัง', 'warning');
+      document.getElementById('manual-panel-brand')?.focus();
+      return;
+    }
+    if (isWarehouse && !appSettings.getWattageForBrand(brandModel)) {
+      this.showToast('กรุณาเลือกรุ่นที่บันทึกไว้ เพื่อกำหนดกำลังวัตต์ให้แผง', 'warning');
+      document.getElementById('manual-panel-brand')?.focus();
+      return;
+    }
 
     if (!isQuickSave) {
       this.closeManualEntryModal();
-      this.prepareDataForm(serial);
+      this.prepareDataForm(serial, { brandModel });
       return;
     }
 
     this.playBeep();
-    const isWarehouse = this.currentMode === 'warehouse';
     const project = isWarehouse
       ? WAREHOUSE_PROJECT_NAME
-      : (document.getElementById('manual-preset-project')?.value || 'Solar Farm Lopburi Phase 2');
+      : (document.getElementById('manual-preset-project')?.value || '');
+    if (!isWarehouse && !project) {
+      this.showToast('กรุณาเลือกโครงการปลายทางก่อนเบิกแผง', 'warning');
+      return;
+    }
     const inverter = isWarehouse ? '-' : ((document.getElementById('manual-preset-inverter')?.value.trim()) || 'INV-01');
     const stringName = isWarehouse ? '-' : ((document.getElementById('manual-preset-string')?.value.trim()) || 'STR-01');
     const indexInput = document.getElementById('manual-preset-index');
@@ -1585,15 +1736,17 @@ class SolarTrackingApp {
       string_name: stringName,
       panel_index: currentIndex,
       status: isWarehouse ? 'warehouse' : 'installed',
-      brand_model: this.getDefaultBrand(),
-      wattage: this.getDefaultWattage(),
+      brand_model: isWarehouse ? brandModel : this.getDefaultBrand(),
+      wattage: isWarehouse
+        ? appSettings.getWattageForBrand(brandModel)
+        : this.getDefaultWattage(this.getDefaultBrand()),
       technician_name: this.lastSaved.technician_name || appSettings.getDefaultTechnician() || (isWarehouse ? 'Warehouse staff' : 'Field technician'),
       scanned_mode: this.currentMode || 'manual'
     };
 
     try {
       if (this.isMockMode) {
-        this.saveMockPanel(payload);
+        this.saveMockPanel(payload, { requireWarehouseStock: !isWarehouse });
       } else {
         await this.postJson('/api/panels', payload);
       }
@@ -1635,6 +1788,17 @@ class SolarTrackingApp {
     }
 
     const isWarehouse = this.currentMode === 'warehouse';
+    const brandModel = document.getElementById('manual-panel-brand')?.value.trim() || '';
+    if (isWarehouse && !brandModel) {
+      this.showToast('กรุณาเลือกรุ่นแผงก่อนวางรายการ SN รับเข้าคลัง', 'warning');
+      document.getElementById('manual-panel-brand')?.focus();
+      return;
+    }
+    if (isWarehouse && !appSettings.getWattageForBrand(brandModel)) {
+      this.showToast('กรุณาเลือกรุ่นที่บันทึกไว้ เพื่อกำหนดกำลังวัตต์ให้แผง', 'warning');
+      document.getElementById('manual-panel-brand')?.focus();
+      return;
+    }
     const project = isWarehouse ? WAREHOUSE_PROJECT_NAME : document.getElementById('bulk-preset-project').value;
     if (!isWarehouse && !project) {
       this.showToast('กรุณาเลือกโครงการปลายทางก่อนบันทึก', 'warning');
@@ -1654,8 +1818,10 @@ class SolarTrackingApp {
       inverter: inverter,
       string_name: stringName,
       panel_index: isWarehouse ? 0 : idx + 1,
-      brand_model: this.getDefaultBrand(),
-      wattage: this.getDefaultWattage(),
+      brand_model: isWarehouse ? brandModel : this.getDefaultBrand(),
+      wattage: isWarehouse
+        ? appSettings.getWattageForBrand(brandModel)
+        : this.getDefaultWattage(this.getDefaultBrand()),
       status: status,
       technician_name: appSettings.getDefaultTechnician() || 'Bulk import',
       notes: `นำเข้าพร้อมกัน ${lines.length} แผง`,
@@ -1664,15 +1830,23 @@ class SolarTrackingApp {
 
     try {
       if (this.isMockMode) {
-        const list = this.getMockPanels();
-        panelsToCreate.forEach(p => {
-          const idx = list.findIndex(ex => ex.serial_number.toLowerCase() === p.serial_number.toLowerCase());
-          if (idx >= 0) list[idx] = { ...list[idx], ...p };
-          else list.push({ ...p, id: list.length + 1 });
-        });
-        localStorage.setItem('solartrack_panels', JSON.stringify(list));
+        if (!isWarehouse) {
+          const stock = this.getMockPanels();
+          const serials = new Set();
+          for (const panel of panelsToCreate) {
+            const key = panel.serial_number.toLowerCase();
+            if (serials.has(key)) throw new Error(`พบ SN ${panel.serial_number} ซ้ำในรายการเบิก`);
+            serials.add(key);
+            const current = stock.find(item => item.serial_number.toLowerCase() === key);
+            if (!current) throw new Error(`ไม่พบ SN ${panel.serial_number} ในคลังสินค้า กรุณารับเข้าสต๊อกก่อนเบิกไปหน้างาน`);
+            if (current.status !== 'warehouse') {
+              throw new Error(`SN ${panel.serial_number} ถูกเบิกไปแล้วที่ ${current.project_name} (สถานะ: ${this.translateStatus(current.status)})`);
+            }
+          }
+        }
+        panelsToCreate.forEach(panel => this.saveMockPanel(panel, { requireWarehouseStock: !isWarehouse }));
       } else {
-        await this.importPanels(panelsToCreate);
+        await this.importPanels(panelsToCreate, { requireWarehouseStock: !isWarehouse });
       }
 
       this.closeManualEntryModal();
@@ -1727,7 +1901,116 @@ class SolarTrackingApp {
     }
   }
 
+  async exportProjectExcel(projectName) {
+    if (!projectName) {
+      this.showToast('ไม่พบชื่อโครงการสำหรับส่งออก', 'error');
+      return;
+    }
+
+    try {
+      let panels;
+      if (this.isMockMode) {
+        panels = this.getMockPanels().filter(panel => panel.project_name === projectName);
+      } else {
+        const query = new URLSearchParams({ project: projectName, limit: '50000' });
+        const response = await fetch(`/api/panels?${query.toString()}`);
+        const result = await response.json();
+        if (!response.ok || result.success === false) {
+          throw new Error(result.error || `โหลดข้อมูลโครงการไม่สำเร็จ (HTTP ${response.status})`);
+        }
+        panels = result.data || [];
+      }
+
+      panels.sort((a, b) =>
+        String(a.inverter || '').localeCompare(String(b.inverter || ''), 'th') ||
+        String(a.string_name || '').localeCompare(String(b.string_name || ''), 'th') ||
+        (Number(a.panel_index) || 0) - (Number(b.panel_index) || 0) ||
+        String(a.serial_number || '').localeCompare(String(b.serial_number || ''), 'en')
+      );
+
+      const models = new Map();
+      panels.forEach(panel => {
+        const model = panel.brand_model || 'ไม่ระบุรุ่น';
+        const summary = models.get(model) || { count: 0, wattages: new Set() };
+        summary.count++;
+        summary.wattages.add(Number(panel.wattage) || 0);
+        models.set(model, summary);
+      });
+
+      const modelRows = Array.from(models, ([model, summary]) => `
+        <tr><td>${this.escapeHtml(model)}</td><td class="number">${summary.count}</td><td class="number">${Array.from(summary.wattages).sort((a, b) => a - b).join(' / ')} Wp</td></tr>
+      `).join('');
+      const panelRows = panels.map((panel, index) => `
+        <tr>
+          <td class="number">${index + 1}</td>
+          <td class="serial">${this.escapeHtml(panel.serial_number || '')}</td>
+          <td>${this.escapeHtml(panel.brand_model || 'ไม่ระบุรุ่น')}</td>
+          <td class="number">${Number(panel.wattage) || 0}</td>
+          <td class="serial">${this.escapeHtml(panel.inverter || '-')}</td>
+          <td class="serial">${this.escapeHtml(panel.string_name || '-')}</td>
+          <td>${this.escapeHtml(this.translateStatus(panel.status))}</td>
+        </tr>
+      `).join('');
+
+      const exportedAt = new Date();
+      const panelHeaderRow = 9 + models.size;
+      const panelLastRow = panelHeaderRow + Math.max(panels.length, 1);
+      const report = `<!DOCTYPE html>
+        <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">
+        <head><meta charset="UTF-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>รายงานแผง</x:Name><x:WorksheetOptions><x:FreezePanes/><x:FrozenNoSplit/><x:SplitHorizontal>${panelHeaderRow}</x:SplitHorizontal><x:TopRowBottomPane>${panelHeaderRow}</x:TopRowBottomPane><x:AutoFilter x:Range="R${panelHeaderRow}C1:R${panelLastRow}C7"/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->
+        <style>
+          body{font-family:Tahoma,Arial,sans-serif;color:#1e293b}
+          table{border-collapse:collapse;width:100%;margin-bottom:18px}
+          td,th{border:1px solid #dbe3ee;padding:8px 10px;font-size:10pt}
+          .title{background:#0f172a;color:#fff;font-size:18pt;font-weight:bold;padding:16px}
+          .subtitle{background:#1e293b;color:#cbd5e1;padding:8px 12px}
+          .section{background:#f1f5f9;color:#0f172a;font-weight:bold;font-size:12pt;padding:10px}
+          .label{background:#f8fafc;color:#64748b;font-weight:bold;width:18%}
+          .value{font-weight:bold}
+          .column-head{background:#0f766e;color:#fff;font-weight:bold}
+          .number{text-align:right;mso-number-format:"0"}
+          .serial{mso-number-format:"\\@"}
+          .stripe{background:#f8fafc}
+        </style></head>
+        <body>
+          <table>
+            <tr><td colspan="3" class="title">รายงานแผงโซลาร์เซลล์ประจำโครงการ</td></tr>
+            <tr><td colspan="3" class="subtitle">SolarTrack · ส่งออกเมื่อ ${this.escapeHtml(exportedAt.toLocaleString('th-TH'))}</td></tr>
+            <tr><td class="label">โครงการ</td><td colspan="2" class="value">${this.escapeHtml(projectName)}</td></tr>
+            <tr><td class="label">จำนวนแผง</td><td colspan="2" class="value">${panels.length.toLocaleString('th-TH')} แผง</td></tr>
+            <tr><td class="label">จำนวนรุ่น</td><td colspan="2" class="value">${models.size.toLocaleString('th-TH')} รุ่น</td></tr>
+            <tr><td colspan="3" class="section">สรุปยี่ห้อ / รุ่นแผง</td></tr>
+            <tr class="column-head"><th>ยี่ห้อ / รุ่น</th><th>จำนวนแผง</th><th>กำลังต่อแผง</th></tr>
+            ${modelRows || '<tr><td colspan="3">ยังไม่มีแผงในโครงการนี้</td></tr>'}
+            <tr><td colspan="7" class="section">รายการ SN และข้อมูลแผง</td></tr>
+            <tr class="column-head"><th>ลำดับ</th><th>Serial Number (SN)</th><th>ยี่ห้อ / รุ่น</th><th>กำลัง (Wp)</th><th>Inverter</th><th>String</th><th>สถานะ</th></tr>
+            ${panelRows || '<tr><td colspan="7">ยังไม่มีรายการแผง</td></tr>'}
+          </table>
+        </body></html>`;
+
+      const blob = new Blob(['\uFEFF', report], { type: 'application/vnd.ms-excel;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const safeName = projectName.replace(/[<>:"/\\|?*\x00-\x1f]/g, '_').trim().replace(/\s+/g, '_') || 'project';
+      link.href = url;
+      link.download = `SolarTrack_${safeName}_${exportedAt.toISOString().slice(0, 10)}.xls`;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      this.showToast(`ส่งออกรายงานโครงการ ${projectName} (${panels.length} แผง) เรียบร้อย`, 'success');
+    } catch (error) {
+      console.error('Project Excel export failed:', error);
+      this.showToast(`ส่งออกรายงานไม่สำเร็จ: ${error.message}`, 'error');
+    }
+  }
+
   // ---------------- Helpers & Utilities ----------------
+
+  getPanelLocationLabel(panel) {
+    if (panel.status === 'warehouse') return 'คลังสินค้ากลาง (สต๊อก)';
+    return panel.project_name === WAREHOUSE_PROJECT_NAME
+      ? 'ไม่ระบุหน้างาน'
+      : (panel.project_name || '-');
+  }
 
   translateStatus(status) {
     switch (status) {
@@ -1779,34 +2062,90 @@ class SolarTrackingApp {
     if (!container) return;
 
     const toast = document.createElement('div');
-    let bg = 'bg-slate-900 text-white';
+    const titles = {
+      success: 'ดำเนินการสำเร็จ',
+      error: 'เกิดข้อผิดพลาด',
+      warning: 'กรุณาตรวจสอบ',
+      info: 'แจ้งเตือน'
+    };
     let icon = 'info';
 
     if (type === 'success') {
-      bg = 'bg-emerald-600 text-white';
       icon = 'check-circle';
     } else if (type === 'error') {
-      bg = 'bg-rose-600 text-white';
       icon = 'alert-triangle';
     } else if (type === 'warning') {
-      bg = 'bg-amber-600 text-white';
       icon = 'alert-circle';
     }
 
-    toast.className = `${bg} px-4 py-3 rounded-xl shadow-xl flex items-center gap-2.5 text-xs font-medium transform transition-all duration-300 opacity-0 translate-y-2 pointer-events-auto`;
-    toast.innerHTML = `<i data-lucide="${icon}" class="w-4 h-4 shrink-0"></i> <span>${this.escapeHtml(message)}</span>`;
+    toast.className = `app-toast app-toast-${type} app-toast-enter`;
+    toast.setAttribute('role', type === 'error' ? 'alert' : 'status');
+    toast.setAttribute('aria-live', type === 'error' ? 'assertive' : 'polite');
+    const iconWrap = document.createElement('span');
+    iconWrap.className = 'app-toast-icon';
+    iconWrap.innerHTML = `<i data-lucide="${icon}"></i>`;
+    const content = document.createElement('span');
+    content.className = 'app-toast-content';
+    const title = document.createElement('strong');
+    title.textContent = titles[type] || titles.info;
+    const text = document.createElement('span');
+    text.textContent = message;
+    content.append(title, text);
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.className = 'app-toast-close';
+    close.setAttribute('aria-label', 'ปิดการแจ้งเตือน');
+    close.innerHTML = '<i data-lucide="x"></i>';
+    close.addEventListener('click', () => dismiss());
+    toast.append(iconWrap, content, close);
 
     container.appendChild(toast);
     this.refreshIcons();
 
-    setTimeout(() => {
-      toast.classList.remove('opacity-0', 'translate-y-2');
-    }, 10);
+    requestAnimationFrame(() => toast.classList.remove('app-toast-enter'));
+    const dismiss = () => {
+      if (!toast.isConnected) return;
+      toast.classList.add('app-toast-exit');
+      setTimeout(() => toast.remove(), 220);
+    };
+    const timeout = setTimeout(dismiss, 4200);
+    close.addEventListener('click', () => clearTimeout(timeout), { once: true });
+  }
 
-    setTimeout(() => {
-      toast.classList.add('opacity-0', 'translate-y-2');
-      setTimeout(() => toast.remove(), 300);
-    }, 4000);
+  confirmAction({ title, message, confirmText = 'ยืนยัน', tone = 'danger' }) {
+    if (this.pendingConfirmation) this.finishConfirmation(false);
+    const modal = document.getElementById('action-confirm-modal');
+    const titleEl = document.getElementById('action-confirm-title');
+    const messageEl = document.getElementById('action-confirm-message');
+    const confirmButton = document.getElementById('action-confirm-submit');
+    if (!modal || !titleEl || !messageEl || !confirmButton) {
+      return Promise.reject(new Error('ไม่พบหน้าต่างยืนยันการทำรายการ'));
+    }
+
+    this.confirmationReturnFocus = document.activeElement;
+    titleEl.textContent = title;
+    messageEl.textContent = message;
+    confirmButton.textContent = confirmText;
+    confirmButton.className = `action-confirm-submit ${tone === 'danger' ? 'action-confirm-danger' : 'action-confirm-primary'}`;
+    modal.classList.remove('hidden');
+    this.refreshIcons();
+
+    return new Promise(resolve => {
+      this.pendingConfirmation = resolve;
+      confirmButton.focus();
+    });
+  }
+
+  finishConfirmation(confirmed) {
+    if (!this.pendingConfirmation) return;
+    const resolve = this.pendingConfirmation;
+    this.pendingConfirmation = null;
+    document.getElementById('action-confirm-modal')?.classList.add('hidden');
+    if (this.confirmationReturnFocus instanceof HTMLElement && this.confirmationReturnFocus.isConnected) {
+      this.confirmationReturnFocus.focus();
+    }
+    this.confirmationReturnFocus = null;
+    resolve(confirmed);
   }
 
   // ==========================================
@@ -1820,7 +2159,7 @@ class SolarTrackingApp {
 
   switchDbTab(tabName) {
     this.dbCurrentTab = tabName;
-    const tabs = ['records', 'projects', 'tools'];
+    const tabs = ['records', 'projects', 'equipment', 'tools'];
 
     tabs.forEach(t => {
       const pane = document.getElementById(`db-tab-${t}`);
@@ -1847,6 +2186,8 @@ class SolarTrackingApp {
       this.loadDbRecords();
     } else if (tabName === 'projects') {
       this.loadDbProjects();
+    } else if (tabName === 'equipment') {
+      this.loadEquipmentData();
     }
   }
 
@@ -1915,7 +2256,11 @@ class SolarTrackingApp {
     try {
       if (this.isMockMode) {
         const panels = this.getMockPanels();
-        projects = Array.from(new Set(panels.map(p => p.project_name))).filter(Boolean);
+        const savedProjects = this.getMockProjects().map(project => project.name);
+        const panelProjects = panels
+          .filter(p => p.status !== 'warehouse' && p.project_name !== WAREHOUSE_PROJECT_NAME)
+          .map(p => p.project_name);
+        projects = Array.from(new Set([...savedProjects, ...panelProjects])).filter(Boolean);
       } else {
         const res = await fetch('/api/projects');
         const json = await res.json();
@@ -1928,6 +2273,7 @@ class SolarTrackingApp {
     const filterSelect = document.getElementById('db-filter-project');
     const batchSelect = document.getElementById('batch-project-select');
     const editSelect = document.getElementById('edit-project');
+    const equipmentProjectSelect = document.getElementById('equipment-issue-project');
 
     const optionsHtml = projects.map(p => `<option value="${this.escapeHtml(p)}">${this.escapeHtml(p)}</option>`).join('');
 
@@ -1939,6 +2285,413 @@ class SolarTrackingApp {
     }
     if (editSelect) {
       editSelect.innerHTML = optionsHtml;
+    }
+    if (equipmentProjectSelect) {
+      equipmentProjectSelect.innerHTML = `<option value="">-- เลือกโครงการ --</option>` + optionsHtml;
+    }
+  }
+
+  async loadEquipmentData() {
+    try {
+      if (this.isMockMode) {
+        this.equipmentCatalog = JSON.parse(localStorage.getItem('solartrack_equipment_catalog') || '[]');
+        this.equipmentIssues = JSON.parse(localStorage.getItem('solartrack_equipment_issues') || '[]');
+      } else {
+        const [catalogResult, issueResult] = await Promise.all([
+          this.requestJson('/api/equipment'),
+          this.requestJson('/api/equipment/issues')
+        ]);
+        this.equipmentCatalog = catalogResult.equipment || [];
+        this.equipmentIssues = issueResult.issues || [];
+      }
+
+      this.renderEquipmentCatalog();
+      this.renderEquipmentIssues();
+      const lineContainer = document.getElementById('equipment-issue-lines');
+      if (!document.getElementById('equipment-issue-id')?.value && lineContainer && !lineContainer.children.length) {
+        this.renderEquipmentIssueLines([{}]);
+      }
+      const dateInput = document.getElementById('equipment-issue-date');
+      if (dateInput && !dateInput.value) dateInput.value = this.getLocalDateInputValue();
+      const issuedByInput = document.getElementById('equipment-issue-by');
+      if (issuedByInput && !issuedByInput.value) issuedByInput.value = appSettings.getDefaultTechnician() || '';
+    } catch (error) {
+      console.error('Unable to load equipment data:', error);
+      this.showToast(`โหลดข้อมูลอุปกรณ์ไม่สำเร็จ: ${error.message}`, 'error');
+    }
+  }
+
+  getLocalDateInputValue() {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  }
+
+  renderEquipmentCatalog() {
+    const container = document.getElementById('equipment-catalog-list');
+    if (!container) return;
+    if (!this.equipmentCatalog.length) {
+      container.innerHTML = '<div class="p-5 text-center text-xs text-slate-400">ยังไม่มีอุปกรณ์ในทะเบียน เพิ่มรายการได้จากช่องด้านบน</div>';
+      this.refreshIcons();
+      return;
+    }
+    container.innerHTML = this.equipmentCatalog.map(item => `
+      <div class="px-4 py-3 flex items-center justify-between gap-3">
+        <div class="min-w-0">
+          <div class="text-sm font-semibold text-slate-800 truncate">${this.escapeHtml(item.name)}</div>
+          <div class="text-[11px] text-slate-500">หน่วยนับ: ${this.escapeHtml(item.unit || 'ชิ้น')}</div>
+        </div>
+        <div class="flex items-center gap-1 shrink-0">
+          <button type="button" onclick="app.editEquipmentCatalogItem(${Number(item.id)})" class="p-2 text-sky-700 hover:bg-sky-50 rounded-lg" aria-label="แก้ไข ${this.escapeHtml(item.name)}">
+            <i data-lucide="pencil" class="w-4 h-4"></i>
+          </button>
+          <button type="button" onclick="app.deleteEquipmentCatalogItem(${Number(item.id)})" class="p-2 text-rose-600 hover:bg-rose-50 rounded-lg" aria-label="ลบ ${this.escapeHtml(item.name)}">
+            <i data-lucide="trash-2" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+    `).join('');
+    this.refreshIcons();
+  }
+
+  renderEquipmentIssues() {
+    const container = document.getElementById('equipment-issue-history');
+    if (!container) return;
+    const toggleAllButton = document.getElementById('equipment-toggle-details');
+    if (!this.equipmentIssues.length) {
+      if (toggleAllButton) toggleAllButton.classList.add('hidden');
+      container.innerHTML = `
+        <div class="p-8 text-center text-xs text-slate-400">
+          <i data-lucide="clipboard-list" class="w-8 h-8 mx-auto mb-2 text-slate-300"></i>
+          ยังไม่มีประวัติการเบิกอุปกรณ์
+        </div>`;
+      this.refreshIcons();
+      return;
+    }
+    const issueIds = this.equipmentIssues.map(issue => Number(issue.id));
+    const allExpanded = issueIds.every(id => this.expandedEquipmentIssueIds.has(id));
+    for (const id of this.expandedEquipmentIssueIds) {
+      if (!issueIds.includes(id)) this.expandedEquipmentIssueIds.delete(id);
+    }
+    if (toggleAllButton) {
+      toggleAllButton.classList.remove('hidden');
+      toggleAllButton.innerHTML = allExpanded
+        ? '<i data-lucide="chevrons-down-up" class="w-3.5 h-3.5"></i><span>ซ่อนรายละเอียดทั้งหมด</span>'
+        : '<i data-lucide="chevrons-down-up" class="w-3.5 h-3.5"></i><span>แสดงรายละเอียดทั้งหมด</span>';
+    }
+    const rows = this.equipmentIssues.map(issue => {
+      const id = Number(issue.id);
+      const expanded = this.expandedEquipmentIssueIds.has(id);
+      const items = Array.isArray(issue.items) ? issue.items : [];
+      const itemDetails = items.length
+        ? `<div class="flex flex-wrap gap-2">${items.map(item => `
+            <span class="inline-flex items-center gap-1.5 rounded-lg border border-sky-100 bg-sky-50 px-2.5 py-1.5 text-xs text-sky-900">
+              <span class="font-semibold">${this.escapeHtml(item.name)}</span>
+              <span class="text-sky-700">${this.escapeHtml(item.quantity)} ${this.escapeHtml(item.unit || 'ชิ้น')}</span>
+            </span>`).join('')}</div>`
+        : '<span class="text-xs text-slate-400">ไม่มีรายการอุปกรณ์</span>';
+      return `
+        <tr class="equipment-history-row">
+          <td class="px-4 py-3 text-sm font-semibold text-slate-800">${this.escapeHtml(issue.project_name)}</td>
+          <td class="px-4 py-3 whitespace-nowrap text-xs text-slate-600">${this.escapeHtml(issue.issued_at)}</td>
+          <td class="px-4 py-3 text-sm text-slate-700">${this.escapeHtml(issue.issued_by)}</td>
+          <td class="px-4 py-3 text-center">
+            <span class="inline-flex min-w-8 justify-center rounded-full bg-violet-50 px-2 py-1 text-xs font-bold text-violet-700">${items.length}</span>
+            <span class="ml-1 text-[11px] text-slate-500">รายการ</span>
+          </td>
+          <td class="px-4 py-3">
+            <div class="flex items-center justify-end gap-1 whitespace-nowrap">
+              <button type="button" onclick="app.toggleEquipmentIssueDetails(${id})" class="equipment-history-action text-xs px-2.5 py-1.5 rounded-lg text-slate-700 hover:bg-slate-100 flex items-center gap-1" aria-expanded="${expanded}" aria-controls="equipment-issue-details-${id}">
+                <i data-lucide="${expanded ? 'chevron-up' : 'chevron-down'}" class="w-3.5 h-3.5"></i>${expanded ? 'ซ่อน' : 'แสดง'}
+              </button>
+              <button type="button" onclick="app.editEquipmentIssue(${id})" class="equipment-history-action text-xs px-2.5 py-1.5 rounded-lg text-sky-700 hover:bg-sky-50 flex items-center gap-1">
+                <i data-lucide="pencil" class="w-3.5 h-3.5"></i>แก้ไข
+              </button>
+              <button type="button" onclick="app.deleteEquipmentIssue(${id})" class="equipment-history-action text-xs px-2.5 py-1.5 rounded-lg text-rose-600 hover:bg-rose-50 flex items-center gap-1">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>ลบ
+              </button>
+            </div>
+          </td>
+        </tr>
+        <tr id="equipment-issue-details-${id}" class="equipment-history-details ${expanded ? '' : 'hidden'}">
+          <td colspan="5" class="px-4 pb-4 pt-1">
+            <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 sm:p-4 space-y-2.5">
+              <h4 class="text-xs font-bold text-slate-700">รายการอุปกรณ์ที่เบิก</h4>
+              ${itemDetails}
+              ${issue.notes ? `<p class="border-t border-slate-200 pt-2 text-xs text-slate-600"><span class="font-semibold">หมายเหตุ:</span> ${this.escapeHtml(issue.notes)}</p>` : ''}
+            </div>
+          </td>
+        </tr>`;
+    }).join('');
+    container.innerHTML = `
+      <div class="equipment-history-table-scroll">
+        <table class="equipment-history-table min-w-[760px] w-full text-left">
+          <thead>
+            <tr class="bg-slate-50 text-[11px] font-bold uppercase tracking-wide text-slate-500">
+              <th class="px-4 py-3">โครงการ</th>
+              <th class="px-4 py-3">วันที่เบิก</th>
+              <th class="px-4 py-3">ผู้เบิก</th>
+              <th class="px-4 py-3 text-center">อุปกรณ์</th>
+              <th class="px-4 py-3 text-right">จัดการ</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">${rows}</tbody>
+        </table>
+      </div>`;
+    this.refreshIcons();
+  }
+
+  toggleEquipmentIssueDetails(id) {
+    const issueId = Number(id);
+    if (this.expandedEquipmentIssueIds.has(issueId)) this.expandedEquipmentIssueIds.delete(issueId);
+    else this.expandedEquipmentIssueIds.add(issueId);
+    this.renderEquipmentIssues();
+  }
+
+  toggleAllEquipmentIssueDetails() {
+    const allExpanded = this.equipmentIssues.length > 0 &&
+      this.equipmentIssues.every(issue => this.expandedEquipmentIssueIds.has(Number(issue.id)));
+    if (allExpanded) this.expandedEquipmentIssueIds.clear();
+    else this.equipmentIssues.forEach(issue => this.expandedEquipmentIssueIds.add(Number(issue.id)));
+    this.renderEquipmentIssues();
+  }
+
+  renderEquipmentIssueLines(items) {
+    const container = document.getElementById('equipment-issue-lines');
+    if (!container) return;
+    const lines = Array.isArray(items) && items.length ? items : [{}];
+    container.innerHTML = lines.map((line, index) => {
+      const selectedId = line.equipment_id === undefined || line.equipment_id === null ? '' : String(line.equipment_id);
+      const hasCatalogItem = this.equipmentCatalog.some(item => String(item.id) === selectedId);
+      const selectedCatalogItem = this.equipmentCatalog.find(item => String(item.id) === selectedId);
+      const needsSnapshotOption = selectedId && (!hasCatalogItem ||
+        (line.name && line.name !== selectedCatalogItem.name) ||
+        (line.unit && line.unit !== (selectedCatalogItem?.unit || 'ชิ้น')));
+      const oldItemOption = needsSnapshotOption
+        ? `<option value="${this.escapeHtml(selectedId)}" data-name="${this.escapeHtml(line.name || 'อุปกรณ์ที่ไม่มีในทะเบียน')}" data-unit="${this.escapeHtml(line.unit || 'ชิ้น')}" selected>${this.escapeHtml(line.name || 'อุปกรณ์ที่ไม่มีในทะเบียน')}${hasCatalogItem ? ' (ชื่อเดิมในประวัติ)' : ' (ไม่มีในทะเบียน)'}</option>`
+        : '';
+      const options = this.equipmentCatalog.filter(item => !(needsSnapshotOption && String(item.id) === selectedId)).map(item => `
+        <option value="${Number(item.id)}" data-name="${this.escapeHtml(item.name)}" data-unit="${this.escapeHtml(item.unit || 'ชิ้น')}" ${String(item.id) === selectedId ? 'selected' : ''}>
+          ${this.escapeHtml(item.name)} (${this.escapeHtml(item.unit || 'ชิ้น')})
+        </option>`).join('');
+      return `
+        <div class="equipment-issue-line grid grid-cols-[minmax(0,1fr)_100px_40px] sm:grid-cols-[minmax(0,1fr)_130px_40px] gap-2 items-center">
+          <select required aria-label="อุปกรณ์รายการ ${index + 1}" class="equipment-line-select w-full text-sm px-3 py-2.5 bg-white border border-slate-300 rounded-xl">
+            <option value="">-- เลือกอุปกรณ์ --</option>${oldItemOption}${options}
+          </select>
+          <input type="number" min="0.01" step="any" required value="${this.escapeHtml(line.quantity ?? '')}" aria-label="จำนวนรายการ ${index + 1}" placeholder="จำนวน" class="equipment-line-quantity w-full text-sm px-3 py-2.5 bg-white border border-slate-300 rounded-xl">
+          <button type="button" onclick="app.removeEquipmentIssueLine(this)" class="w-10 h-10 rounded-xl text-rose-600 hover:bg-rose-50 flex items-center justify-center" aria-label="ลบรายการอุปกรณ์">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>`;
+    }).join('');
+    this.refreshIcons();
+  }
+
+  addEquipmentIssueLine(item = {}) {
+    const currentItems = Array.from(document.querySelectorAll('#equipment-issue-lines .equipment-issue-line')).map(row => {
+      const select = row.querySelector('.equipment-line-select');
+      const selectedOption = select.options[select.selectedIndex];
+      return {
+        equipment_id: select.value,
+        name: selectedOption?.dataset.name || '',
+        unit: selectedOption?.dataset.unit || 'ชิ้น',
+        quantity: row.querySelector('.equipment-line-quantity').value
+      };
+    });
+    currentItems.push(item);
+    this.renderEquipmentIssueLines(currentItems);
+  }
+
+  removeEquipmentIssueLine(button) {
+    const rows = document.querySelectorAll('#equipment-issue-lines .equipment-issue-line');
+    if (rows.length === 1) {
+      this.showToast('ต้องมีรายการอุปกรณ์อย่างน้อย 1 รายการ', 'warning');
+      return;
+    }
+    button.closest('.equipment-issue-line')?.remove();
+  }
+
+  async saveEquipmentCatalogItem(event) {
+    event.preventDefault();
+    const id = document.getElementById('equipment-catalog-id').value;
+    const payload = {
+      name: document.getElementById('equipment-catalog-name').value.trim(),
+      unit: document.getElementById('equipment-catalog-unit').value.trim()
+    };
+    try {
+      if (this.isMockMode) {
+        const duplicate = this.equipmentCatalog.find(item =>
+          item.name.toLowerCase() === payload.name.toLowerCase() && String(item.id) !== id
+        );
+        if (duplicate) throw new Error(`มีอุปกรณ์ "${payload.name}" อยู่แล้ว`);
+        const now = new Date().toISOString();
+        if (id) {
+          const item = this.equipmentCatalog.find(entry => String(entry.id) === id);
+          if (!item) throw new Error('ไม่พบข้อมูลอุปกรณ์ที่ต้องการแก้ไข');
+          Object.assign(item, payload, { updated_at: now });
+        } else {
+          this.equipmentCatalog.push({ id: Date.now(), ...payload, created_at: now, updated_at: now });
+        }
+        localStorage.setItem('solartrack_equipment_catalog', JSON.stringify(this.equipmentCatalog));
+      } else {
+        await this.requestJson(id ? `/api/equipment/${encodeURIComponent(id)}` : '/api/equipment', {
+          method: id ? 'PUT' : 'POST',
+          body: { ...payload, ...(id ? { id } : {}) }
+        });
+      }
+      document.getElementById('equipment-catalog-id').value = '';
+      document.getElementById('equipment-catalog-name').value = '';
+      document.getElementById('equipment-catalog-unit').value = 'ชิ้น';
+      document.getElementById('equipment-catalog-submit-label').textContent = 'เพิ่มอุปกรณ์';
+      await this.loadEquipmentData();
+      this.showToast(id ? 'แก้ไขข้อมูลอุปกรณ์แล้ว' : 'เพิ่มอุปกรณ์แล้ว', 'success');
+    } catch (error) {
+      this.showToast(`บันทึกข้อมูลอุปกรณ์ไม่สำเร็จ: ${error.message}`, 'error');
+    }
+  }
+
+  editEquipmentCatalogItem(id) {
+    const item = this.equipmentCatalog.find(entry => Number(entry.id) === Number(id));
+    if (!item) {
+      this.showToast('ไม่พบข้อมูลอุปกรณ์ที่ต้องการแก้ไข', 'error');
+      return;
+    }
+    document.getElementById('equipment-catalog-id').value = item.id;
+    document.getElementById('equipment-catalog-name').value = item.name;
+    document.getElementById('equipment-catalog-unit').value = item.unit || 'ชิ้น';
+    document.getElementById('equipment-catalog-submit-label').textContent = 'บันทึกการแก้ไข';
+    document.getElementById('equipment-catalog-name').focus();
+  }
+
+  async deleteEquipmentCatalogItem(id) {
+    const item = this.equipmentCatalog.find(entry => Number(entry.id) === Number(id));
+    if (!item || !await this.confirmAction({
+      title: 'ยืนยันการลบอุปกรณ์',
+      message: `ลบ "${item.name}" ออกจากทะเบียนหรือไม่? ประวัติการเบิกเดิมจะยังคงอยู่`,
+      confirmText: 'ลบอุปกรณ์'
+    })) return;
+    try {
+      if (this.isMockMode) {
+        this.equipmentCatalog = this.equipmentCatalog.filter(entry => Number(entry.id) !== Number(id));
+        localStorage.setItem('solartrack_equipment_catalog', JSON.stringify(this.equipmentCatalog));
+      } else {
+        await this.requestJson(`/api/equipment/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      }
+      await this.loadEquipmentData();
+      this.showToast('ลบอุปกรณ์จากทะเบียนแล้ว ประวัติเดิมยังคงอยู่', 'success');
+    } catch (error) {
+      this.showToast(`ลบอุปกรณ์ไม่สำเร็จ: ${error.message}`, 'error');
+    }
+  }
+
+  async saveEquipmentIssue(event) {
+    event.preventDefault();
+    const issueId = document.getElementById('equipment-issue-id').value;
+    const rows = Array.from(document.querySelectorAll('#equipment-issue-lines .equipment-issue-line'));
+    const items = rows.map(row => {
+      const select = row.querySelector('.equipment-line-select');
+      const option = select.options[select.selectedIndex];
+      return {
+        equipment_id: select.value,
+        name: option?.dataset.name || '',
+        unit: option?.dataset.unit || 'ชิ้น',
+        quantity: Number(row.querySelector('.equipment-line-quantity').value)
+      };
+    });
+    if (!items.length || items.some(item => !item.equipment_id || !Number.isFinite(item.quantity) || item.quantity <= 0)) {
+      this.showToast('กรุณาเลือกอุปกรณ์และระบุจำนวนให้ครบทุกบรรทัด', 'warning');
+      return;
+    }
+    const payload = {
+      project_name: document.getElementById('equipment-issue-project').value,
+      issued_at: document.getElementById('equipment-issue-date').value,
+      issued_by: document.getElementById('equipment-issue-by').value.trim(),
+      notes: document.getElementById('equipment-issue-notes').value.trim(),
+      items
+    };
+    if (!payload.project_name || !payload.issued_at || !payload.issued_by) {
+      this.showToast('กรุณากรอกโครงการ วันที่ และชื่อผู้เบิกให้ครบ', 'warning');
+      return;
+    }
+
+    try {
+      if (this.isMockMode) {
+        const normalizedItems = items.map(line => {
+          const catalogItem = this.equipmentCatalog.find(item => String(item.id) === String(line.equipment_id));
+          const previousItem = issueId
+            ? this.equipmentIssues.find(issue => String(issue.id) === issueId)?.items?.find(item => String(item.equipment_id) === String(line.equipment_id))
+            : null;
+          const usePreviousSnapshot = previousItem && previousItem.name === line.name && (previousItem.unit || 'ชิ้น') === line.unit;
+          const item = usePreviousSnapshot ? previousItem : catalogItem;
+          if (!item) throw new Error('มีอุปกรณ์ในรายการที่ไม่พบในทะเบียน');
+          return { equipment_id: Number(line.equipment_id), name: item.name, unit: item.unit || 'ชิ้น', quantity: line.quantity };
+        });
+        const now = new Date().toISOString();
+        const existing = this.equipmentIssues.find(issue => String(issue.id) === issueId);
+        const issue = { ...payload, items: normalizedItems, updated_at: now };
+        if (existing) Object.assign(existing, issue);
+        else this.equipmentIssues.unshift({ id: Date.now(), ...issue, created_at: now });
+        localStorage.setItem('solartrack_equipment_issues', JSON.stringify(this.equipmentIssues));
+      } else {
+        await this.requestJson(issueId ? `/api/equipment/issues/${encodeURIComponent(issueId)}` : '/api/equipment/issues', {
+          method: issueId ? 'PUT' : 'POST',
+          body: payload
+        });
+      }
+      this.cancelEquipmentIssueEdit();
+      await this.loadEquipmentData();
+      this.showToast(issueId ? 'แก้ไขประวัติการเบิกแล้ว' : 'บันทึกประวัติการเบิกแล้ว', 'success');
+    } catch (error) {
+      this.showToast(`บันทึกประวัติการเบิกไม่สำเร็จ: ${error.message}`, 'error');
+    }
+  }
+
+  editEquipmentIssue(id) {
+    const issue = this.equipmentIssues.find(entry => Number(entry.id) === Number(id));
+    if (!issue) {
+      this.showToast('ไม่พบประวัติการเบิกที่ต้องการแก้ไข', 'error');
+      return;
+    }
+    document.getElementById('equipment-issue-id').value = issue.id;
+    document.getElementById('equipment-issue-project').value = issue.project_name;
+    document.getElementById('equipment-issue-date').value = issue.issued_at;
+    document.getElementById('equipment-issue-by').value = issue.issued_by;
+    document.getElementById('equipment-issue-notes').value = issue.notes || '';
+    document.getElementById('equipment-issue-form-title').textContent = 'แก้ไขประวัติการเบิกอุปกรณ์';
+    document.getElementById('btn-cancel-equipment-edit').classList.remove('hidden');
+    this.renderEquipmentIssueLines(issue.items || []);
+    document.getElementById('equipment-issue-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  cancelEquipmentIssueEdit() {
+    const form = document.getElementById('equipment-issue-form');
+    form?.reset();
+    document.getElementById('equipment-issue-id').value = '';
+    document.getElementById('equipment-issue-form-title').textContent = 'บันทึกเบิกอุปกรณ์ไปหน้างาน';
+    document.getElementById('btn-cancel-equipment-edit').classList.add('hidden');
+    document.getElementById('equipment-issue-date').value = this.getLocalDateInputValue();
+    document.getElementById('equipment-issue-by').value = appSettings.getDefaultTechnician() || '';
+    this.renderEquipmentIssueLines([{}]);
+  }
+
+  async deleteEquipmentIssue(id) {
+    const issue = this.equipmentIssues.find(entry => Number(entry.id) === Number(id));
+    if (!issue || !await this.confirmAction({
+      title: 'ยืนยันการลบประวัติ',
+      message: `ลบประวัติการเบิกของโครงการ "${issue.project_name}" วันที่ ${issue.issued_at} หรือไม่?`,
+      confirmText: 'ลบประวัติ'
+    })) return;
+    try {
+      if (this.isMockMode) {
+        this.equipmentIssues = this.equipmentIssues.filter(entry => Number(entry.id) !== Number(id));
+        localStorage.setItem('solartrack_equipment_issues', JSON.stringify(this.equipmentIssues));
+      } else {
+        await this.requestJson(`/api/equipment/issues/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      }
+      await this.loadEquipmentData();
+      this.showToast('ลบประวัติการเบิกแล้ว', 'success');
+    } catch (error) {
+      this.showToast(`ลบประวัติการเบิกไม่สำเร็จ: ${error.message}`, 'error');
     }
   }
 
@@ -2025,7 +2778,7 @@ class SolarTrackingApp {
               </div>
               <div class="text-xs text-slate-700 truncate font-medium flex items-center gap-1">
                 <i data-lucide="folder" class="w-3 h-3 text-amber-500 shrink-0"></i>
-                <span>${this.escapeHtml(p.project_name)}</span>
+                <span>${this.escapeHtml(this.getPanelLocationLabel(p))}</span>
               </div>
               <div class="text-[11px] text-slate-500 flex items-center justify-between pt-1 border-t border-slate-100">
                 <span class="font-mono">${this.escapeHtml(p.inverter || '-')} / ${this.escapeHtml(p.string_name || '-')} (#${p.panel_index || 0})</span>
@@ -2055,7 +2808,7 @@ class SolarTrackingApp {
             </td>
             <td class="py-3 px-3 font-mono text-slate-400 text-[11px]">${p.id}</td>
             <td class="py-3 px-3 font-mono font-bold text-slate-900 whitespace-nowrap">${this.escapeHtml(p.serial_number)}</td>
-            <td class="py-3 px-3 font-medium whitespace-nowrap">${this.escapeHtml(p.project_name)}</td>
+            <td class="py-3 px-3 font-medium whitespace-nowrap">${this.escapeHtml(this.getPanelLocationLabel(p))}</td>
             <td class="py-3 px-3 font-mono text-slate-600 whitespace-nowrap">${this.escapeHtml(p.inverter || '-')} / ${this.escapeHtml(p.string_name || '-')} (#${p.panel_index || 0})</td>
             <td class="py-3 px-3 text-slate-600 whitespace-nowrap">${this.escapeHtml(p.brand_model || '-')} (${p.wattage || 550}W)</td>
             <td class="py-3 px-3 whitespace-nowrap">${statusBadge}</td>
@@ -2127,7 +2880,11 @@ class SolarTrackingApp {
     const ids = Array.from(this.selectedIds);
     if (ids.length === 0) return;
 
-    if (!confirm(`⚠️ คุณแน่ใจหรือไม่ที่จะลบแผงโซลาร์ที่เลือกจำนวน ${ids.length} รายการออกจากฐานข้อมูล?`)) {
+    if (!await this.confirmAction({
+      title: 'ยืนยันการลบแผง',
+      message: `คุณกำลังจะลบแผงโซลาร์ ${ids.length} รายการออกจากฐานข้อมูล การดำเนินการนี้ไม่สามารถย้อนกลับได้`,
+      confirmText: `ลบ ${ids.length} รายการ`
+    })) {
       return;
     }
 
@@ -2261,7 +3018,13 @@ class SolarTrackingApp {
 
     document.getElementById('edit-id').value = panel.id;
     document.getElementById('edit-serial').value = panel.serial_number;
-    document.getElementById('edit-project').value = panel.project_name;
+    const editProject = document.getElementById('edit-project');
+    if (panel.status === 'warehouse' || panel.project_name === WAREHOUSE_PROJECT_NAME) {
+      editProject.innerHTML = `<option value="${this.escapeHtml(WAREHOUSE_PROJECT_NAME)}">คลังสินค้ากลาง (สต๊อก)</option>` + editProject.innerHTML;
+      editProject.value = WAREHOUSE_PROJECT_NAME;
+    } else {
+      editProject.value = panel.project_name;
+    }
     document.getElementById('edit-inverter').value = panel.inverter || '';
     document.getElementById('edit-string').value = panel.string_name || '';
     document.getElementById('edit-index').value = panel.panel_index || 0;
@@ -2292,19 +3055,15 @@ class SolarTrackingApp {
       wattage: parseInt(document.getElementById('edit-wattage').value, 10) || 550,
       brand_model: document.getElementById('edit-brand').value.trim() || 'Standard Tier-1 Solar',
       technician_name: document.getElementById('edit-technician').value.trim() || 'ช่างตรวจ',
-      notes: document.getElementById('edit-notes').value.trim()
+      notes: document.getElementById('edit-notes').value.trim(),
+      scanned_mode: 'database-edit'
     };
 
     try {
       if (this.isMockMode) {
         this.saveMockPanel(payload);
       } else {
-        const res = await fetch('/api/panels', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        await res.json();
+        await this.postJson('/api/panels', payload);
       }
 
       this.closeEditModal();
@@ -2316,7 +3075,11 @@ class SolarTrackingApp {
   }
 
   async confirmDeletePanel(id, serial) {
-    if (!confirm(`คุณต้องการลบแผง ${serial} (ID: ${id}) ออกจากฐานข้อมูลใช่หรือไม่?`)) {
+    if (!await this.confirmAction({
+      title: 'ยืนยันการลบแผง',
+      message: `ลบแผง Serial Number ${serial} ออกจากฐานข้อมูลหรือไม่? การดำเนินการนี้ไม่สามารถย้อนกลับได้`,
+      confirmText: 'ลบแผง'
+    })) {
       return;
     }
 
@@ -2361,6 +3124,7 @@ class SolarTrackingApp {
           };
         });
         panels.forEach(p => {
+          if (p.status === 'warehouse' || p.project_name === WAREHOUSE_PROJECT_NAME) return;
           if (!map[p.project_name]) {
             map[p.project_name] = {
               name: p.project_name,
@@ -2400,6 +3164,7 @@ class SolarTrackingApp {
               const panelsJson = await panelsRes.json();
               const map = {};
               (panelsJson.data || []).forEach(p => {
+                if (p.status === 'warehouse' || p.project_name === WAREHOUSE_PROJECT_NAME) return;
                 if (!map[p.project_name]) {
                   map[p.project_name] = { name: p.project_name, total_panels: 0, installed_panels: 0, total_wattage: 0 };
                 }
@@ -2491,6 +3256,9 @@ class SolarTrackingApp {
             <div class="pt-2 flex items-center justify-between gap-1.5 border-t border-slate-100 text-xs">
               <button onclick="app.filterByProjectAndShow('${this.escapeHtml(proj.name)}')" class="touch-press flex-1 py-1.5 px-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg flex items-center justify-center gap-1">
                 <i data-lucide="eye" class="w-3.5 h-3.5 text-slate-500"></i> ดูแผง
+              </button>
+              <button onclick="app.exportProjectExcel(this.dataset.project)" data-project="${this.escapeHtml(proj.name)}" class="touch-press flex-1 py-1.5 px-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-medium rounded-lg flex items-center justify-center gap-1">
+                <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5"></i> Excel
               </button>
               <button onclick="app.openEditProjectModal('${this.escapeHtml(proj.name)}')" class="touch-press py-1.5 px-3 bg-blue-50 hover:bg-blue-100 text-blue-700 font-medium rounded-lg flex items-center gap-1">
                 <i data-lucide="edit-2" class="w-3.5 h-3.5"></i> แก้ไข
@@ -2590,6 +3358,16 @@ class SolarTrackingApp {
           throw new Error('ไม่พบรายการข้อมูลแผงโซลาร์ในไฟล์ JSON');
         }
 
+        if (!await this.confirmAction({
+          title: 'ยืนยันการนำเข้าข้อมูล',
+          message: `ระบบจะนำเข้าข้อมูลแผง ${panels.length} รายการ ข้อมูล Serial Number ที่ซ้ำอาจถูกอัปเดต`,
+          confirmText: `นำเข้า ${panels.length} รายการ`,
+          tone: 'primary'
+        })) {
+          fileInput.value = '';
+          return;
+        }
+
         if (this.isMockMode) {
           const list = this.getMockPanels();
           panels.forEach(p => {
@@ -2625,7 +3403,12 @@ class SolarTrackingApp {
   }
 
   async seedDemoDataset() {
-    if (!confirm('ระบบจะเพิ่มข้อมูลตัวอย่างแผงโซลาร์เซลล์เพื่อความสะดวกในการใช้งาน คุณยืนยันหรือไม่?')) {
+    if (!await this.confirmAction({
+      title: 'เพิ่มข้อมูลตัวอย่าง',
+      message: 'ระบบจะเพิ่มข้อมูลตัวอย่างแผงโซลาร์เซลล์ลงในฐานข้อมูล ต้องการดำเนินการต่อหรือไม่?',
+      confirmText: 'เพิ่มข้อมูลตัวอย่าง',
+      tone: 'primary'
+    })) {
       return;
     }
 
@@ -2670,7 +3453,9 @@ class SolarTrackingApp {
       try {
         if (this.isMockMode) {
           const panels = this.getMockPanels();
-          projects = Array.from(new Set(panels.map(p => p.project_name))).filter(Boolean);
+          projects = Array.from(new Set(panels
+            .filter(p => p.status !== 'warehouse' && p.project_name !== WAREHOUSE_PROJECT_NAME)
+            .map(p => p.project_name))).filter(Boolean);
         } else {
           const res = await fetch('/api/projects');
           const json = await res.json();
@@ -2881,8 +3666,8 @@ class SolarTrackingApp {
   }
 
   async openPalletRangeModal() {
-    document.getElementById('pallet-brand').value = this.getDefaultBrand();
-    document.getElementById('pallet-wattage').value = this.getDefaultWattage();
+    document.getElementById('pallet-brand').value = '';
+    document.getElementById('pallet-wattage').value = '';
     this.calculatePalletCount();
     document.getElementById('modal-pallet-range').classList.remove('hidden');
     this.refreshIcons();
@@ -2904,9 +3689,19 @@ class SolarTrackingApp {
     e.preventDefault();
     const start = parseInt(document.getElementById('pallet-start-num').value, 10);
     const end = parseInt(document.getElementById('pallet-end-num').value, 10);
-    const brand = document.getElementById('pallet-brand').value.trim() || this.getDefaultBrand();
-    const wattage = parseInt(document.getElementById('pallet-wattage').value, 10) || this.getDefaultWattage();
+    const brand = document.getElementById('pallet-brand').value.trim();
+    const wattage = parseInt(document.getElementById('pallet-wattage').value, 10);
 
+    if (!brand) {
+      this.showToast('กรุณาเลือกรุ่นหรือยี่ห้อแผงก่อนรับเข้าคลัง', 'warning');
+      document.getElementById('pallet-brand').focus();
+      return;
+    }
+    if (!Number.isInteger(wattage) || wattage < 1 || wattage > 2000) {
+      this.showToast('กรุณาระบุกำลังวัตต์ระหว่าง 1 ถึง 2000 Wp', 'warning');
+      document.getElementById('pallet-wattage').focus();
+      return;
+    }
     if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start < 0 || end < start) {
       this.showToast('End serial must be a valid number greater than or equal to start serial.', 'error');
       return;
@@ -2918,7 +3713,12 @@ class SolarTrackingApp {
       return;
     }
     if (totalPanels > 100) {
-      if (!confirm(`คุณกำลังจะสร้างแผงจำนวนมาก (${totalPanels} แผง) ยืนยันหรือไม่?`)) return;
+      if (!await this.confirmAction({
+        title: 'ยืนยันการเพิ่มแผงจำนวนมาก',
+        message: `ระบบจะสร้างแผงจำนวน ${totalPanels} รายการจากช่วง Serial ที่ระบุ`,
+        confirmText: `เพิ่ม ${totalPanels} แผง`,
+        tone: 'primary'
+      })) return;
     }
 
     const submitBtn = document.getElementById('btn-submit-pallet-range');

@@ -6,88 +6,28 @@
 const fs = require('fs');
 const path = require('path');
 
-const DB_FILE = path.join(__dirname, 'solar_panels.db');
-const JSON_FILE = path.join(__dirname, 'solar_panels_store.json');
+const DB_FILE = process.env.SOLARTRACK_DB_FILE || path.join(__dirname, 'solar_panels.db');
+const JSON_FILE = process.env.SOLARTRACK_JSON_FILE || path.join(__dirname, 'solar_panels_store.json');
 const WAREHOUSE_PROJECT_NAME = 'คลังสินค้ากลาง (Central Warehouse)';
+
+function isWarehouseProject(name) {
+  return String(name || '').trim().toLowerCase() === WAREHOUSE_PROJECT_NAME.toLowerCase();
+}
+
+function stockConflict(message) {
+  const error = new Error(message);
+  error.code = 'STOCK_CONFLICT';
+  return error;
+}
 
 let db = null;
 let useJsonStore = false;
 let memoryStore = {
   panels: [],
-  projects: []
+  projects: [],
+  equipmentCatalog: [],
+  equipmentIssues: []
 };
-
-// Seed initial demo data for field testing
-const SEED_PANELS = [
-  {
-    serial_number: 'LONGI-LR5-72HBD-550M-202401',
-    project_name: 'Solar Farm Lopburi Phase 2',
-    inverter: 'INV-01',
-    string_name: 'STR-01',
-    panel_index: 1,
-    brand_model: 'Longi Hi-MO 5 Bifacial',
-    wattage: 550,
-    status: 'installed',
-    technician_name: 'สมชาย รักงาน (Tech A)',
-    gps_lat: 14.8055,
-    gps_lng: 100.6534,
-    notes: 'ติดตั้งโครงสร้างเรียบร้อย มุมเอียง 15 องศา',
-    scanned_mode: 'field',
-    created_at: new Date(Date.now() - 3600000 * 24).toISOString(),
-    updated_at: new Date(Date.now() - 3600000 * 24).toISOString()
-  },
-  {
-    serial_number: 'LONGI-LR5-72HBD-550M-202402',
-    project_name: 'Solar Farm Lopburi Phase 2',
-    inverter: 'INV-01',
-    string_name: 'STR-01',
-    panel_index: 2,
-    brand_model: 'Longi Hi-MO 5 Bifacial',
-    wattage: 550,
-    status: 'installed',
-    technician_name: 'สมชาย รักงาน (Tech A)',
-    gps_lat: 14.8056,
-    gps_lng: 100.6535,
-    notes: 'ต่อสาย MC4 แน่นหนา วัด Voc ผ่านเกณฑ์',
-    scanned_mode: 'field',
-    created_at: new Date(Date.now() - 3600000 * 20).toISOString(),
-    updated_at: new Date(Date.now() - 3600000 * 20).toISOString()
-  },
-  {
-    serial_number: 'JINKO-JKM560N-72HL4-202410',
-    project_name: 'Rooftop Factory Amata Chonburi',
-    inverter: 'INV-02',
-    string_name: 'STR-05',
-    panel_index: 1,
-    brand_model: 'Jinko Tiger Neo N-Type',
-    wattage: 560,
-    status: 'installing',
-    technician_name: 'วิชัย ช่างไฟ (Tech B)',
-    gps_lat: 13.3611,
-    gps_lng: 100.9847,
-    notes: 'กำลังจัดสายลงราง Cable Tray',
-    scanned_mode: 'field',
-    created_at: new Date(Date.now() - 3600000 * 4).toISOString(),
-    updated_at: new Date(Date.now() - 3600000 * 4).toISOString()
-  },
-  {
-    serial_number: 'TRINA-TSM-NEG19RC.20-580M-01',
-    project_name: 'คลังสินค้ากลาง (Central Warehouse)',
-    inverter: '-',
-    string_name: '-',
-    panel_index: 0,
-    brand_model: 'Trina Vertex N Dual-Glass',
-    wattage: 580,
-    status: 'warehouse',
-    technician_name: 'ประสิทธิ์ สโตร์แมน',
-    gps_lat: 13.6899,
-    gps_lng: 100.7501,
-    notes: 'รับเข้าคลังพาเลทที่ #12 สภาพกล่องสมบูรณ์',
-    scanned_mode: 'warehouse',
-    created_at: new Date(Date.now() - 3600000 * 2).toISOString(),
-    updated_at: new Date(Date.now() - 3600000 * 2).toISOString()
-  }
-];
 
 function initDb() {
   return new Promise((resolve) => {
@@ -117,13 +57,16 @@ function useJsonFallback() {
     try {
       const data = JSON.parse(fs.readFileSync(JSON_FILE, 'utf-8'));
       memoryStore = data;
+      memoryStore.equipmentCatalog ||= [];
+      memoryStore.equipmentIssues ||= [];
+      saveJsonStore();
     } catch (err) {
       console.error('Failed reading existing JSON file, initializing new store:', err);
-      memoryStore.panels = [...SEED_PANELS];
+      memoryStore = { panels: [], projects: [], equipmentCatalog: [], equipmentIssues: [] };
       saveJsonStore();
     }
   } else {
-    memoryStore.panels = [...SEED_PANELS];
+    memoryStore = { panels: [], projects: [], equipmentCatalog: [], equipmentIssues: [] };
     saveJsonStore();
   }
 }
@@ -172,23 +115,35 @@ function setupTables() {
         )
       `);
 
-      // Seed if empty
-      db.get('SELECT COUNT(*) as count FROM panels', (err, row) => {
-        if (!err && row.count === 0) {
-          console.log('🌱 Seeding initial demo panels into SQLite...');
-          const stmt = db.prepare(`
-            INSERT INTO panels (
-              serial_number, project_name, inverter, string_name, panel_index,
-              brand_model, wattage, status, technician_name, gps_lat, gps_lng, notes, scanned_mode, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-          `);
-          SEED_PANELS.forEach(p => {
-            stmt.run(
-              p.serial_number, p.project_name, p.inverter, p.string_name, p.panel_index,
-              p.brand_model, p.wattage, p.status, p.technician_name, p.gps_lat, p.gps_lng, p.notes, p.scanned_mode, p.created_at, p.updated_at
-            );
-          });
-          stmt.finalize();
+      db.run(`
+        CREATE TABLE IF NOT EXISTS equipment_catalog (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL COLLATE NOCASE UNIQUE,
+          unit TEXT NOT NULL DEFAULT 'ชิ้น',
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      db.run(`
+        CREATE TABLE IF NOT EXISTS equipment_issues (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          project_name TEXT NOT NULL,
+          issued_at TEXT NOT NULL,
+          issued_by TEXT NOT NULL,
+          notes TEXT,
+          items_json TEXT NOT NULL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      db.get('SELECT COUNT(*) as count FROM panels', (err) => {
+        if (err) return reject(err);
+        if (useJsonStore) {
+          memoryStore.equipmentCatalog ||= [];
+          memoryStore.equipmentIssues ||= [];
+          saveJsonStore();
         }
         resolve();
       });
@@ -205,7 +160,9 @@ function getStats() {
     const installing = memoryStore.panels.filter(p => p.status === 'installing').length;
     const installed = memoryStore.panels.filter(p => p.status === 'installed').length;
     const damaged = memoryStore.panels.filter(p => p.status === 'damaged').length;
-    const projects = [...new Set(memoryStore.panels.map(p => p.project_name))].filter(Boolean).length;
+    const projects = [...new Set(memoryStore.panels
+      .filter(p => p.status !== 'warehouse' && !isWarehouseProject(p.project_name))
+      .map(p => p.project_name))].filter(Boolean).length;
     return Promise.resolve({ total, warehouse, installing, installed, damaged, projects });
   }
 
@@ -217,10 +174,12 @@ function getStats() {
         SUM(CASE WHEN status = 'installing' THEN 1 ELSE 0 END) as installing,
         SUM(CASE WHEN status = 'installed' THEN 1 ELSE 0 END) as installed,
         SUM(CASE WHEN status = 'damaged' THEN 1 ELSE 0 END) as damaged,
-        COUNT(DISTINCT project_name) as projects
+        COUNT(DISTINCT CASE
+          WHEN status != 'warehouse' AND LOWER(TRIM(project_name)) != LOWER(?) THEN project_name
+        END) as projects
       FROM panels
     `;
-    db.get(query, (err, row) => {
+    db.get(query, [WAREHOUSE_PROJECT_NAME], (err, row) => {
       if (err) return reject(err);
       resolve({
         total: row.total || 0,
@@ -308,8 +267,14 @@ function getPanelBySerial(serial) {
   });
 }
 
-function savePanel(panelData) {
+function savePanel(panelData, { requireWarehouseStock = false } = {}) {
   const isWarehouse = panelData.status === 'warehouse' || panelData.scanned_mode === 'warehouse';
+  if (requireWarehouseStock && panelData.status === 'warehouse' && panelData.scanned_mode !== 'warehouse') {
+    return Promise.reject(stockConflict('กรุณาใช้โหมดรับเข้าคลังเพื่อบันทึกแผงเข้าสต๊อก'));
+  }
+  if (!isWarehouse && isWarehouseProject(panelData.project_name)) {
+    return Promise.reject(stockConflict('คลังสินค้ากลางเป็นสต๊อก ไม่ใช่โครงการปลายทาง'));
+  }
   const {
     serial_number,
     project_name = WAREHOUSE_PROJECT_NAME,
@@ -335,9 +300,23 @@ function savePanel(panelData) {
   };
 
   const now = new Date().toISOString();
+  const replaceGps = isWarehouse || requireWarehouseStock;
 
   if (useJsonStore) {
     const idx = memoryStore.panels.findIndex(p => p.serial_number.toLowerCase() === serial_number.toLowerCase());
+    if (requireWarehouseStock && !isWarehouse) {
+      if (idx < 0) {
+        return Promise.reject(stockConflict(`ไม่พบ SN ${serial_number} ในคลังสินค้า กรุณารับเข้าสต๊อกก่อนเบิกไปหน้างาน`));
+      }
+      const current = memoryStore.panels[idx];
+      if (current.status !== 'warehouse') {
+        return Promise.reject(stockConflict(`SN ${serial_number} ถูกเบิกไปแล้วที่ ${current.project_name} (สถานะ: ${current.status})`));
+      }
+      if (isWarehouseProject(project_name)) {
+        return Promise.reject(stockConflict('กรุณาเลือกโครงการปลายทาง การเบิกแผงออกจากคลังต้องระบุหน้างาน'));
+      }
+    }
+
     let record;
     if (idx >= 0) {
       // Update existing
@@ -347,12 +326,12 @@ function savePanel(panelData) {
         inverter,
         string_name,
         panel_index: Number(panel_index) || 0,
-        brand_model,
-        wattage: Number(wattage) || 550,
+        brand_model: requireWarehouseStock && !isWarehouse ? memoryStore.panels[idx].brand_model : brand_model,
+        wattage: requireWarehouseStock && !isWarehouse ? memoryStore.panels[idx].wattage : (Number(wattage) || 550),
         status,
         technician_name,
-        gps_lat: gps_lat ? Number(gps_lat) : memoryStore.panels[idx].gps_lat,
-        gps_lng: gps_lng ? Number(gps_lng) : memoryStore.panels[idx].gps_lng,
+        gps_lat: replaceGps ? (gps_lat ? Number(gps_lat) : null) : (gps_lat ? Number(gps_lat) : memoryStore.panels[idx].gps_lat),
+        gps_lng: replaceGps ? (gps_lng ? Number(gps_lng) : null) : (gps_lng ? Number(gps_lng) : memoryStore.panels[idx].gps_lng),
         notes,
         scanned_mode,
         updated_at: now
@@ -385,12 +364,24 @@ function savePanel(panelData) {
   }
 
   return new Promise((resolve, reject) => {
-    const checkQuery = 'SELECT id FROM panels WHERE LOWER(serial_number) = LOWER(?)';
+    const checkQuery = 'SELECT id, status, project_name, brand_model, wattage FROM panels WHERE LOWER(serial_number) = LOWER(?)';
     db.get(checkQuery, [serial_number], (err, row) => {
       if (err) return reject(err);
 
       if (row) {
+        if (requireWarehouseStock && !isWarehouse) {
+          if (row.status !== 'warehouse') {
+            return reject(stockConflict(`SN ${serial_number} ถูกเบิกไปแล้วที่ ${row.project_name} (สถานะ: ${row.status})`));
+          }
+          if (isWarehouseProject(project_name)) {
+            return reject(stockConflict('กรุณาเลือกโครงการปลายทาง การเบิกแผงออกจากคลังต้องระบุหน้างาน'));
+          }
+        }
+
         // Update existing record
+        const updateCondition = requireWarehouseStock && !isWarehouse
+          ? 'WHERE id = ? AND status = ?'
+          : 'WHERE id = ?';
         const updateQuery = `
           UPDATE panels SET
             project_name = ?,
@@ -401,18 +392,28 @@ function savePanel(panelData) {
             wattage = ?,
             status = ?,
             technician_name = ?,
-            gps_lat = COALESCE(?, gps_lat),
-            gps_lng = COALESCE(?, gps_lng),
+            gps_lat = ${replaceGps ? '?' : 'COALESCE(?, gps_lat)'},
+            gps_lng = ${replaceGps ? '?' : 'COALESCE(?, gps_lng)'},
             notes = ?,
             scanned_mode = ?,
             updated_at = CURRENT_TIMESTAMP
-          WHERE id = ?
+          ${updateCondition}
         `;
+        const updateValues = [
+          project_name, inverter, string_name, Number(panel_index),
+          requireWarehouseStock && !isWarehouse ? row.brand_model : brand_model,
+          requireWarehouseStock && !isWarehouse ? row.wattage : Number(wattage),
+          status, technician_name, gps_lat, gps_lng, notes, scanned_mode, row.id
+        ];
+        if (requireWarehouseStock && !isWarehouse) updateValues.push('warehouse');
         db.run(
           updateQuery,
-          [project_name, inverter, string_name, Number(panel_index), brand_model, Number(wattage), status, technician_name, gps_lat, gps_lng, notes, scanned_mode, row.id],
+          updateValues,
           function (err2) {
             if (err2) return reject(err2);
+            if (requireWarehouseStock && !isWarehouse && this.changes === 0) {
+              return reject(stockConflict(`SN ${serial_number} ถูกเบิกจากคลังไปแล้ว กรุณาตรวจสอบสถานะล่าสุด`));
+            }
             db.get('SELECT * FROM panels WHERE id = ?', [row.id], (err3, updated) => {
               if (err3) return reject(err3);
               resolve({ success: true, isUpdate: true, data: updated });
@@ -420,6 +421,9 @@ function savePanel(panelData) {
           }
         );
       } else {
+        if (requireWarehouseStock && !isWarehouse) {
+          return reject(stockConflict(`ไม่พบ SN ${serial_number} ในคลังสินค้า กรุณารับเข้าสต๊อกก่อนเบิกไปหน้างาน`));
+        }
         // Insert new record
         const insertQuery = `
           INSERT INTO panels (
@@ -447,22 +451,28 @@ function getProjectsList() {
   if (useJsonStore) {
     if (!memoryStore.projects) memoryStore.projects = [];
     const fromProjects = memoryStore.projects.map(p => p.name);
-    const fromPanels = memoryStore.panels.map(p => p.project_name);
-    const merged = Array.from(new Set([...fromProjects, ...fromPanels])).filter(Boolean);
+    const fromPanels = memoryStore.panels
+      .filter(p => p.status !== 'warehouse')
+      .map(p => p.project_name);
+    const merged = Array.from(new Set([...fromProjects, ...fromPanels]))
+      .filter(name => Boolean(name) && !isWarehouseProject(name));
     return Promise.resolve(merged);
   }
 
   return new Promise((resolve, reject) => {
     const query = `
       SELECT DISTINCT name FROM (
-        SELECT name FROM projects
+        SELECT name FROM projects WHERE LOWER(TRIM(name)) != LOWER(?)
         UNION
-        SELECT DISTINCT project_name as name FROM panels WHERE project_name IS NOT NULL AND project_name != ''
+        SELECT DISTINCT project_name as name FROM panels
+        WHERE project_name IS NOT NULL AND project_name != ''
+          AND status != 'warehouse'
+          AND LOWER(TRIM(project_name)) != LOWER(?)
       )
     `;
-    db.all(query, (err, rows) => {
+    db.all(query, [WAREHOUSE_PROJECT_NAME, WAREHOUSE_PROJECT_NAME], (err, rows) => {
       if (err) return reject(err);
-      resolve((rows || []).map(r => r.name).filter(Boolean));
+      resolve((rows || []).map(r => r.name).filter(name => Boolean(name) && !isWarehouseProject(name)));
     });
   });
 }
@@ -470,6 +480,7 @@ function getProjectsList() {
 function createProject({ name, location = 'ภาคสนาม', target_capacity_kw = 0 }) {
   const cleanName = (name || '').trim();
   if (!cleanName) return Promise.reject(new Error('Project name is required'));
+  if (isWarehouseProject(cleanName)) return Promise.reject(new Error('คลังสินค้ากลางเป็นสต๊อก ไม่ใช่โครงการ'));
 
   if (useJsonStore) {
     if (!memoryStore.projects) memoryStore.projects = [];
@@ -513,6 +524,9 @@ function updateProject({ oldName, name, location = 'ภาคสนาม', targ
   const cleanNew = (name || cleanOld).trim();
   if (!cleanOld) return Promise.reject(new Error('Old project name is required'));
   if (!cleanNew) return Promise.reject(new Error('New project name is required'));
+  if (isWarehouseProject(cleanOld) || isWarehouseProject(cleanNew)) {
+    return Promise.reject(new Error('คลังสินค้ากลางเป็นสต๊อก ไม่ใช่โครงการ'));
+  }
 
   if (useJsonStore) {
     if (!memoryStore.projects) memoryStore.projects = [];
@@ -957,22 +971,274 @@ function seedDemoData() {
     .then(results => ({ success: true, count: results.length }));
 }
 
-function importPanels(panelsArray) {
+async function importPanels(panelsArray, { requireWarehouseStock = false } = {}) {
   if (!Array.isArray(panelsArray)) return Promise.reject(new Error('Invalid import format: expected array'));
-  return Promise.all(panelsArray.map(p => {
+  const validPanels = panelsArray.map(p => {
     if (!p || typeof p !== 'object' || Array.isArray(p)) return null;
     const isWarehouse = p.status === 'warehouse' || p.scanned_mode === 'warehouse';
     const serialNumber = typeof p.serial_number === 'string' ? p.serial_number.trim() : '';
     const projectName = typeof p.project_name === 'string' ? p.project_name.trim() : '';
     if (!serialNumber || (!isWarehouse && !projectName)) return null;
-    return savePanel({
+    return {
       ...p,
       serial_number: serialNumber,
       project_name: isWarehouse ? WAREHOUSE_PROJECT_NAME : projectName
+    };
+  }).filter(Boolean);
+
+  if (requireWarehouseStock) {
+    const seenSerials = new Set();
+    for (const panel of validPanels) {
+      const key = panel.serial_number.toLowerCase();
+      if (seenSerials.has(key)) {
+        throw stockConflict(`พบ SN ${panel.serial_number} ซ้ำในรายการเบิก`);
+      }
+      seenSerials.add(key);
+      if (panel.status === 'warehouse' || panel.scanned_mode === 'warehouse') {
+        throw stockConflict(`SN ${panel.serial_number} ในรายการเบิกต้องถูกตัดออกจากสต๊อกไปยังโครงการ`);
+      }
+
+      const current = await getPanelBySerial(panel.serial_number);
+      if (!current) {
+        throw stockConflict(`ไม่พบ SN ${panel.serial_number} ในคลังสินค้า กรุณารับเข้าสต๊อกก่อนเบิกไปหน้างาน`);
+      }
+      if (current.status !== 'warehouse') {
+        throw stockConflict(`SN ${panel.serial_number} ถูกเบิกไปแล้วที่ ${current.project_name} (สถานะ: ${current.status})`);
+      }
+      if (isWarehouseProject(panel.project_name)) {
+        throw stockConflict('กรุณาเลือกโครงการปลายทาง การเบิกแผงออกจากคลังต้องระบุหน้างาน');
+      }
+    }
+  }
+
+  const results = await Promise.all(validPanels.map(p => savePanel(p, { requireWarehouseStock })));
+  return { success: true, count: results.filter(Boolean).length };
+}
+
+function getEquipmentCatalog() {
+  if (useJsonStore) {
+    memoryStore.equipmentCatalog ||= [];
+    return Promise.resolve([...memoryStore.equipmentCatalog].sort((a, b) => a.name.localeCompare(b.name)));
+  }
+  return new Promise((resolve, reject) => {
+    db.all('SELECT id, name, unit, created_at, updated_at FROM equipment_catalog ORDER BY name COLLATE NOCASE', (err, rows) => {
+      if (err) return reject(err);
+      resolve(rows || []);
     });
-  })).then(results => {
-    const valid = results.filter(Boolean);
-    return { success: true, count: valid.length };
+  });
+}
+
+function saveEquipmentCatalogItem({ id, name, unit = 'ชิ้น' }) {
+  const cleanName = typeof name === 'string' ? name.trim() : '';
+  const cleanUnit = typeof unit === 'string' ? unit.trim() : '';
+  if (!cleanName) return Promise.reject(new Error('กรุณาระบุชื่ออุปกรณ์'));
+  if (!cleanUnit) return Promise.reject(new Error('กรุณาระบุหน่วยนับ'));
+
+  if (useJsonStore) {
+    memoryStore.equipmentCatalog ||= [];
+    const itemId = id ? Number(id) : null;
+    const duplicate = memoryStore.equipmentCatalog.find(item =>
+      item.name.toLowerCase() === cleanName.toLowerCase() && item.id !== itemId
+    );
+    if (duplicate) return Promise.reject(new Error(`มีอุปกรณ์ "${cleanName}" อยู่แล้ว`));
+    const now = new Date().toISOString();
+    let item = memoryStore.equipmentCatalog.find(entry => entry.id === itemId);
+    if (id && !item) return Promise.reject(new Error('ไม่พบข้อมูลอุปกรณ์ที่ต้องการแก้ไข'));
+    if (item) {
+      item.name = cleanName;
+      item.unit = cleanUnit;
+      item.updated_at = now;
+    } else {
+      item = { id: Date.now(), name: cleanName, unit: cleanUnit, created_at: now, updated_at: now };
+      memoryStore.equipmentCatalog.push(item);
+    }
+    saveJsonStore();
+    return Promise.resolve({ success: true, item });
+  }
+
+  return new Promise((resolve, reject) => {
+    if (id) {
+      db.run(
+        'UPDATE equipment_catalog SET name = ?, unit = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+        [cleanName, cleanUnit, Number(id)],
+        function (err) {
+          if (err) return reject(err);
+          if (!this.changes) return reject(new Error('ไม่พบข้อมูลอุปกรณ์ที่ต้องการแก้ไข'));
+          db.get('SELECT id, name, unit, created_at, updated_at FROM equipment_catalog WHERE id = ?', [Number(id)], (getErr, item) => {
+            if (getErr) return reject(getErr);
+            resolve({ success: true, item });
+          });
+        }
+      );
+    } else {
+      db.run(
+        'INSERT INTO equipment_catalog (name, unit) VALUES (?, ?)',
+        [cleanName, cleanUnit],
+        function (err) {
+          if (err) return reject(err);
+          db.get('SELECT id, name, unit, created_at, updated_at FROM equipment_catalog WHERE id = ?', [this.lastID], (getErr, item) => {
+            if (getErr) return reject(getErr);
+            resolve({ success: true, item });
+          });
+        }
+      );
+    }
+  });
+}
+
+function deleteEquipmentCatalogItem(id) {
+  const itemId = Number(id);
+  if (!Number.isSafeInteger(itemId) || itemId <= 0) return Promise.reject(new Error('รหัสอุปกรณ์ไม่ถูกต้อง'));
+  if (useJsonStore) {
+    memoryStore.equipmentCatalog ||= [];
+    const initialCount = memoryStore.equipmentCatalog.length;
+    memoryStore.equipmentCatalog = memoryStore.equipmentCatalog.filter(item => item.id !== itemId);
+    if (memoryStore.equipmentCatalog.length === initialCount) return Promise.reject(new Error('ไม่พบข้อมูลอุปกรณ์'));
+    saveJsonStore();
+    return Promise.resolve({ success: true });
+  }
+  return new Promise((resolve, reject) => {
+    db.run('DELETE FROM equipment_catalog WHERE id = ?', [itemId], function (err) {
+      if (err) return reject(err);
+      if (!this.changes) return reject(new Error('ไม่พบข้อมูลอุปกรณ์'));
+      resolve({ success: true });
+    });
+  });
+}
+
+function normalizeEquipmentIssue(payload, catalog, previousItems = []) {
+  const projectName = typeof payload.project_name === 'string' ? payload.project_name.trim() : '';
+  const issuedAt = typeof payload.issued_at === 'string' ? payload.issued_at.trim() : '';
+  const issuedBy = typeof payload.issued_by === 'string' ? payload.issued_by.trim() : '';
+  const notes = typeof payload.notes === 'string' ? payload.notes.trim() : '';
+  if (!projectName || isWarehouseProject(projectName)) throw new Error('กรุณาเลือกโครงการหน้างาน');
+  const parsedDate = new Date(`${issuedAt}T00:00:00Z`);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(issuedAt) || Number.isNaN(parsedDate.getTime()) || parsedDate.toISOString().slice(0, 10) !== issuedAt) {
+    throw new Error('กรุณาระบุวันที่เบิกให้ถูกต้อง');
+  }
+  if (!issuedBy) throw new Error('กรุณาระบุผู้เบิก');
+  if (!Array.isArray(payload.items) || payload.items.length === 0) throw new Error('กรุณาเพิ่มรายการอุปกรณ์อย่างน้อย 1 รายการ');
+  const items = payload.items.map(line => {
+    const itemId = Number(line?.equipment_id);
+    const quantity = Number(line?.quantity);
+    const equipment = catalog.find(entry => Number(entry.id) === itemId);
+    const previousItem = previousItems.find(entry =>
+      Number(entry.equipment_id) === itemId &&
+      entry.name === line?.name &&
+      (entry.unit || 'ชิ้น') === (line?.unit || 'ชิ้น')
+    );
+    if (!equipment && !previousItem) throw new Error('มีอุปกรณ์ในรายการที่ไม่พบในทะเบียน กรุณาเลือกใหม่');
+    if (!Number.isFinite(quantity) || quantity <= 0 || quantity > 1000000) {
+      throw new Error(`จำนวน "${previousItem?.name || equipment?.name}" ต้องมากกว่า 0`);
+    }
+    return {
+      equipment_id: itemId,
+      name: previousItem ? previousItem.name : equipment.name,
+      unit: previousItem ? previousItem.unit : equipment.unit,
+      quantity
+    };
+  });
+  return { project_name: projectName, issued_at: issuedAt, issued_by: issuedBy, notes, items };
+}
+
+async function getEquipmentIssues() {
+  if (useJsonStore) {
+    memoryStore.equipmentIssues ||= [];
+    return [...memoryStore.equipmentIssues]
+      .sort((a, b) => String(b.issued_at).localeCompare(String(a.issued_at)) || b.id - a.id);
+  }
+  return new Promise((resolve, reject) => {
+    db.all('SELECT id, project_name, issued_at, issued_by, notes, items_json, created_at, updated_at FROM equipment_issues ORDER BY issued_at DESC, id DESC', (err, rows) => {
+      if (err) return reject(err);
+      try {
+        resolve((rows || []).map(row => ({ ...row, items: JSON.parse(row.items_json) })));
+      } catch (parseError) {
+        reject(parseError);
+      }
+    });
+  });
+}
+
+async function saveEquipmentIssue(payload, id = null) {
+  const catalog = await getEquipmentCatalog();
+  const issueId = id === null ? null : Number(id);
+  if (issueId !== null && (!Number.isSafeInteger(issueId) || issueId <= 0)) {
+    throw new Error('รหัสรายการเบิกไม่ถูกต้อง');
+  }
+  const previous = issueId === null
+    ? null
+    : (await getEquipmentIssues()).find(entry => Number(entry.id) === issueId);
+  if (issueId !== null && !previous) throw new Error('ไม่พบประวัติการเบิกที่ต้องการแก้ไข');
+  const issue = normalizeEquipmentIssue(payload || {}, catalog, previous?.items || []);
+
+  if (useJsonStore) {
+    memoryStore.equipmentIssues ||= [];
+    let record = issueId === null ? null : memoryStore.equipmentIssues.find(entry => entry.id === issueId);
+    const now = new Date().toISOString();
+    if (record) {
+      Object.assign(record, issue, { updated_at: now });
+    } else {
+      record = { id: Date.now(), ...issue, created_at: now, updated_at: now };
+      memoryStore.equipmentIssues.push(record);
+    }
+    saveJsonStore();
+    return { success: true, issue: record };
+  }
+
+  const itemsJson = JSON.stringify(issue.items);
+  return new Promise((resolve, reject) => {
+    const done = (err, resultId) => {
+      if (err) return reject(err);
+      db.get(
+        'SELECT id, project_name, issued_at, issued_by, notes, items_json, created_at, updated_at FROM equipment_issues WHERE id = ?',
+        [resultId],
+        (getErr, row) => {
+          if (getErr) return reject(getErr);
+          if (!row) return reject(new Error('ไม่พบประวัติการเบิกที่บันทึก'));
+          resolve({
+            success: true,
+            issue: { ...row, items: JSON.parse(row.items_json) }
+          });
+        }
+      );
+    };
+    if (issueId === null) {
+      db.run(
+        'INSERT INTO equipment_issues (project_name, issued_at, issued_by, notes, items_json) VALUES (?, ?, ?, ?, ?)',
+        [issue.project_name, issue.issued_at, issue.issued_by, issue.notes, itemsJson],
+        function (err) { done(err, this.lastID); }
+      );
+    } else {
+      db.run(
+        'UPDATE equipment_issues SET project_name = ?, issued_at = ?, issued_by = ?, notes = ?, items_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+        [issue.project_name, issue.issued_at, issue.issued_by, issue.notes, itemsJson, issueId],
+        function (err) {
+          if (err) return reject(err);
+          if (!this.changes) return reject(new Error('ไม่พบประวัติการเบิกที่ต้องการแก้ไข'));
+          done(null, issueId);
+        }
+      );
+    }
+  });
+}
+
+function deleteEquipmentIssue(id) {
+  const issueId = Number(id);
+  if (!Number.isSafeInteger(issueId) || issueId <= 0) return Promise.reject(new Error('รหัสรายการเบิกไม่ถูกต้อง'));
+  if (useJsonStore) {
+    memoryStore.equipmentIssues ||= [];
+    const initialCount = memoryStore.equipmentIssues.length;
+    memoryStore.equipmentIssues = memoryStore.equipmentIssues.filter(issue => issue.id !== issueId);
+    if (memoryStore.equipmentIssues.length === initialCount) return Promise.reject(new Error('ไม่พบประวัติการเบิก'));
+    saveJsonStore();
+    return Promise.resolve({ success: true });
+  }
+  return new Promise((resolve, reject) => {
+    db.run('DELETE FROM equipment_issues WHERE id = ?', [issueId], function (err) {
+      if (err) return reject(err);
+      if (!this.changes) return reject(new Error('ไม่พบประวัติการเบิก'));
+      resolve({ success: true });
+    });
   });
 }
 
@@ -1006,6 +1272,7 @@ function getProjectsFull() {
       const projectsMap = {};
 
       (memoryStore.projects || []).forEach(d => {
+        if (isWarehouseProject(d.name)) return;
         projectsMap[d.name] = {
           name: d.name,
           location: d.location || 'ภาคสนาม',
@@ -1020,6 +1287,7 @@ function getProjectsFull() {
       });
 
       memoryStore.panels.forEach(p => {
+        if (p.status === 'warehouse' || isWarehouseProject(p.project_name)) return;
         if (!projectsMap[p.project_name]) {
           projectsMap[p.project_name] = {
             name: p.project_name,
@@ -1057,15 +1325,19 @@ function getProjectsFull() {
         SUM(COALESCE(pan.wattage, 0)) as total_wattage
       FROM (
         SELECT name, location, target_capacity_kw FROM projects
+        WHERE LOWER(TRIM(name)) != LOWER(?)
         UNION
-        SELECT DISTINCT project_name as name, 'ภาคสนาม' as location, 0 as target_capacity_kw FROM panels WHERE project_name IS NOT NULL AND project_name != ''
+        SELECT DISTINCT project_name as name, 'ภาคสนาม' as location, 0 as target_capacity_kw FROM panels
+        WHERE project_name IS NOT NULL AND project_name != ''
+          AND status != 'warehouse'
+          AND LOWER(TRIM(project_name)) != LOWER(?)
       ) p
-      LEFT JOIN panels pan ON pan.project_name = p.name
+      LEFT JOIN panels pan ON pan.project_name = p.name AND pan.status != 'warehouse'
       GROUP BY p.name
       ORDER BY total_panels DESC, p.name ASC
     `;
 
-    db.all(query, (err, rows) => {
+    db.all(query, [WAREHOUSE_PROJECT_NAME, WAREHOUSE_PROJECT_NAME], (err, rows) => {
       if (err) return reject(err);
       resolve(rows || []);
     });
@@ -1090,6 +1362,12 @@ module.exports = {
   clearPanelsSelective,
   seedDemoData,
   importPanels,
+  getEquipmentCatalog,
+  saveEquipmentCatalogItem,
+  deleteEquipmentCatalogItem,
+  getEquipmentIssues,
+  saveEquipmentIssue,
+  deleteEquipmentIssue,
   getDatabaseInfo,
   getProjectsFull
 };

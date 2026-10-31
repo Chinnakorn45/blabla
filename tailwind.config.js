@@ -4,7 +4,7 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Prompt', 'Inter', 'sans-serif']
+        sans: ['Tahoma', 'Arial', 'sans-serif']
       },
       boxShadow: {
         xs: '0 1px 2px 0 rgb(0 0 0 / 0.05)'
