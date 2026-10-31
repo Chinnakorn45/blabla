@@ -21,11 +21,24 @@ app.use(express.urlencoded({ extended: true }));
 
 // Serve frontend static files
 app.use(express.static(path.join(__dirname, 'public')));
+const sendVendorScript = (relativePath, res) => {
+  const filePath = path.join(__dirname, 'node_modules', ...relativePath.split('/'));
+  if (!fs.existsSync(filePath)) {
+    console.error(`Browser library not found: ${filePath}`);
+    res.set('Cache-Control', 'no-store');
+    return res.status(500).type('text/plain').send('Browser library is missing. Run npm install and restart the server.');
+  }
+  res.set({
+    'Cache-Control': 'no-store',
+    'X-Content-Type-Options': 'nosniff'
+  });
+  return res.type('application/javascript').sendFile(filePath);
+};
 app.get('/vendor/lucide.js', (req, res) => {
-  res.sendFile(path.join(__dirname, 'node_modules', 'lucide', 'dist', 'umd', 'lucide.min.js'));
+  sendVendorScript('lucide/dist/umd/lucide.min.js', res);
 });
 app.get('/vendor/html5-qrcode.js', (req, res) => {
-  res.sendFile(path.join(__dirname, 'node_modules', 'html5-qrcode', 'html5-qrcode.min.js'));
+  sendVendorScript('html5-qrcode/html5-qrcode.min.js', res);
 });
 
 // ---------------- API Routes ----------------
