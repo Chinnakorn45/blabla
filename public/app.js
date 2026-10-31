@@ -187,6 +187,15 @@ class SolarTrackingApp {
   // ---------------- Mock Database (When Offline/Standalone) ----------------
 
   initLocalStorageMock() {
+    if (!localStorage.getItem('solartrack_projects')) {
+      const defaultProjects = [
+        { id: 1, name: 'Solar Farm Lopburi Phase 2', location: 'ลพบุรี', target_capacity_kw: 5000 },
+        { id: 2, name: 'Rooftop Factory Amata Chonburi', location: 'ชลบุรี', target_capacity_kw: 1200 },
+        { id: 3, name: 'Floating Solar Ubon Ratchathani', location: 'อุบลราชธานี', target_capacity_kw: 3500 },
+        { id: 4, name: 'คลังสินค้ากลาง (Central Warehouse)', location: 'สมุทรปราการ', target_capacity_kw: 0 }
+      ];
+      localStorage.setItem('solartrack_projects', JSON.stringify(defaultProjects));
+    }
     if (!localStorage.getItem('solartrack_panels')) {
       const initialSeed = [
         {
@@ -247,6 +256,23 @@ class SolarTrackingApp {
 
   getMockPanels() {
     return JSON.parse(localStorage.getItem('solartrack_panels') || '[]');
+  }
+
+  getMockProjects() {
+    try {
+      const raw = localStorage.getItem('solartrack_projects');
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    return [
+      { id: 1, name: 'Solar Farm Lopburi Phase 2', location: 'ลพบุรี', target_capacity_kw: 5000 },
+      { id: 2, name: 'Rooftop Factory Amata Chonburi', location: 'ชลบุรี', target_capacity_kw: 1200 },
+      { id: 3, name: 'Floating Solar Ubon Ratchathani', location: 'อุบลราชธานี', target_capacity_kw: 3500 },
+      { id: 4, name: 'คลังสินค้ากลาง (Central Warehouse)', location: 'สมุทรปราการ', target_capacity_kw: 0 }
+    ];
+  }
+
+  saveMockProjects(projects) {
+    localStorage.setItem('solartrack_projects', JSON.stringify(projects));
   }
 
   saveMockPanel(panel) {
@@ -546,8 +572,10 @@ class SolarTrackingApp {
     let projects = [];
     try {
       if (this.isMockMode) {
+        const mockProjs = this.getMockProjects().map(p => p.name);
         const panels = this.getMockPanels();
-        projects = Array.from(new Set(panels.map(p => p.project_name))).filter(Boolean);
+        const fromPanels = panels.map(p => p.project_name);
+        projects = Array.from(new Set(['คลังสินค้ากลาง (Central Warehouse)', ...mockProjs, ...fromPanels])).filter(Boolean);
       } else {
         const res = await fetch('/api/projects');
         const json = await res.json();
@@ -1177,8 +1205,12 @@ class SolarTrackingApp {
 
     try {
       if (this.isMockMode) {
-        if (!this.mockProjects) this.mockProjects = [];
-        this.mockProjects.push({ name, location, target_capacity_kw: capacity });
+        const projs = this.getMockProjects();
+        if (projs.some(p => p.name.toLowerCase() === name.toLowerCase())) {
+          throw new Error(`โครงการ "${name}" มีอยู่ในระบบแล้ว`);
+        }
+        projs.push({ id: Date.now(), name, location, target_capacity_kw: capacity });
+        this.saveMockProjects(projs);
       } else {
         const res = await fetch('/api/projects', {
           method: 'POST',
@@ -1243,10 +1275,23 @@ class SolarTrackingApp {
 
     try {
       if (this.isMockMode) {
-        let list = this.getMockPanels();
+        const projs = this.getMockProjects();
+        const p = projs.find(x => x.name.toLowerCase() === oldName.toLowerCase());
+        if (p) {
+          p.name = newName;
+          p.location = location;
+          p.target_capacity_kw = capacity;
+        } else {
+          projs.push({ id: Date.now(), name: newName, location, target_capacity_kw: capacity });
+        }
+        this.saveMockProjects(projs);
+
         if (oldName !== newName) {
-          list.forEach(p => {
-            if (p.project_name === oldName) p.project_name = newName;
+          let list = this.getMockPanels();
+          list.forEach(pan => {
+            if ((pan.project_name || '').trim().toLowerCase() === oldName.toLowerCase()) {
+              pan.project_name = newName;
+            }
           });
           localStorage.setItem('solartrack_panels', JSON.stringify(list));
         }
@@ -1288,6 +1333,10 @@ class SolarTrackingApp {
   }
 
   openDeleteProjectModal(projectName, panelCount) {
+    if (projectName === 'คลังสินค้ากลาง (Central Warehouse)') {
+      this.showToast('ไม่สามารถลบคลังสินค้าหลักของระบบได้', 'warning');
+      return;
+    }
     document.getElementById('delete-project-name-hidden').value = projectName;
     document.getElementById('delete-project-name-display').textContent = projectName;
     document.getElementById('delete-project-count-display').textContent = panelCount || 0;
@@ -1323,14 +1372,23 @@ class SolarTrackingApp {
     const btn = document.getElementById('btn-confirm-delete-project');
     if (btn) btn.disabled = true;
 
+    if (name === 'คลังสินค้ากลาง (Central Warehouse)') {
+      this.showToast('ไม่สามารถลบคลังสินค้าหลักของระบบได้', 'error');
+      return;
+    }
+
     try {
       if (this.isMockMode) {
+        let projs = this.getMockProjects();
+        projs = projs.filter(p => (p.name || '').trim().toLowerCase() !== name.toLowerCase());
+        this.saveMockProjects(projs);
+
         let list = this.getMockPanels();
         if (action === 'delete_panels') {
-          list = list.filter(p => p.project_name !== name);
+          list = list.filter(p => (p.project_name || '').trim().toLowerCase() !== name.toLowerCase());
         } else {
           list.forEach(p => {
-            if (p.project_name === name) {
+            if ((p.project_name || '').trim().toLowerCase() === name.toLowerCase()) {
               p.project_name = 'คลังสินค้ากลาง (Central Warehouse)';
               p.status = 'warehouse';
             }
@@ -1344,20 +1402,8 @@ class SolarTrackingApp {
           body: JSON.stringify({ action })
         });
         if (!res.ok) {
-          const panelsRes = await fetch(`/api/panels?project=${encodeURIComponent(name)}&limit=10000`);
-          if (panelsRes.ok) {
-            const panelsJson = await panelsRes.json();
-            const targets = panelsJson.data || [];
-            if (action === 'delete_panels') {
-              await Promise.all(targets.map(p => fetch(`/api/panels/${p.id}`, { method: 'DELETE' })));
-            } else {
-              await Promise.all(targets.map(p => fetch('/api/panels', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...p, project_name: 'คลังสินค้ากลาง (Central Warehouse)', status: 'warehouse' })
-              })));
-            }
-          }
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || errData.message || 'ลบโครงการไม่สำเร็จ');
         }
       }
 
@@ -2261,14 +2307,41 @@ class SolarTrackingApp {
     try {
       let projects = [];
       if (this.isMockMode) {
+        const projs = this.getMockProjects();
         const panels = this.getMockPanels();
         const map = {};
+        projs.forEach(p => {
+          map[p.name] = {
+            name: p.name,
+            location: p.location || 'ภาคสนาม',
+            target_capacity_kw: p.target_capacity_kw || 0,
+            total_panels: 0,
+            installed_panels: 0,
+            warehouse_panels: 0,
+            installing_panels: 0,
+            damaged_panels: 0,
+            total_wattage: 0
+          };
+        });
         panels.forEach(p => {
           if (!map[p.project_name]) {
-            map[p.project_name] = { name: p.project_name, total_panels: 0, installed_panels: 0, total_wattage: 0 };
+            map[p.project_name] = {
+              name: p.project_name,
+              location: 'ภาคสนาม',
+              target_capacity_kw: 0,
+              total_panels: 0,
+              installed_panels: 0,
+              warehouse_panels: 0,
+              installing_panels: 0,
+              damaged_panels: 0,
+              total_wattage: 0
+            };
           }
           map[p.project_name].total_panels++;
           if (p.status === 'installed') map[p.project_name].installed_panels++;
+          else if (p.status === 'warehouse') map[p.project_name].warehouse_panels++;
+          else if (p.status === 'installing') map[p.project_name].installing_panels++;
+          else if (p.status === 'damaged') map[p.project_name].damaged_panels++;
           map[p.project_name].total_wattage += (p.wattage || 550);
         });
         projects = Object.values(map);
@@ -2385,9 +2458,11 @@ class SolarTrackingApp {
               <button onclick="app.openEditProjectModal('${this.escapeHtml(proj.name)}')" class="touch-press py-1.5 px-3 bg-blue-50 hover:bg-blue-100 text-blue-700 font-medium rounded-lg flex items-center gap-1">
                 <i data-lucide="edit-2" class="w-3.5 h-3.5"></i> แก้ไข
               </button>
+              ${proj.name === 'คลังสินค้ากลาง (Central Warehouse)' ? '' : `
               <button onclick="app.openDeleteProjectModal('${this.escapeHtml(proj.name)}', ${total})" class="touch-press py-1.5 px-3 bg-rose-50 hover:bg-rose-100 text-rose-600 font-medium rounded-lg flex items-center gap-1">
                 <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> ลบ
               </button>
+              `}
             </div>
           </div>
         `;

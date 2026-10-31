@@ -60,7 +60,7 @@ function json(data, status = 200, headers = {}) {
 async function handleApi(request, env, url) {
   const method = request.method;
   const path = url.pathname.replace(/\/+$/, '') || '/';
-  const store = new DataStore(env.STORE);
+  const store = new DataStore(env?.STORE);
 
   if (path === '/api/health' && method === 'GET') {
     const isKvBound = Boolean(env.STORE && typeof env.STORE.get === 'function' && typeof env.STORE.put === 'function');
@@ -416,7 +416,7 @@ class DataStore {
     const memory = await this.load();
     const fromProjects = (memory.projects || []).map((p) => p.name);
     const fromPanels = memory.panels.map((p) => p.project_name);
-    return Array.from(new Set([...DEFAULT_PROJECT_NAMES, ...fromProjects, ...fromPanels])).filter(Boolean);
+    return Array.from(new Set([WAREHOUSE_PROJECT_NAME, ...fromProjects, ...fromPanels])).filter(Boolean);
   }
 
   async createProject({ name, location = 'ภาคสนาม', target_capacity_kw = 0 }) {
@@ -462,13 +462,22 @@ class DataStore {
   async deleteProject({ name, action = 'move_warehouse' }) {
     const memory = await this.load();
     const cleanName = String(name || '').trim();
-    memory.projects = memory.projects.filter((p) => p.name.toLowerCase() !== cleanName.toLowerCase());
+    if (!cleanName) {
+      throw new Error('Project name is required');
+    }
+    if (cleanName.toLowerCase() === WAREHOUSE_PROJECT_NAME.toLowerCase()) {
+      throw new Error(`ไม่สามารถลบ "${WAREHOUSE_PROJECT_NAME}" ซึ่งเป็นคลังสินค้าหลักของระบบได้`);
+    }
+
+    const lowerClean = cleanName.toLowerCase();
+    memory.projects = (memory.projects || []).filter((p) => (p.name || '').trim().toLowerCase() !== lowerClean);
+
     if (action === 'delete_panels') {
-      memory.panels = memory.panels.filter((p) => p.project_name !== cleanName);
+      memory.panels = memory.panels.filter((p) => (p.project_name || '').trim().toLowerCase() !== lowerClean);
     } else {
       memory.panels.forEach((p) => {
-        if (p.project_name === cleanName) {
-          p.project_name = 'คลังสินค้ากลาง (Central Warehouse)';
+        if ((p.project_name || '').trim().toLowerCase() === lowerClean) {
+          p.project_name = WAREHOUSE_PROJECT_NAME;
           p.status = 'warehouse';
         }
       });
@@ -590,13 +599,7 @@ class DataStore {
   async getProjectsFull() {
     const memory = await this.load();
     const projectsMap = {};
-    const defaults = [
-      { name: 'Solar Farm Lopburi Phase 2', location: 'ลพบุรี', target_capacity_kw: 5000 },
-      { name: 'Rooftop Factory Amata Chonburi', location: 'ชลบุรี', target_capacity_kw: 1200 },
-      { name: 'Floating Solar Ubon Ratchathani', location: 'อุบลราชธานี', target_capacity_kw: 3500 },
-      { name: WAREHOUSE_PROJECT_NAME, location: 'สมุทรปราการ', target_capacity_kw: 0 }
-    ];
-    (memory.projects.length ? memory.projects : defaults).forEach((d) => {
+    (memory.projects || []).forEach((d) => {
       projectsMap[d.name] = {
         name: d.name,
         location: d.location || 'ภาคสนาม',
@@ -609,6 +612,19 @@ class DataStore {
         total_wattage: 0
       };
     });
+    if (!projectsMap[WAREHOUSE_PROJECT_NAME]) {
+      projectsMap[WAREHOUSE_PROJECT_NAME] = {
+        name: WAREHOUSE_PROJECT_NAME,
+        location: 'สมุทรปราการ',
+        target_capacity_kw: 0,
+        total_panels: 0,
+        installed_panels: 0,
+        warehouse_panels: 0,
+        installing_panels: 0,
+        damaged_panels: 0,
+        total_wattage: 0
+      };
+    }
     memory.panels.forEach((p) => {
       if (!projectsMap[p.project_name]) {
         projectsMap[p.project_name] = {

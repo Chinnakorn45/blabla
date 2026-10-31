@@ -570,18 +570,23 @@ function updateProject({ oldName, name, location = 'ภาคสนาม', targ
 function deleteProject({ name, action = 'move_warehouse' }) {
   const cleanName = (name || '').trim();
   if (!cleanName) return Promise.reject(new Error('Project name is required'));
+  if (cleanName.toLowerCase() === WAREHOUSE_PROJECT_NAME.toLowerCase()) {
+    return Promise.reject(new Error(`ไม่สามารถลบ "${WAREHOUSE_PROJECT_NAME}" ซึ่งเป็นคลังสินค้าหลักของระบบได้`));
+  }
+
+  const lowerClean = cleanName.toLowerCase();
 
   if (useJsonStore) {
     if (!memoryStore.projects) memoryStore.projects = [];
-    memoryStore.projects = memoryStore.projects.filter(p => p.name.toLowerCase() !== cleanName.toLowerCase());
+    memoryStore.projects = memoryStore.projects.filter(p => (p.name || '').trim().toLowerCase() !== lowerClean);
 
     if (action === 'delete_panels') {
-      memoryStore.panels = memoryStore.panels.filter(p => p.project_name !== cleanName);
+      memoryStore.panels = memoryStore.panels.filter(p => (p.project_name || '').trim().toLowerCase() !== lowerClean);
     } else {
       // Default: Move panels to Central Warehouse
       memoryStore.panels.forEach(p => {
-        if (p.project_name === cleanName) {
-          p.project_name = 'คลังสินค้ากลาง (Central Warehouse)';
+        if ((p.project_name || '').trim().toLowerCase() === lowerClean) {
+          p.project_name = WAREHOUSE_PROJECT_NAME;
           p.status = 'warehouse';
         }
       });
@@ -593,15 +598,15 @@ function deleteProject({ name, action = 'move_warehouse' }) {
   return new Promise((resolve, reject) => {
     db.serialize(() => {
       if (action === 'delete_panels') {
-        db.run('DELETE FROM panels WHERE project_name = ?', [cleanName]);
+        db.run('DELETE FROM panels WHERE LOWER(TRIM(project_name)) = LOWER(?)', [cleanName]);
       } else {
         db.run(
-          'UPDATE panels SET project_name = ?, status = ? WHERE project_name = ?',
-          ['คลังสินค้ากลาง (Central Warehouse)', 'warehouse', cleanName]
+          'UPDATE panels SET project_name = ?, status = ? WHERE LOWER(TRIM(project_name)) = LOWER(?)',
+          [WAREHOUSE_PROJECT_NAME, 'warehouse', cleanName]
         );
       }
 
-      db.run('DELETE FROM projects WHERE name = ?', [cleanName], function (err) {
+      db.run('DELETE FROM projects WHERE LOWER(TRIM(name)) = LOWER(?)', [cleanName], function (err) {
         if (err) return reject(err);
         resolve({ success: true, message: `ลบโครงการ "${cleanName}" สำเร็จ` });
       });
