@@ -37,7 +37,7 @@ export default {
       try {
         return await handleApi(request, env, url);
       } catch (err) {
-        return json({ success: false, error: err.message || String(err) }, 500);
+        return json({ success: false, error: err.message || String(err) }, err.status || 500);
       }
     }
     return env.ASSETS.fetch(request);
@@ -145,6 +145,41 @@ async function handleApi(request, env, url) {
     return json(await store.deleteProject({ name, action: body.action }));
   }
 
+  if (path === '/api/equipment' && method === 'GET') {
+    return json({ success: true, equipment: await store.getEquipmentCatalog() });
+  }
+  if (path === '/api/equipment' && method === 'POST') {
+    return json(await store.saveEquipmentCatalogItem(await request.json()), 201);
+  }
+
+  const equipmentIssuePath = path.match(/^\/api\/equipment\/issues(?:\/(\d+))?$/);
+  if (equipmentIssuePath) {
+    const issueId = equipmentIssuePath[1];
+    if (!issueId && method === 'GET') {
+      return json({ success: true, issues: await store.getEquipmentIssues() });
+    }
+    if (!issueId && method === 'POST') {
+      return json(await store.saveEquipmentIssue(await request.json()), 201);
+    }
+    if (issueId && method === 'PUT') {
+      return json(await store.saveEquipmentIssue(await request.json(), issueId));
+    }
+    if (issueId && method === 'DELETE') {
+      return json(await store.deleteEquipmentIssue(issueId));
+    }
+  }
+
+  const equipmentPath = path.match(/^\/api\/equipment\/(\d+)$/);
+  if (equipmentPath) {
+    const equipmentId = equipmentPath[1];
+    if (method === 'PUT') {
+      return json(await store.saveEquipmentCatalogItem(await request.json(), equipmentId));
+    }
+    if (method === 'DELETE') {
+      return json(await store.deleteEquipmentCatalogItem(equipmentId));
+    }
+  }
+
   if (path === '/api/database/info' && method === 'GET') {
     return json({ success: true, info: await store.getDatabaseInfo() });
   }
@@ -250,6 +285,54 @@ function csvResponse(data) {
   });
 }
 
+function equipmentError(message) {
+  const error = new Error(message);
+  error.status = 400;
+  return error;
+}
+
+function normalizeEquipmentIssue(payload, catalog, previousItems = []) {
+  const projectName = typeof payload?.project_name === 'string' ? payload.project_name.trim() : '';
+  const issuedAt = typeof payload?.issued_at === 'string' ? payload.issued_at.trim() : '';
+  const issuedBy = typeof payload?.issued_by === 'string' ? payload.issued_by.trim() : '';
+  const notes = typeof payload?.notes === 'string' ? payload.notes.trim() : '';
+  if (!projectName || projectName.toLowerCase() === WAREHOUSE_PROJECT_NAME.toLowerCase()) {
+    throw equipmentError('กรุณาเลือกโครงการหน้างาน');
+  }
+  const parsedDate = new Date(`${issuedAt}T00:00:00Z`);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(issuedAt) || Number.isNaN(parsedDate.getTime()) || parsedDate.toISOString().slice(0, 10) !== issuedAt) {
+    throw equipmentError('กรุณาระบุวันที่เบิกให้ถูกต้อง');
+  }
+  if (!issuedBy) throw equipmentError('กรุณาระบุผู้เบิก');
+  if (!Array.isArray(payload.items) || payload.items.length === 0) {
+    throw equipmentError('กรุณาเพิ่มรายการอุปกรณ์อย่างน้อย 1 รายการ');
+  }
+
+  const items = payload.items.map((line) => {
+    const itemId = Number(line?.equipment_id);
+    const quantity = Number(line?.quantity);
+    const equipment = catalog.find((entry) => Number(entry.id) === itemId);
+    const previousItem = previousItems.find((entry) =>
+      Number(entry.equipment_id) === itemId &&
+      entry.name === line?.name &&
+      (entry.unit || 'ชิ้น') === (line?.unit || 'ชิ้น')
+    );
+    if (!equipment && !previousItem) {
+      throw equipmentError('มีอุปกรณ์ในรายการที่ไม่พบในทะเบียน กรุณาเลือกใหม่');
+    }
+    if (!Number.isFinite(quantity) || quantity <= 0 || quantity > 1000000) {
+      throw equipmentError(`จำนวน "${previousItem?.name || equipment?.name}" ต้องมากกว่า 0`);
+    }
+    return {
+      equipment_id: itemId,
+      name: previousItem ? previousItem.name : equipment.name,
+      unit: previousItem ? previousItem.unit : (equipment.unit || 'ชิ้น'),
+      quantity
+    };
+  });
+  return { project_name: projectName, issued_at: issuedAt, issued_by: issuedBy, notes, items };
+}
+
 let inMemoryStore = null;
 
 class DataStore {
@@ -259,7 +342,12 @@ class DataStore {
   }
 
   emptyStore() {
-    return { panels: demoPanels(), projects: DEFAULT_PROJECTS.map((p) => ({ ...p })) };
+    return {
+      panels: demoPanels(),
+      projects: DEFAULT_PROJECTS.map((p) => ({ ...p })),
+      equipmentCatalog: [],
+      equipmentIssues: []
+    };
   }
 
   async load() {
@@ -269,6 +357,8 @@ class DataStore {
         inMemoryStore = this.emptyStore();
       }
       this.cache = inMemoryStore;
+      if (!Array.isArray(this.cache.equipmentCatalog)) this.cache.equipmentCatalog = [];
+      if (!Array.isArray(this.cache.equipmentIssues)) this.cache.equipmentIssues = [];
       return this.cache;
     }
     let raw = null;
@@ -286,6 +376,11 @@ class DataStore {
       this.cache = JSON.parse(raw);
       if (!Array.isArray(this.cache.panels)) this.cache.panels = [];
       if (!Array.isArray(this.cache.projects)) this.cache.projects = DEFAULT_PROJECTS.map((p) => ({ ...p }));
+      const needsEquipmentMigration = !Array.isArray(this.cache.equipmentCatalog) ||
+        !Array.isArray(this.cache.equipmentIssues);
+      if (!Array.isArray(this.cache.equipmentCatalog)) this.cache.equipmentCatalog = [];
+      if (!Array.isArray(this.cache.equipmentIssues)) this.cache.equipmentIssues = [];
+      if (needsEquipmentMigration) await this.save();
     } catch {
       this.cache = this.emptyStore();
     }
@@ -572,6 +667,98 @@ class DataStore {
       valid.push(await this.savePanel(p));
     }
     return { success: true, count: valid.length };
+  }
+
+  async getEquipmentCatalog() {
+    const memory = await this.load();
+    return [...memory.equipmentCatalog].sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  async saveEquipmentCatalogItem(payload, id = null) {
+    const memory = await this.load();
+    const cleanName = typeof payload?.name === 'string' ? payload.name.trim() : '';
+    const cleanUnit = typeof payload?.unit === 'string' ? payload.unit.trim() : '';
+    if (!cleanName) throw equipmentError('กรุณาระบุชื่ออุปกรณ์');
+    if (!cleanUnit) throw equipmentError('กรุณาระบุหน่วยนับ');
+
+    const itemId = id === null ? null : Number(id);
+    if (itemId !== null && (!Number.isSafeInteger(itemId) || itemId <= 0)) {
+      throw equipmentError('รหัสอุปกรณ์ไม่ถูกต้อง');
+    }
+    const duplicate = memory.equipmentCatalog.find((item) =>
+      item.name.toLowerCase() === cleanName.toLowerCase() && Number(item.id) !== itemId
+    );
+    if (duplicate) throw equipmentError(`มีอุปกรณ์ "${cleanName}" อยู่แล้ว`);
+
+    const now = new Date().toISOString();
+    let item = itemId === null
+      ? null
+      : memory.equipmentCatalog.find((entry) => Number(entry.id) === itemId);
+    if (itemId !== null && !item) throw equipmentError('ไม่พบข้อมูลอุปกรณ์ที่ต้องการแก้ไข');
+    if (item) {
+      item.name = cleanName;
+      item.unit = cleanUnit;
+      item.updated_at = now;
+    } else {
+      const nextId = Math.max(Date.now(), ...memory.equipmentCatalog.map((entry) => Number(entry.id) + 1 || 0));
+      item = { id: nextId, name: cleanName, unit: cleanUnit, created_at: now, updated_at: now };
+      memory.equipmentCatalog.push(item);
+    }
+    await this.save();
+    return { success: true, item };
+  }
+
+  async deleteEquipmentCatalogItem(id) {
+    const memory = await this.load();
+    const itemId = Number(id);
+    if (!Number.isSafeInteger(itemId) || itemId <= 0) throw equipmentError('รหัสอุปกรณ์ไม่ถูกต้อง');
+    const initialCount = memory.equipmentCatalog.length;
+    memory.equipmentCatalog = memory.equipmentCatalog.filter((item) => Number(item.id) !== itemId);
+    if (memory.equipmentCatalog.length === initialCount) throw equipmentError('ไม่พบข้อมูลอุปกรณ์');
+    await this.save();
+    return { success: true };
+  }
+
+  async getEquipmentIssues() {
+    const memory = await this.load();
+    return [...memory.equipmentIssues].sort((a, b) =>
+      String(b.issued_at).localeCompare(String(a.issued_at)) || Number(b.id) - Number(a.id)
+    );
+  }
+
+  async saveEquipmentIssue(payload, id = null) {
+    const memory = await this.load();
+    const issueId = id === null ? null : Number(id);
+    if (issueId !== null && (!Number.isSafeInteger(issueId) || issueId <= 0)) {
+      throw equipmentError('รหัสรายการเบิกไม่ถูกต้อง');
+    }
+    const previous = issueId === null
+      ? null
+      : memory.equipmentIssues.find((entry) => Number(entry.id) === issueId);
+    if (issueId !== null && !previous) throw equipmentError('ไม่พบประวัติการเบิกที่ต้องการแก้ไข');
+    const issue = normalizeEquipmentIssue(payload || {}, memory.equipmentCatalog, previous?.items || []);
+    const now = new Date().toISOString();
+    let record = previous;
+    if (record) {
+      Object.assign(record, issue, { updated_at: now });
+    } else {
+      const nextId = Math.max(Date.now(), ...memory.equipmentIssues.map((entry) => Number(entry.id) + 1 || 0));
+      record = { id: nextId, ...issue, created_at: now, updated_at: now };
+      memory.equipmentIssues.unshift(record);
+    }
+    await this.save();
+    return { success: true, issue: record };
+  }
+
+  async deleteEquipmentIssue(id) {
+    const memory = await this.load();
+    const issueId = Number(id);
+    if (!Number.isSafeInteger(issueId) || issueId <= 0) throw equipmentError('รหัสรายการเบิกไม่ถูกต้อง');
+    const initialCount = memory.equipmentIssues.length;
+    memory.equipmentIssues = memory.equipmentIssues.filter((issue) => Number(issue.id) !== issueId);
+    if (memory.equipmentIssues.length === initialCount) throw equipmentError('ไม่พบประวัติการเบิก');
+    await this.save();
+    return { success: true };
   }
 
   async getDatabaseInfo() {
