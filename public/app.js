@@ -389,6 +389,11 @@ class SolarTrackingApp {
       try {
         this.availableCameras = await Html5Qrcode.getCameras();
       } catch (camErr) {
+        this.availableCameras = [];
+        if (this.isCameraNotFoundError(camErr)) {
+          this.showToast('ไม่พบกล้องที่ใช้งานได้ กรุณาตรวจสอบว่ามีกล้องเชื่อมต่อและอนุญาตให้เว็บไซต์เข้าถึงกล้อง', 'error');
+          return;
+        }
         console.warn('Unable to enumerate cameras:', camErr);
       }
 
@@ -418,16 +423,29 @@ class SolarTrackingApp {
         ? this.availableCameras[this.currentCameraIndex % this.availableCameras.length].id
         : { facingMode: "environment" };
 
-      await this.html5QrCode.start(
-        cameraSelection,
-        config,
-        (decodedText, decodedResult) => {
-          this.onScanSuccess(decodedText, decodedResult);
-        },
-        (errorMessage) => {
-          // Scanner stream tick (suppressed)
+      const onScanSuccess = (decodedText, decodedResult) => {
+        this.onScanSuccess(decodedText, decodedResult);
+      };
+      const onScanError = () => {
+        // Scanner stream tick (suppressed)
+      };
+
+      try {
+        await this.html5QrCode.start(cameraSelection, config, onScanSuccess, onScanError);
+      } catch (err) {
+        if (typeof cameraSelection !== 'string' || !this.isCameraNotFoundError(err)) {
+          throw err;
         }
-      );
+
+        console.warn('Selected camera is unavailable; retrying with the environment camera:', err);
+        this.html5QrCode = new Html5Qrcode("reader");
+        await this.html5QrCode.start(
+          { facingMode: "environment" },
+          config,
+          onScanSuccess,
+          onScanError
+        );
+      }
 
       this.isScanning = true;
       this.isTorchOn = false;
@@ -435,11 +453,22 @@ class SolarTrackingApp {
     } catch (err) {
       console.error('Failed to start camera:', err);
       let errorMsg = 'ไม่สามารถเปิดกล้องได้: ' + (err.message || err);
+      if (this.isCameraNotFoundError(err)) {
+        errorMsg = 'ไม่พบกล้องที่ใช้งานได้ กรุณาตรวจสอบว่ามีกล้องเชื่อมต่อและอนุญาตให้เว็บไซต์เข้าถึงกล้อง';
+      } else if (/NotAllowedError|Permission denied/i.test(String(err))) {
+        errorMsg = 'ไม่ได้รับอนุญาตให้ใช้กล้อง กรุณาอนุญาตการเข้าถึงกล้องในการตั้งค่าเบราว์เซอร์';
+      } else if (/NotReadableError|could not start video source/i.test(String(err))) {
+        errorMsg = 'ไม่สามารถเริ่มกล้องได้ อาจมีแอปอื่นกำลังใช้งานกล้องอยู่';
+      }
       if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
         errorMsg += ' (บราวเซอร์มือถือจำเป็นต้องใช้ HTTPS หรือ localhost ในการเข้าถึงกล้อง)';
       }
       this.showToast(errorMsg, 'error');
     }
+  }
+
+  isCameraNotFoundError(err) {
+    return err?.name === 'NotFoundError' || /NotFoundError|Requested device not found/i.test(String(err?.message || err));
   }
 
   async stopCameraScanner() {
@@ -460,6 +489,10 @@ class SolarTrackingApp {
   }
 
   async switchCamera() {
+    if (this.availableCameras.length === 0) {
+      this.showToast('ไม่พบกล้องที่พร้อมใช้งานบนอุปกรณ์นี้', 'warning');
+      return;
+    }
     if (this.availableCameras.length < 2) {
       this.showToast('พบกล้องเพียงตัวเดียวบนอุปกรณ์นี้', 'info');
       return;
@@ -1171,7 +1204,7 @@ class SolarTrackingApp {
 
     if (bulkProjSelect) {
       const currentVal = bulkProjSelect.value;
-      bulkProjSelect.innerHTML = optionsHtml;
+      bulkProjSelect.innerHTML = `<option value="">-- เลือกโครงการ --</option>` + optionsHtml;
       if (currentVal && projects.includes(currentVal)) bulkProjSelect.value = currentVal;
     }
   }
@@ -1457,7 +1490,7 @@ class SolarTrackingApp {
       if (this.lastSaved.project_name) singleProj.value = this.lastSaved.project_name;
     }
     if (bulkProj) {
-      bulkProj.innerHTML = optionsHtml;
+      bulkProj.innerHTML = `<option value="">-- เลือกโครงการ --</option>` + optionsHtml;
       if (this.lastSaved.project_name) bulkProj.value = this.lastSaved.project_name;
     }
 
@@ -1603,6 +1636,10 @@ class SolarTrackingApp {
 
     const isWarehouse = this.currentMode === 'warehouse';
     const project = isWarehouse ? WAREHOUSE_PROJECT_NAME : document.getElementById('bulk-preset-project').value;
+    if (!isWarehouse && !project) {
+      this.showToast('กรุณาเลือกโครงการปลายทางก่อนบันทึก', 'warning');
+      return;
+    }
     const inverter = isWarehouse ? '-' : (document.getElementById('bulk-preset-inverter').value.trim() || 'INV-01');
     const stringName = isWarehouse ? '-' : (document.getElementById('bulk-preset-string').value.trim() || 'STR-01');
     const status = isWarehouse ? 'warehouse' : document.getElementById('bulk-preset-status').value;
