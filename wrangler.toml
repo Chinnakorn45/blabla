@@ -2,9 +2,11 @@ name = "blabla"
 main = "worker.js"
 compatibility_date = "2024-10-01"
 
+[[kv_namespaces]]
+binding = "STORE"
+id = "42cc9ab1bcec44a3bbb1e75532359c8f"
+
 [assets]
 directory = "./public"
 binding = "ASSETS"
 not_found_handling = "single-page-application"
-
-# The API requires a Cloudflare KV namespace binding named STORE.
