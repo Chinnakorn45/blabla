@@ -1,5 +1,5 @@
 name = "blabla"
-main = "worker-wrapper.js"
+main = "worker.js"
 compatibility_date = "2024-10-01"
 
 [[kv_namespaces]]
