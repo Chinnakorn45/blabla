@@ -1380,6 +1380,8 @@ class SolarTrackingApp {
     if (!modal) return;
 
     const list = document.getElementById('field-stock-modal-list');
+    const emptyState = document.getElementById('field-stock-modal-empty');
+    const searchInput = document.getElementById('field-stock-search');
     if (!list) return;
 
     let panels = [];
@@ -1395,23 +1397,47 @@ class SolarTrackingApp {
       }
     }
 
-    const stockPanels = panels
+    this.fieldStockModalPanels = panels
       .filter(panel => panel && (panel.status === 'warehouse' || panel.project_name === WAREHOUSE_PROJECT_NAME))
       .sort((a, b) => String(a.serial_number || '').localeCompare(String(b.serial_number || '')));
 
-    if (!stockPanels.length) {
+    if (!this.fieldStockModalPanels.length) {
       list.innerHTML = '<div class="p-4 text-xs text-slate-500 text-center">ไม่มีแผงในคลังให้เลือก</div>';
+      if (emptyState) emptyState.classList.add('hidden');
+      if (searchInput) searchInput.value = '';
       modal.classList.remove('hidden');
+      this.refreshIcons();
       return;
     }
 
-    list.innerHTML = stockPanels.map(panel => {
+    this.renderFieldStockModal();
+    if (searchInput) searchInput.value = '';
+    modal.classList.remove('hidden');
+  }
+
+  renderFieldStockModal() {
+    const list = document.getElementById('field-stock-modal-list');
+    const emptyState = document.getElementById('field-stock-modal-empty');
+    const searchInput = document.getElementById('field-stock-search');
+    if (!list || !Array.isArray(this.fieldStockModalPanels)) return;
+
+    const query = (searchInput?.value || '').trim().toLowerCase();
+    const visiblePanels = query
+      ? this.fieldStockModalPanels.filter(panel => {
+          const serial = String(panel.serial_number || '').trim().toLowerCase();
+          const brand = String(panel.brand_model || '').trim().toLowerCase();
+          const wattage = String(panel.wattage || '').trim().toLowerCase();
+          return serial.includes(query) || brand.includes(query) || wattage.includes(query);
+        })
+      : this.fieldStockModalPanels;
+
+    list.innerHTML = visiblePanels.map(panel => {
       const serial = String(panel.serial_number || '').trim();
       const brand = panel.brand_model || 'ไม่ระบุรุ่น';
       const wattage = panel.wattage ? `${panel.wattage} Wp` : '-';
       const checked = this.pendingFieldBulkSerials.includes(serial) ? 'checked' : '';
       return `
-        <label class="flex items-center justify-between gap-3 w-full p-2.5 rounded-xl border border-slate-200 hover:border-amber-300 hover:bg-amber-50 transition cursor-pointer">
+        <label class="field-stock-item flex items-center justify-between gap-3 w-full p-2.5 rounded-xl border border-slate-200 hover:border-amber-300 hover:bg-amber-50 transition cursor-pointer" data-search="${this.escapeHtml(`${serial} ${brand} ${wattage}`.toLowerCase())}">
           <div class="flex items-center gap-3 min-w-0">
             <input type="checkbox" data-serial="${this.escapeHtml(serial)}" ${checked} class="h-4 w-4 text-amber-500 rounded border-slate-300 focus:ring-amber-400">
             <div class="min-w-0">
@@ -1424,7 +1450,19 @@ class SolarTrackingApp {
       `;
     }).join('');
 
-    modal.classList.remove('hidden');
+    if (emptyState) {
+      const hasVisible = visiblePanels.length > 0;
+      emptyState.classList.toggle('hidden', hasVisible);
+      if (!hasVisible) {
+        list.innerHTML = '';
+      }
+    }
+
+    this.refreshIcons();
+  }
+
+  filterFieldStockModal() {
+    this.renderFieldStockModal();
   }
 
   applyFieldStockSelection() {
