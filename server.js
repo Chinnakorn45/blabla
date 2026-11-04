@@ -37,9 +37,6 @@ const sendVendorScript = (relativePath, res) => {
 app.get('/vendor/lucide.js', (req, res) => {
   sendVendorScript('lucide/dist/umd/lucide.min.js', res);
 });
-app.get('/vendor/html5-qrcode.js', (req, res) => {
-  sendVendorScript('html5-qrcode/html5-qrcode.min.js', res);
-});
 
 // ---------------- API Routes ----------------
 

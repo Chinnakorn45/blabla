@@ -1,6 +1,6 @@
 /**
  * SolarTrack - Field Operations Frontend Application
- * Handles barcode scanning, GPS capture, offline fallback, and UI transitions.
+ * Handles manual panel entry, GPS capture, offline fallback, and UI transitions.
  */
 
 const WAREHOUSE_PROJECT_NAME = 'คลังสินค้ากลาง (Central Warehouse)';
@@ -9,11 +9,6 @@ class SolarTrackingApp {
   constructor() {
     this.currentView = 'dashboard';
     this.currentMode = 'field'; // 'warehouse' | 'field'
-    this.html5QrCode = null;
-    this.isScanning = false;
-    this.isTorchOn = false;
-    this.availableCameras = [];
-    this.currentCameraIndex = 0;
     this.isMockMode = false;
 
     // Preserved fields for fast continuous string installation
@@ -31,14 +26,6 @@ class SolarTrackingApp {
       status: 'all'
     };
 
-    // Turbo Continuous Scan Mode (100+ Panels)
-    this.isTurboMode = false;
-    this.turboScanCount = 0;
-    this.lastScannedSerial = '';
-    this.lastScannedTime = 0;
-    this.barcodeBuffer = '';
-    this.barcodeBufferTime = 0;
-
     // Database Studio state
     this.selectedIds = new Set();
     this.dbCurrentTab = 'records';
@@ -53,6 +40,7 @@ class SolarTrackingApp {
     this.expandedEquipmentIssueIds = new Set();
     this.pendingConfirmation = null;
     this.confirmationReturnFocus = null;
+    this.pendingFieldBulkSerials = [];
 
     this.init();
   }
@@ -92,52 +80,6 @@ class SolarTrackingApp {
         this.finishConfirmation(false);
       }
     });
-
-    // Hardware Wireless Barcode Scanner Gun Support (HID Wedge Keyboard)
-    // This must continue capturing scanner input even when an input field is focused,
-    // because physical barcode guns send a fast burst of keystrokes and press Enter at the end.
-    window.addEventListener('keydown', (e) => {
-      const active = document.activeElement;
-      const isTextField = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT' || active.isContentEditable);
-      const now = Date.now();
-
-      // Ignore only modifier keys and navigation keys.
-      if (!e.key || ['Shift', 'Control', 'Alt', 'Meta', 'CapsLock', 'Tab', 'Escape', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown', 'Delete', 'Backspace'].includes(e.key)) {
-        if (e.key === 'Backspace' && this.barcodeBuffer.length > 0) {
-          this.barcodeBuffer = this.barcodeBuffer.slice(0, -1);
-        }
-        return;
-      }
-
-      // Barcode scanners send a burst of characters in rapid succession. Normal human typing is slower.
-      const isPrintableKey = e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey;
-      const isLikelyScannerBurst = now - this.barcodeBufferTime < 80;
-
-      // If the user is typing manually in a text field, don't hijack the input.
-      // But if it is a rapid scanner burst, capture it anyway.
-      if (isTextField && !isLikelyScannerBurst && !isPrintableKey && e.key !== 'Enter') {
-        return;
-      }
-
-      if (now - this.barcodeBufferTime > 120 && this.barcodeBuffer.length > 0 && e.key !== 'Enter') {
-        this.barcodeBuffer = '';
-      }
-      this.barcodeBufferTime = now;
-
-      if (e.key === 'Enter') {
-        if (this.barcodeBuffer.length >= 4) {
-          const scannedCode = this.barcodeBuffer.trim();
-          this.barcodeBuffer = '';
-          this.handleHardwareScannerInput(scannedCode);
-        } else {
-          if (turboFieldSettings) turboFieldSettings.classList.remove('hidden');
-          if (turboFieldIndex) turboFieldIndex.classList.remove('hidden');
-          this.barcodeBuffer = '';
-        }
-      } else if (isPrintableKey) {
-        this.barcodeBuffer += e.key;
-      }
-    }, true);
   }
 
   refreshIcons() {
@@ -317,7 +259,7 @@ class SolarTrackingApp {
   // ---------------- Navigation & View Switching ----------------
 
   showView(viewId) {
-    const views = ['dashboard', 'scanner', 'form', 'success', 'database', 'settings'];
+    const views = ['dashboard', 'warehouse', 'field', 'form', 'success', 'database', 'settings'];
     views.forEach(v => {
       const el = document.getElementById(`view-${v}`);
       if (el) {
@@ -352,465 +294,82 @@ class SolarTrackingApp {
     if (navSettings) navSettings.className = viewId === 'settings' || viewId === 'database' ? activeClass : inactiveClass;
   }
 
+  getFormElement(id, fallbackIds = []) {
+    const viewRoot = document.getElementById(`view-${this.currentView}`) || document.body;
+    const candidates = [id, ...fallbackIds];
+    for (const candidate of candidates) {
+      const el = viewRoot.querySelector(`#${CSS.escape(candidate)}`);
+      if (el) return el;
+    }
+    for (const candidate of candidates) {
+      const el = document.getElementById(candidate);
+      if (el) return el;
+    }
+    return null;
+  }
+
   setPageHeaderMode(mode) {
-    ['view-scanner', 'view-form'].forEach(viewId => {
-      const header = document.querySelector(`#${viewId} .page-header-dark`);
-      if (!header) return;
+    const header = document.querySelector('#view-warehouse .page-header-dark, #view-field .page-header-dark');
+    if (header) {
       header.classList.toggle('page-header-field', mode === 'field');
-    });
+    }
   }
 
-  startScanMode(mode) {
+  startManualEntryMode(mode) {
     this.currentMode = mode;
+    this.pendingFieldBulkSerials = [];
+    this.updateFieldSelectionSummary();
     this.setPageHeaderMode(mode);
-    const badge = document.getElementById('scanner-mode-badge');
-    const formTag = document.getElementById('form-mode-tag');
-    const turboFieldSettings = document.getElementById('turbo-field-settings');
-    const turboFieldIndex = document.getElementById('turbo-field-index');
-    const turboDrawer = document.getElementById('turbo-preset-drawer');
-    const turboBrandField = document.getElementById('turbo-preset-brand-field');
-    const turboFieldPresets = [
-      'turbo-preset-project-field',
-      'turbo-preset-location-field',
-      'turbo-preset-index-field',
-      'turbo-preset-status-field'
-    ].map(id => document.getElementById(id));
+    this.showView(mode === 'warehouse' ? 'warehouse' : 'field');
+    this.updateWarehouseStockDatalist();
 
-    if (mode === 'warehouse') {
-      turboFieldPresets.forEach(field => field?.classList.add('hidden'));
-      if (turboFieldSettings) turboFieldSettings.classList.add('hidden');
-      if (turboFieldIndex) turboFieldIndex.classList.add('hidden');
-      if (turboDrawer) turboDrawer.classList.remove('hidden');
-      if (turboBrandField) turboBrandField.classList.remove('hidden');
-      if (badge) {
-        badge.textContent = 'รับเข้าคลัง (Warehouse)';
-        badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500 text-slate-950 uppercase';
-      }
-      if (formTag) {
-        formTag.textContent = 'โหมดรับเข้าคลัง';
-        formTag.className = 'text-xs font-semibold px-2.5 py-1 rounded bg-emerald-500 text-slate-950';
-      }
-    } else {
-      turboFieldPresets.forEach(field => field?.classList.remove('hidden'));
-      if (turboDrawer) turboDrawer.classList.add('hidden');
-      if (turboBrandField) turboBrandField.classList.add('hidden');
-      if (badge) {
-        badge.textContent = 'ติดตั้งหน้างาน (Field)';
-        badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500 text-slate-950 uppercase';
-      }
-      if (formTag) {
-        formTag.textContent = 'โหมดติดตั้งหน้างาน';
-        formTag.className = 'text-xs font-semibold px-2.5 py-1 rounded bg-amber-500 text-slate-950';
-      }
+    const serialInput = this.getFormElement('input-serial');
+    if (serialInput) {
+      serialInput.value = '';
+      serialInput.focus();
     }
 
-    this.showView('scanner');
-    this.startCameraScanner();
+    const formTag = this.getFormElement('form-mode-tag');
+    if (formTag) {
+      const isWarehouse = mode === 'warehouse';
+      formTag.textContent = isWarehouse ? 'โหมดรับเข้าคลัง' : 'โหมดติดตั้งหน้างาน';
+      formTag.className = isWarehouse
+        ? 'text-xs font-semibold px-2.5 py-1 rounded bg-emerald-500 text-slate-950'
+        : 'text-xs font-semibold px-2.5 py-1 rounded bg-amber-500 text-slate-950';
+    }
+
+    this.prepareDataForm('');
   }
 
-  // ---------------- Camera & Barcode Scanner (html5-qrcode) ----------------
-
-  async startCameraScanner() {
-    if (this.isScanning) {
-      await this.stopCameraScanner();
-    }
-
-    const readerEl = document.getElementById('reader');
-    if (!readerEl) return;
-    readerEl.innerHTML = '';
-
-    try {
-      this.html5QrCode = new Html5Qrcode("reader");
-
-      // Query available cameras
-      try {
-        this.availableCameras = await Html5Qrcode.getCameras();
-      } catch (camErr) {
-        this.availableCameras = [];
-        if (this.isCameraNotFoundError(camErr)) {
-          this.showToast('ไม่พบกล้องที่ใช้งานได้ กรุณาตรวจสอบว่ามีกล้องเชื่อมต่อและอนุญาตให้เว็บไซต์เข้าถึงกล้อง', 'error');
-          return;
-        }
-        console.warn('Unable to enumerate cameras:', camErr);
-      }
-
-      // Scanner configuration for 1D Barcodes and 2D QR Codes
-      const config = {
-        fps: 15,
-        qrbox: (viewfinderWidth, viewfinderHeight) => {
-          // Responsive reticle: rectangular for 1D barcode & square for QR
-          const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-          const qrboxWidth = Math.floor(viewfinderWidth * 0.85);
-          const qrboxHeight = Math.floor(Math.min(minEdge * 0.75, 260));
-          return { width: qrboxWidth, height: qrboxHeight };
-        },
-        aspectRatio: 1.3333,
-        showTorchButtonIfSupported: true,
-        formatsToSupport: [
-          Html5QrcodeSupportedFormats.CODE_128,
-          Html5QrcodeSupportedFormats.CODE_39,
-          Html5QrcodeSupportedFormats.QR_CODE,
-          Html5QrcodeSupportedFormats.DATA_MATRIX,
-          Html5QrcodeSupportedFormats.EAN_13,
-          Html5QrcodeSupportedFormats.UPC_A
-        ]
-      };
-
-      const cameraSelection = this.availableCameras.length > 0
-        ? this.availableCameras[this.currentCameraIndex % this.availableCameras.length].id
-        : { facingMode: "environment" };
-
-      const onScanSuccess = (decodedText, decodedResult) => {
-        this.onScanSuccess(decodedText, decodedResult);
-      };
-      const onScanError = () => {
-        // Scanner stream tick (suppressed)
-      };
-
-      try {
-        await this.html5QrCode.start(cameraSelection, config, onScanSuccess, onScanError);
-      } catch (err) {
-        if (typeof cameraSelection !== 'string' || !this.isCameraNotFoundError(err)) {
-          throw err;
-        }
-
-        console.warn('Selected camera is unavailable; retrying with the environment camera:', err);
-        this.html5QrCode = new Html5Qrcode("reader");
-        await this.html5QrCode.start(
-          { facingMode: "environment" },
-          config,
-          onScanSuccess,
-          onScanError
-        );
-      }
-
-      this.isScanning = true;
-      this.isTorchOn = false;
-      this.updateTorchUi();
-    } catch (err) {
-      console.error('Failed to start camera:', err);
-      let errorMsg = 'ไม่สามารถเปิดกล้องได้: ' + (err.message || err);
-      if (this.isCameraNotFoundError(err)) {
-        errorMsg = 'ไม่พบกล้องที่ใช้งานได้ กรุณาตรวจสอบว่ามีกล้องเชื่อมต่อและอนุญาตให้เว็บไซต์เข้าถึงกล้อง';
-      } else if (/NotAllowedError|Permission denied/i.test(String(err))) {
-        errorMsg = 'ไม่ได้รับอนุญาตให้ใช้กล้อง กรุณาอนุญาตการเข้าถึงกล้องในการตั้งค่าเบราว์เซอร์';
-      } else if (/NotReadableError|could not start video source/i.test(String(err))) {
-        errorMsg = 'ไม่สามารถเริ่มกล้องได้ อาจมีแอปอื่นกำลังใช้งานกล้องอยู่';
-      }
-      if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-        errorMsg += ' (บราวเซอร์มือถือจำเป็นต้องใช้ HTTPS หรือ localhost ในการเข้าถึงกล้อง)';
-      }
-      this.showToast(errorMsg, 'error');
-    }
-  }
-
-  isCameraNotFoundError(err) {
-    return err?.name === 'NotFoundError' || /NotFoundError|Requested device not found/i.test(String(err?.message || err));
-  }
-
-  async stopCameraScanner() {
-    if (this.html5QrCode && this.isScanning) {
-      try {
-        await this.html5QrCode.stop();
-        this.html5QrCode.clear();
-      } catch (err) {
-        console.warn('Error stopping scanner:', err);
-      }
-      this.isScanning = false;
-    }
-  }
-
-  async stopScannerAndReturn() {
-    await this.stopCameraScanner();
-    this.showView('dashboard');
-  }
-
-  async switchCamera() {
-    if (this.availableCameras.length === 0) {
-      this.showToast('ไม่พบกล้องที่พร้อมใช้งานบนอุปกรณ์นี้', 'warning');
-      return;
-    }
-    if (this.availableCameras.length < 2) {
-      this.showToast('พบกล้องเพียงตัวเดียวบนอุปกรณ์นี้', 'info');
-      return;
-    }
-    this.currentCameraIndex++;
-    this.showToast('กำลังสลับกล้อง...', 'info');
-    await this.startCameraScanner();
-  }
-
-  async toggleTorch() {
-    if (!this.isScanning || !this.html5QrCode) {
-      this.showToast('กรุณารอให้กล้องเปิดก่อน', 'warning');
-      return;
-    }
-
-    try {
-      this.isTorchOn = !this.isTorchOn;
-      await this.html5QrCode.applyVideoConstraints({
-        advanced: [{ torch: this.isTorchOn }]
-      });
-      this.updateTorchUi();
-      this.showToast(this.isTorchOn ? 'เปิดไฟฉายแล้ว' : 'ปิดไฟฉายแล้ว', 'info');
-    } catch (err) {
-      console.warn('Torch not supported or failed:', err);
-      this.isTorchOn = false;
-      this.updateTorchUi();
-      this.showToast('อุปกรณ์หรือบราวเซอร์นี้ไม่รองรับการเปิดไฟฉาย', 'warning');
-    }
-  }
-
-  updateTorchUi() {
-    const btn = document.getElementById('btn-torch');
-    if (!btn) return;
-    if (this.isTorchOn) {
-      btn.className = 'w-9 h-9 rounded-lg bg-amber-500 text-slate-950 flex items-center justify-center transition border border-amber-400';
-    } else {
-      btn.className = 'w-9 h-9 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-400 flex items-center justify-center transition border border-slate-700';
-    }
-  }
-
-  // ---------------- Audio & Haptic Feedback ----------------
-
-  playBeep() {
-    try {
-      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(880, audioCtx.currentTime);
-      gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
-
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-
-      osc.start();
-      osc.stop(audioCtx.currentTime + 0.15);
-    } catch (e) {
-      // AudioContext fallback
-    }
-
-    // Haptic vibration feedback for mobile field workers
-    if (navigator.vibrate) {
-      navigator.vibrate([100, 50, 100]);
-    }
-  }
-
-  // ---------------- Turbo Continuous Scanning Mode ----------------
-
-  toggleTurboMode(checked) {
-    this.isTurboMode = checked;
-    const pill = document.getElementById('turbo-status-pill');
-    const drawer = document.getElementById('turbo-preset-drawer');
-    if (checked) {
-      if (pill) {
-        pill.classList.remove('hidden');
-        pill.classList.add('flex');
-      }
-      this.showToast('⚡ เปิดโหมดสแกนรัวต่อเนื่องแล้ว (ยิงรัว 100+ แผง ไม่ต้องแตะหน้าจอ)', 'success');
-      if (this.currentMode === 'warehouse') {
-        if (drawer) drawer.classList.add('hidden');
-      } else {
-        this.populateTurboPresets();
-        if (drawer) drawer.classList.remove('hidden');
-      }
-    } else {
-      if (pill) {
-        pill.classList.add('hidden');
-        pill.classList.remove('flex');
-      }
-      if (drawer) drawer.classList.add('hidden');
-      this.showToast('ปิดโหมดสแกนรัวต่อเนื่องแล้ว', 'info');
-    }
-  }
-
-  toggleTurboPresetDrawer() {
-    if (this.currentMode === 'warehouse') return;
-    const drawer = document.getElementById('turbo-preset-drawer');
-    if (!drawer) return;
-    drawer.classList.toggle('hidden');
-    this.populateTurboPresets();
-  }
-
-  async populateTurboPresets() {
-    if (this.currentMode === 'warehouse') return;
-    const select = document.getElementById('turbo-preset-project');
-    if (!select) return;
-
-    let projects = [];
-    try {
-      if (this.isMockMode) {
-        const mockProjs = this.getMockProjects().map(p => p.name);
-        const panels = this.getMockPanels();
-        const fromPanels = panels
-          .filter(p => p.status !== 'warehouse' && p.project_name !== WAREHOUSE_PROJECT_NAME)
-          .map(p => p.project_name);
-        projects = Array.from(new Set([...mockProjs, ...fromPanels])).filter(Boolean);
-      } else {
-        const res = await fetch('/api/projects');
-        if (!res.ok) throw new Error(`โหลดรายชื่อโครงการไม่สำเร็จ (HTTP ${res.status})`);
-        const json = await res.json();
-        projects = json.projects || [];
-      }
-    } catch (e) {
-      projects = [];
-      this.showToast(`โหลดรายชื่อโครงการไม่สำเร็จ: ${e.message}`, 'error');
-    }
-
-    const currentProject = select.value;
-    select.innerHTML = `<option value="">${projects.length ? '-- เลือกโครงการปลายทาง --' : 'ยังไม่มีโครงการปลายทาง'}</option>` +
-      projects.map(p => `<option value="${this.escapeHtml(p)}">${this.escapeHtml(p)}</option>`).join('');
-    if (projects.includes(currentProject)) select.value = currentProject;
-    if (this.lastSaved.project_name && this.lastSaved.project_name !== WAREHOUSE_PROJECT_NAME) {
-      select.value = this.lastSaved.project_name;
-    }
-    if (this.lastSaved.inverter) document.getElementById('turbo-preset-inverter').value = this.lastSaved.inverter;
-    if (this.lastSaved.string_name) document.getElementById('turbo-preset-string').value = this.lastSaved.string_name;
-  }
-
-  async handleTurboScan(serialNumber) {
-    const now = Date.now();
-    if (this.lastScannedSerial === serialNumber && (now - this.lastScannedTime < 1800)) {
-      return;
-    }
-
-    this.lastScannedSerial = serialNumber;
-    this.lastScannedTime = now;
-    this.playBeep();
-
-    const isWarehouse = this.currentMode === 'warehouse';
-    this.setPageHeaderMode(isWarehouse ? 'warehouse' : 'field');
-    const warehouseBrand = document.getElementById('turbo-preset-brand')?.value.trim() || '';
-    if (isWarehouse && !warehouseBrand) {
-      this.showToast('กรุณาเลือกรุ่นหรือยี่ห้อแผงก่อนสแกนรับเข้าคลัง', 'warning');
-      return;
-    }
-    if (isWarehouse && !appSettings.getWattageForBrand(warehouseBrand)) {
-      this.showToast('กรุณาเลือกรุ่นที่บันทึกไว้ เพื่อกำหนดกำลังวัตต์ให้แผง', 'warning');
-      return;
-    }
-    const projectSelect = document.getElementById('turbo-preset-project');
-    const project = isWarehouse
-      ? WAREHOUSE_PROJECT_NAME
-      : ((projectSelect && projectSelect.value) ||
-        (this.lastSaved.project_name === WAREHOUSE_PROJECT_NAME ? '' : this.lastSaved.project_name) || '');
-    if (!isWarehouse && !project) {
-      this.showToast('กรุณาเลือกโครงการปลายทางก่อนเบิกแผง', 'warning');
-      return;
-    }
-    const inverter = isWarehouse ? '-' : ((document.getElementById('turbo-preset-inverter')?.value.trim()) || 'INV-01');
-    const stringName = isWarehouse ? '-' : ((document.getElementById('turbo-preset-string')?.value.trim()) || 'STR-01');
-    const indexInput = document.getElementById('turbo-preset-index');
-    const currentIndex = isWarehouse ? 0 : (parseInt(indexInput?.value, 10) || 1);
-    const status = isWarehouse ? 'warehouse' : ((document.getElementById('turbo-preset-status')?.value) || 'installed');
-
-    const payload = {
-      serial_number: serialNumber,
-      project_name: project,
-      inverter: inverter,
-      string_name: stringName,
-      panel_index: currentIndex,
-      status: status,
-      brand_model: isWarehouse ? warehouseBrand : this.getDefaultBrand(),
-      wattage: this.getDefaultWattage(isWarehouse ? warehouseBrand : this.getDefaultBrand()),
-      technician_name: this.lastSaved.technician_name || appSettings.getDefaultTechnician() || (isWarehouse ? 'Warehouse staff' : 'Field technician'),
-      scanned_mode: this.currentMode
-    };
-
-    try {
-      if (this.isMockMode) {
-        this.saveMockPanel(payload, { requireWarehouseStock: !isWarehouse });
-      } else {
-        await this.postJson('/api/panels', payload);
-      }
-
-      this.turboScanCount++;
-
-      if (!isWarehouse && indexInput) {
-        const nextIndex = currentIndex + 1;
-        indexInput.value = nextIndex;
-        const nextEl = document.getElementById('turbo-next-index');
-        if (nextEl) nextEl.textContent = `#${nextIndex}`;
-      }
-
-      const countEl = document.getElementById('turbo-scan-count');
-      if (countEl) countEl.textContent = this.turboScanCount;
-
-      this.lastSaved.project_name = project;
-      this.lastSaved.inverter = inverter;
-      this.lastSaved.string_name = stringName;
-      this.lastSaved.panel_index = currentIndex;
-
-      const hudDetails = isWarehouse
-        ? '📦 รับเข้าคลังสินค้ากลาง'
-        : `${inverter} / ${stringName} (แผง #${currentIndex})`;
-      this.showTurboHud(serialNumber, hudDetails, `#${this.turboScanCount}`);
-    } catch (e) {
-      console.error('Turbo save error:', e);
-      this.showToast(`บันทึกไม่สำเร็จ: ${e.message}`, 'error');
-    }
-  }
-
-  showTurboHud(serial, details, counterText) {
-    const hud = document.getElementById('turbo-hud-overlay');
-    if (!hud) return;
-    document.getElementById('turbo-hud-serial').textContent = serial;
-    document.getElementById('turbo-hud-details').textContent = details;
-    document.getElementById('turbo-hud-counter').textContent = counterText;
-
-    hud.classList.remove('hidden');
-    clearTimeout(this.turboHudTimeout);
-    this.turboHudTimeout = setTimeout(() => {
-      hud.classList.add('hidden');
-    }, 1600);
-  }
-
-  handleHardwareScannerInput(serial) {
-    this.playBeep();
-    if (this.currentView === 'scanner' && this.isTurboMode) {
-      this.handleTurboScan(serial);
-    } else {
-      this.showToast(`🔫 ปืนยิงบาร์โค้ดอ่านค่า: ${serial}`, 'info');
-      this.prepareDataForm(serial);
-    }
-  }
-
-  // ---------------- Scan Handling & Form Populate ----------------
-
-  async onScanSuccess(decodedText, decodedResult) {
-    const cleanSerial = decodedText.trim();
-    if (this.isTurboMode) {
-      await this.handleTurboScan(cleanSerial);
-      return;
-    }
-
-    this.playBeep();
-    await this.stopCameraScanner();
-    await this.prepareDataForm(cleanSerial);
-  }
+  // ---------------- Manual entry workflow ----------------
 
   async prepareDataForm(serialNumber, { brandModel = '' } = {}) {
-    this.showView('form');
+    this.showView(this.currentMode === 'warehouse' ? 'warehouse' : 'field');
 
-    const inputSerial = document.getElementById('input-serial');
-    inputSerial.value = serialNumber;
+    const inputSerial = this.getFormElement('input-serial');
+    if (inputSerial) inputSerial.value = serialNumber;
 
     const isWarehouse = this.currentMode === 'warehouse';
     this.setPageHeaderMode(isWarehouse ? 'warehouse' : 'field');
-    const installFields = document.getElementById('field-installation-fields');
-    const warehouseBanner = document.getElementById('warehouse-mode-banner');
-    const titleText = document.getElementById('form-title-text');
-    const subtitleText = document.getElementById('form-subtitle-text');
-    const modeTag = document.getElementById('form-mode-tag');
-    const labelProject = document.getElementById('label-project');
-    const saveBtn = document.getElementById('btn-save-panel');
-    const projectSelect = document.getElementById('input-project');
-    const projectWrapper = document.getElementById('field-project-wrapper');
-    const technicianFields = document.getElementById('field-technician-gps');
-    const inputBrand = document.getElementById('input-brand');
-    const labelBrand = document.getElementById('label-brand');
+    const saveBtn = this.getFormElement('btn-save-panel');
+    const alertEl = this.getFormElement('existing-panel-alert');
+    const descEl = this.getFormElement('existing-panel-desc');
+    if (!String(serialNumber).trim()) {
+      if (alertEl) alertEl.classList.add('hidden');
+      if (saveBtn) saveBtn.disabled = true;
+      return;
+    }
+    const installFields = this.getFormElement('field-installation-fields');
+    const warehouseBanner = this.getFormElement('warehouse-mode-banner');
+    const titleText = this.getFormElement('form-title-text');
+    const subtitleText = this.getFormElement('form-subtitle-text');
+    const modeTag = this.getFormElement('form-mode-tag');
+    const labelProject = this.getFormElement('label-project');
+    const projectSelect = this.getFormElement('input-project');
+    const projectWrapper = this.getFormElement('field-project-wrapper');
+    const technicianFields = this.getFormElement('field-technician-gps');
+    const inputBrand = this.getFormElement('input-brand');
+    const labelBrand = this.getFormElement('label-brand');
     if (inputBrand) inputBrand.required = isWarehouse;
     if (labelBrand) {
       labelBrand.innerHTML = `ยี่ห้อ / รุ่น (Brand & Model)${isWarehouse ? ' <span class="text-red-500">*</span>' : ''}`;
@@ -826,7 +385,7 @@ class SolarTrackingApp {
       if (installFields) installFields.classList.add('hidden');
       if (technicianFields) technicianFields.classList.add('hidden');
       if (titleText) titleText.textContent = 'บันทึกรับแผงเข้าคลังสินค้า';
-      if (subtitleText) subtitleText.textContent = 'ยิงบาร์โค้ดแล้วกดบันทึกได้ทันที ไม่ต้องกรอกข้อมูลเพิ่มเติม';
+      if (subtitleText) subtitleText.textContent = 'กรอกรหัสแผงแล้วกดบันทึกได้ทันที ไม่ต้องกรอกข้อมูลเพิ่มเติม';
       if (modeTag) {
         modeTag.textContent = 'โหมดรับเข้าคลัง';
         modeTag.className = 'text-xs font-semibold px-2.5 py-1 rounded bg-emerald-500 text-slate-950';
@@ -882,9 +441,6 @@ class SolarTrackingApp {
       lookupError = e;
     }
 
-    const alertEl = document.getElementById('existing-panel-alert');
-    const descEl = document.getElementById('existing-panel-desc');
-
     if (existing) {
       alertEl.classList.remove('hidden');
       const location = this.getPanelLocationLabel(existing);
@@ -895,52 +451,52 @@ class SolarTrackingApp {
           : `SN นี้ถูกเบิกไปที่ ${location} (${existing.inverter || '-'} / ${existing.string_name || '-'}), สถานะ: ${this.translateStatus(existing.status)} ไม่สามารถเบิกซ้ำได้`;
 
       if (!isWarehouse && existing.status !== 'warehouse' && existing.project_name) {
-        document.getElementById('input-project').value = existing.project_name;
+        this.getFormElement('input-project').value = existing.project_name;
       }
-      document.getElementById('input-inverter').value = existing.inverter || '';
-      document.getElementById('input-string').value = existing.string_name || '';
-      document.getElementById('input-index').value = existing.panel_index || '';
+      this.getFormElement('input-inverter').value = existing.inverter || '';
+      this.getFormElement('input-string').value = existing.string_name || '';
+      this.getFormElement('input-index').value = existing.panel_index || '';
       const selectedBrand = (isWarehouse && brandModel) || existing.brand_model || '';
-      document.getElementById('input-brand').value = selectedBrand;
+      this.getFormElement('input-brand').value = selectedBrand;
       const selectedWattage = isWarehouse && brandModel
         ? this.getDefaultWattage(brandModel)
         : (existing.wattage || this.getDefaultWattage(existing.brand_model));
-      document.getElementById('input-wattage').value = selectedWattage > 0 ? selectedWattage : '';
-      document.getElementById('input-technician').value = existing.technician_name || this.lastSaved.technician_name || '';
-      document.getElementById('input-notes').value = existing.notes || '';
+      this.getFormElement('input-wattage').value = selectedWattage > 0 ? selectedWattage : '';
+      this.getFormElement('input-technician').value = existing.technician_name || this.lastSaved.technician_name || '';
+      this.getFormElement('input-notes').value = existing.notes || '';
 
-      this.setStatusRadio(isWarehouse ? 'warehouse' : 'installed');
+      this.setStatusRadio(isWarehouse ? 'warehouse' : 'installing');
     } else {
       if (!isWarehouse) {
         alertEl.classList.remove('hidden');
         descEl.textContent = lookupError
           ? `ตรวจสอบ SN ไม่สำเร็จ (${lookupError.message}) จึงยังไม่สามารถเบิกแผงได้`
-          : 'ไม่พบ SN นี้ในสต๊อกกลาง กรุณาสแกนรับเข้าสต๊อกก่อน แล้วจึงเบิกไปหน้างาน';
+          : 'ไม่พบ SN นี้ในสต๊อกกลาง กรุณาบันทึกรับเข้าคลังก่อน แล้วจึงเบิกไปหน้างาน';
       } else {
         alertEl.classList.add('hidden');
       }
-      document.getElementById('input-brand').value = isWarehouse ? (brandModel || '') : this.getDefaultBrand();
-      const selectedBrand = document.getElementById('input-brand').value;
+      this.getFormElement('input-brand').value = isWarehouse ? (brandModel || '') : this.getDefaultBrand();
+      const selectedBrand = this.getFormElement('input-brand').value;
       const selectedWattage = selectedBrand ? this.getDefaultWattage(selectedBrand) : 0;
-      document.getElementById('input-wattage').value = selectedWattage > 0 ? selectedWattage : '';
-      document.getElementById('input-technician').value = appSettings.getDefaultTechnician();
+      this.getFormElement('input-wattage').value = selectedWattage > 0 ? selectedWattage : '';
+      this.getFormElement('input-technician').value = appSettings.getDefaultTechnician();
 
       if (!isWarehouse) {
         if (this.lastSaved.project_name) {
-          document.getElementById('input-project').value = this.lastSaved.project_name;
+          this.getFormElement('input-project').value = this.lastSaved.project_name;
         }
         if (this.lastSaved.inverter) {
-          document.getElementById('input-inverter').value = this.lastSaved.inverter;
+          this.getFormElement('input-inverter').value = this.lastSaved.inverter;
         }
         if (this.lastSaved.string_name) {
-          document.getElementById('input-string').value = this.lastSaved.string_name;
+          this.getFormElement('input-string').value = this.lastSaved.string_name;
         }
         if (this.lastSaved.technician_name) {
-          document.getElementById('input-technician').value = this.lastSaved.technician_name;
+          this.getFormElement('input-technician').value = this.lastSaved.technician_name;
         }
 
-        document.getElementById('input-index').value = (this.lastSaved.panel_index || 0) + 1;
-        this.setStatusRadio('installed');
+        this.getFormElement('input-index').value = (this.lastSaved.panel_index || 0) + 1;
+        this.setStatusRadio('installing');
       }
     }
 
@@ -975,8 +531,8 @@ class SolarTrackingApp {
   // ---------------- GPS Geolocation Capture ----------------
 
   captureGps(silent = false) {
-    const latEl = document.getElementById('input-lat');
-    const lngEl = document.getElementById('input-lng');
+    const latEl = this.getFormElement('input-lat');
+    const lngEl = this.getFormElement('input-lng');
 
     if (!navigator.geolocation) {
       if (!silent) this.showToast('เบราว์เซอร์นี้ไม่รองรับ Geolocation', 'warning');
@@ -1007,16 +563,56 @@ class SolarTrackingApp {
 
   // ---------------- Form Submit & Save ----------------
 
+  async updateWarehouseStockDatalist(panels = null) {
+    const datalist = document.getElementById('stock-panel-datalist');
+    const manualDatalist = document.getElementById('manual-stock-panel-datalist');
+    const targets = [datalist, manualDatalist].filter(Boolean);
+    if (!targets.length) return;
+
+    let source = panels;
+    if (!Array.isArray(source)) {
+      source = this.isMockMode ? this.getMockPanels() : [];
+      if (!this.isMockMode) {
+        try {
+          const res = await fetch('/api/panels?status=warehouse&limit=10000');
+          if (res.ok) {
+            const json = await res.json();
+            source = Array.isArray(json.data) ? json.data : [];
+          }
+        } catch (error) {
+          console.warn('Unable to load warehouse stock list:', error);
+          source = [];
+        }
+      }
+    }
+
+    const serials = [...new Set(
+      (source || [])
+        .filter(panel => panel && (panel.status === 'warehouse' || panel.project_name === WAREHOUSE_PROJECT_NAME) && String(panel.serial_number || '').trim())
+        .map(panel => String(panel.serial_number).trim())
+    )];
+
+    const html = serials.map(serial => `<option value="${this.escapeHtml(serial)}"></option>`).join('');
+    targets.forEach(target => {
+      target.innerHTML = html;
+    });
+  }
+
   async handleFormSubmit(event) {
     event.preventDefault();
 
     const isWarehouse = this.currentMode === 'warehouse';
-    const serialNumber = document.getElementById('input-serial').value.trim();
+    const serialNumber = this.getFormElement('input-serial')?.value.trim() || '';
+    const issueSerials = this.currentMode === 'field' && this.pendingFieldBulkSerials.length
+      ? [...new Set(this.pendingFieldBulkSerials.filter(Boolean))]
+      : [serialNumber].filter(Boolean);
+    const targetSerials = isWarehouse ? [serialNumber].filter(Boolean) : issueSerials;
+
     const projectName = isWarehouse
       ? WAREHOUSE_PROJECT_NAME
-      : document.getElementById('input-project').value.trim();
+      : this.getFormElement('input-project')?.value.trim() || '';
 
-    if (!serialNumber) {
+    if (!targetSerials.length) {
       this.showToast('กรุณาระบุ Serial Number', 'error');
       return;
     }
@@ -1024,60 +620,69 @@ class SolarTrackingApp {
       this.showToast('กรุณาเลือกโครงการ', 'error');
       return;
     }
-    const brandModel = document.getElementById('input-brand')?.value.trim() || '';
+    const brandModel = this.getFormElement('input-brand')?.value.trim() || '';
     if (isWarehouse && !brandModel) {
       this.showToast('กรุณาเลือกรุ่นหรือยี่ห้อแผงก่อนรับเข้าคลัง', 'warning');
-      document.getElementById('input-brand')?.focus();
+      this.getFormElement('input-brand')?.focus();
       return;
     }
-    const wattage = parseInt(document.getElementById('input-wattage')?.value, 10);
+    const wattage = parseInt(this.getFormElement('input-wattage')?.value, 10);
     if (!Number.isInteger(wattage) || wattage < 1 || wattage > 2000) {
       this.showToast('กรุณาระบุกำลังวัตต์ระหว่าง 1 ถึง 2000 Wp', 'warning');
-      document.getElementById('input-wattage')?.focus();
+      this.getFormElement('input-wattage')?.focus();
       return;
     }
 
-    const payload = {
-      serial_number: serialNumber,
-      project_name: projectName,
-      inverter: isWarehouse ? '-' : (document.getElementById('input-inverter')?.value.trim() || '-'),
-      string_name: isWarehouse ? '-' : (document.getElementById('input-string')?.value.trim() || '-'),
-      panel_index: isWarehouse ? 0 : (parseInt(document.getElementById('input-index')?.value, 10) || 0),
-      brand_model: brandModel || this.getDefaultBrand(),
-      wattage,
-      status: isWarehouse ? 'warehouse' : this.getStatusRadio(),
-      technician_name: document.getElementById('input-technician')?.value.trim() || appSettings.getDefaultTechnician() || (isWarehouse ? 'Warehouse staff' : 'Field technician'),
-      gps_lat: isWarehouse ? null : (parseFloat(document.getElementById('input-lat')?.value) || null),
-      gps_lng: isWarehouse ? null : (parseFloat(document.getElementById('input-lng')?.value) || null),
-      notes: document.getElementById('input-notes')?.value.trim() || '',
-      scanned_mode: this.currentMode
-    };
-
-    const saveBtn = document.getElementById('btn-save-panel');
+    const saveBtn = this.getFormElement('btn-save-panel');
     saveBtn.disabled = true;
-    saveBtn.innerHTML = `<span class="animate-spin inline-block mr-2">🌀</span> กำลังบันทึก...`;
+    saveBtn.innerHTML = `<span class="animate-spin inline-block mr-2">🌀</span> ${isWarehouse ? 'กำลังบันทึกรับเข้าคลัง...' : 'กำลังเบิกแผง...'} `;
 
     try {
-      let result;
-      if (this.isMockMode) {
-        result = this.saveMockPanel(payload, { requireWarehouseStock: !isWarehouse });
-      } else {
-        result = await this.postJson('/api/panels', payload);
+      const payloads = targetSerials.map((serial, index) => ({
+        serial_number: serial,
+        project_name: projectName,
+        inverter: isWarehouse ? '-' : (this.getFormElement('input-inverter')?.value.trim() || '-'),
+        string_name: isWarehouse ? '-' : (this.getFormElement('input-string')?.value.trim() || '-'),
+        panel_index: isWarehouse ? 0 : ((parseInt(this.getFormElement('input-index')?.value, 10) || 0) + index),
+        brand_model: brandModel || this.getDefaultBrand(),
+        wattage,
+        status: isWarehouse ? 'warehouse' : 'installing',
+        technician_name: this.getFormElement('input-technician')?.value.trim() || appSettings.getDefaultTechnician() || (isWarehouse ? 'Warehouse staff' : 'Field technician'),
+        gps_lat: isWarehouse ? null : (parseFloat(this.getFormElement('input-lat')?.value) || null),
+        gps_lng: isWarehouse ? null : (parseFloat(this.getFormElement('input-lng')?.value) || null),
+        notes: this.getFormElement('input-notes')?.value.trim() || '',
+        scanned_mode: this.currentMode
+      }));
+
+      let savedPayload = payloads[0];
+      for (const payload of payloads) {
+        let result;
+        if (this.isMockMode) {
+          result = this.saveMockPanel(payload, { requireWarehouseStock: !isWarehouse });
+        } else {
+          result = await this.postJson('/api/panels', payload);
+        }
+        if (result && result.success !== false) {
+          savedPayload = result.data || payload;
+        } else {
+          throw new Error(result && result.error ? result.error : 'Failed to save');
+        }
       }
 
-      if (result.success) {
-        this.lastSaved = {
-          project_name: payload.project_name,
-          inverter: payload.inverter,
-          string_name: payload.string_name,
-          panel_index: payload.panel_index,
-          technician_name: payload.technician_name
-        };
+      this.lastSaved = {
+        project_name: savedPayload.project_name,
+        inverter: savedPayload.inverter,
+        string_name: savedPayload.string_name,
+        panel_index: savedPayload.panel_index,
+        technician_name: savedPayload.technician_name
+      };
 
-        this.showSuccessView(result.data || payload);
-      } else {
-        throw new Error(result.error || 'Failed to save');
+      if (this.currentMode === 'field' && this.pendingFieldBulkSerials.length) {
+        this.pendingFieldBulkSerials = [];
+        this.updateFieldSelectionSummary();
       }
+
+      this.showSuccessView(savedPayload);
     } catch (err) {
       console.error('Save error:', err);
       this.showToast('เกิดข้อผิดพลาดในการบันทึก: ' + err.message, 'error');
@@ -1106,10 +711,6 @@ class SolarTrackingApp {
     pill.className = `inline-flex items-center font-bold px-2.5 py-0.5 rounded text-[11px] whitespace-nowrap ${this.getStatusBadgeClass(panel.status)}`;
 
     this.showView('success');
-  }
-
-  scanNextPanel() {
-    this.startScanMode(this.currentMode);
   }
 
   // ---------------- Dashboard Data & Table ----------------
@@ -1142,6 +743,7 @@ class SolarTrackingApp {
 
       this.renderStats(stats);
       this.renderPanelsTable(panelsData.data);
+      this.updateWarehouseStockDatalist(panelsData.data);
     } catch (err) {
       console.error('Error loading dashboard data:', err);
     }
@@ -1578,11 +1180,6 @@ class SolarTrackingApp {
   // ---------------- Manual & Bulk Paste Entry ----------------
 
   async openManualEntryModal() {
-    this.wasScanningBeforeManual = this.isScanning;
-    if (this.isScanning) {
-      this.stopCameraScanner();
-    }
-
     const isWarehouse = this.currentMode === 'warehouse';
     let projects = [];
     if (!isWarehouse) {
@@ -1650,6 +1247,7 @@ class SolarTrackingApp {
     }
 
     this.switchManualTab('single');
+    this.updateWarehouseStockDatalist();
     document.getElementById('modal-manual').classList.remove('hidden');
 
     const inp = document.getElementById('manual-serial-input');
@@ -1660,9 +1258,6 @@ class SolarTrackingApp {
 
   closeManualEntryModal() {
     document.getElementById('modal-manual').classList.add('hidden');
-    if (this.currentView === 'scanner' && this.wasScanningBeforeManual) {
-      this.startCameraScanner();
-    }
   }
 
   switchManualTab(tab) {
@@ -1716,7 +1311,6 @@ class SolarTrackingApp {
       return;
     }
 
-    this.playBeep();
     const project = isWarehouse
       ? WAREHOUSE_PROJECT_NAME
       : (document.getElementById('manual-preset-project')?.value || '');
@@ -1761,6 +1355,7 @@ class SolarTrackingApp {
       this.showToast(isWarehouse ? `📦 บันทึกรับเข้าคลัง [${serial}] สำเร็จ!` : `✅ บันทึกแผง #${currentIndex} [${serial}] สำเร็จ!`, 'success');
 
       serialInput.value = '';
+      this.updateWarehouseStockDatalist();
       serialInput.focus();
 
       if (this.currentView === 'dashboard') {
@@ -1769,6 +1364,91 @@ class SolarTrackingApp {
     } catch (err) {
       this.showToast('บันทึกไม่สำเร็จ: ' + err.message, 'error');
     }
+  }
+
+  updateFieldSelectionSummary() {
+    const el = document.getElementById('field-selected-stock-count');
+    if (!el) return;
+    const total = this.pendingFieldBulkSerials.length;
+    el.textContent = total ? `${total} แผงที่เลือก` : '0 แผงที่เลือก';
+    el.classList.toggle('text-amber-700', total > 0);
+    el.classList.toggle('text-slate-500', total === 0);
+  }
+
+  async openFieldStockSelectorModal() {
+    const modal = document.getElementById('modal-field-stock-select');
+    if (!modal) return;
+
+    const list = document.getElementById('field-stock-modal-list');
+    if (!list) return;
+
+    let panels = [];
+    if (this.isMockMode) {
+      panels = this.getMockPanels();
+    } else {
+      try {
+        const res = await fetch('/api/panels?status=warehouse&limit=10000');
+        const json = await res.json();
+        panels = Array.isArray(json.data) ? json.data : [];
+      } catch (error) {
+        console.warn('Unable to load stock list for field issue-out selector:', error);
+      }
+    }
+
+    const stockPanels = panels
+      .filter(panel => panel && (panel.status === 'warehouse' || panel.project_name === WAREHOUSE_PROJECT_NAME))
+      .sort((a, b) => String(a.serial_number || '').localeCompare(String(b.serial_number || '')));
+
+    if (!stockPanels.length) {
+      list.innerHTML = '<div class="p-4 text-xs text-slate-500 text-center">ไม่มีแผงในคลังให้เลือก</div>';
+      modal.classList.remove('hidden');
+      return;
+    }
+
+    list.innerHTML = stockPanels.map(panel => {
+      const serial = String(panel.serial_number || '').trim();
+      const brand = panel.brand_model || 'ไม่ระบุรุ่น';
+      const wattage = panel.wattage ? `${panel.wattage} Wp` : '-';
+      const checked = this.pendingFieldBulkSerials.includes(serial) ? 'checked' : '';
+      return `
+        <label class="flex items-center justify-between gap-3 w-full p-2.5 rounded-xl border border-slate-200 hover:border-amber-300 hover:bg-amber-50 transition cursor-pointer">
+          <div class="flex items-center gap-3 min-w-0">
+            <input type="checkbox" data-serial="${this.escapeHtml(serial)}" ${checked} class="h-4 w-4 text-amber-500 rounded border-slate-300 focus:ring-amber-400">
+            <div class="min-w-0">
+              <div class="text-[11px] font-bold text-slate-900 font-mono truncate">${this.escapeHtml(serial)}</div>
+              <div class="text-[10px] text-slate-500 truncate">${this.escapeHtml(brand)} • ${this.escapeHtml(wattage)}</div>
+            </div>
+          </div>
+          <span class="text-[10px] font-bold uppercase bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full">In Stock</span>
+        </label>
+      `;
+    }).join('');
+
+    modal.classList.remove('hidden');
+  }
+
+  applyFieldStockSelection() {
+    const modal = document.getElementById('modal-field-stock-select');
+    const selected = [...document.querySelectorAll('#field-stock-modal-list input:checked')]
+      .map(input => String(input.dataset.serial || '').trim())
+      .filter(Boolean);
+
+    if (!selected.length) {
+      this.showToast('กรุณาเลือกแผงจากคลังอย่างน้อย 1 รายการ', 'warning');
+      return;
+    }
+
+    this.pendingFieldBulkSerials = selected;
+    this.updateFieldSelectionSummary();
+    const serialField = this.getFormElement('input-serial');
+    if (serialField) serialField.value = selected.join('\n');
+    modal.classList.add('hidden');
+    this.showToast(`เลือกแผงจากคลัง ${selected.length} รายการ พร้อมสำหรับเบิกไปหน้างาน`, 'success');
+  }
+
+  closeFieldStockSelectorModal() {
+    const modal = document.getElementById('modal-field-stock-select');
+    if (modal) modal.classList.add('hidden');
   }
 
   updateBulkPasteCount() {
