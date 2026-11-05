@@ -43,6 +43,8 @@ class SolarTrackingApp {
     this.pendingConfirmation = null;
     this.confirmationReturnFocus = null;
     this.pendingFieldBulkSerials = [];
+    this.fieldStockModalSelectedSerials = new Set();
+    this.fieldStockModalSelectionInitialized = false;
 
     this.init();
   }
@@ -85,6 +87,8 @@ class SolarTrackingApp {
 
     document.getElementById('field-stock-model')?.addEventListener('change', () => {
       this.pendingFieldBulkSerials = [];
+      this.fieldStockModalSelectedSerials.clear();
+      this.fieldStockModalSelectionInitialized = false;
       const serialField = document.querySelector('#view-field #input-serial');
       if (serialField) serialField.value = '';
       const saveBtn = document.querySelector('#view-field #btn-save-panel');
@@ -339,6 +343,8 @@ class SolarTrackingApp {
   startManualEntryMode(mode) {
     this.currentMode = mode;
     this.pendingFieldBulkSerials = [];
+    this.fieldStockModalSelectedSerials.clear();
+    this.fieldStockModalSelectionInitialized = false;
     this.updateFieldSelectionSummary();
     this.setPageHeaderMode(mode);
     this.showView(mode === 'warehouse' ? 'warehouse' : 'field');
@@ -749,6 +755,8 @@ class SolarTrackingApp {
 
       if (this.currentMode === 'field' && this.pendingFieldBulkSerials.length) {
         this.pendingFieldBulkSerials = [];
+        this.fieldStockModalSelectedSerials.clear();
+        this.fieldStockModalSelectionInitialized = false;
         this.updateFieldSelectionSummary();
       }
 
@@ -1489,6 +1497,11 @@ class SolarTrackingApp {
       return;
     }
 
+    if (!this.fieldStockModalSelectionInitialized) {
+      this.fieldStockModalSelectedSerials = new Set(this.pendingFieldBulkSerials);
+      this.fieldStockModalSelectionInitialized = true;
+    }
+
     if (!this.fieldStockModalPanels.length) {
       list.innerHTML = '<div class="p-4 text-xs text-slate-500 text-center">ไม่มีแผงในคลังให้เลือก</div>';
       if (emptyState) emptyState.classList.add('hidden');
@@ -1527,11 +1540,11 @@ class SolarTrackingApp {
       const serial = String(panel.serial_number || '').trim();
       const brand = panel.brand_model || 'ไม่ระบุรุ่น';
       const wattage = panel.wattage ? `${panel.wattage} Wp` : '-';
-      const checked = this.pendingFieldBulkSerials.includes(serial) ? 'checked' : '';
+      const checked = this.fieldStockModalSelectedSerials.has(serial) ? 'checked' : '';
       return `
         <label class="field-stock-item flex items-center justify-between gap-3 w-full p-2.5 rounded-xl border border-slate-200 hover:border-amber-300 hover:bg-amber-50 transition cursor-pointer" data-search="${this.escapeHtml(`${serial} ${brand} ${wattage}`.toLowerCase())}">
           <div class="flex items-center gap-3 min-w-0">
-            <input type="checkbox" data-serial="${this.escapeHtml(serial)}" ${checked} class="h-4 w-4 text-amber-500 rounded border-slate-300 focus:ring-amber-400">
+            <input type="checkbox" data-serial="${this.escapeHtml(serial)}" ${checked} onchange="app.toggleFieldStockModalSelection(this)" class="h-4 w-4 text-amber-500 rounded border-slate-300 focus:ring-amber-400">
             <div class="min-w-0">
               <div class="text-[11px] font-bold text-slate-900 font-mono truncate">${this.escapeHtml(serial)}</div>
               <div class="text-[10px] text-slate-500 truncate">${this.escapeHtml(brand)} • ${this.escapeHtml(wattage)}</div>
@@ -1550,7 +1563,21 @@ class SolarTrackingApp {
       }
     }
 
+    this.updateFieldStockModalSelectionCount();
     this.refreshIcons();
+  }
+
+  toggleFieldStockModalSelection(checkbox) {
+    const serial = String(checkbox?.dataset.serial || '').trim();
+    if (!serial) return;
+    if (checkbox.checked) this.fieldStockModalSelectedSerials.add(serial);
+    else this.fieldStockModalSelectedSerials.delete(serial);
+    this.updateFieldStockModalSelectionCount();
+  }
+
+  updateFieldStockModalSelectionCount() {
+    const count = document.getElementById('field-stock-modal-selected-count');
+    if (count) count.textContent = `${this.fieldStockModalSelectedSerials.size} แผงที่เลือก`;
   }
 
   filterFieldStockModal() {
@@ -1559,9 +1586,7 @@ class SolarTrackingApp {
 
   applyFieldStockSelection() {
     const modal = document.getElementById('modal-field-stock-select');
-    const selected = [...document.querySelectorAll('#field-stock-modal-list input:checked')]
-      .map(input => String(input.dataset.serial || '').trim())
-      .filter(Boolean);
+    const selected = [...this.fieldStockModalSelectedSerials];
 
     if (!selected.length) {
       this.showToast('กรุณาเลือกแผงจากคลังอย่างน้อย 1 รายการ', 'warning');
