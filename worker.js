@@ -180,6 +180,22 @@ async function handleApi(request, env, url) {
     }
   }
 
+  if (path === '/api/dongles' && method === 'GET') {
+    return json({ success: true, dongles: await store.getDongleInventory() });
+  }
+  if (path === '/api/dongles/import' && method === 'POST') {
+    return json(await store.addDongles((await request.json())?.dongles), 201);
+  }
+
+  const donglePath = path.match(/^\/api\/dongles\/(\d+)\/(issue|return)$/);
+  if (donglePath && method === 'PUT') {
+    const [, id, action] = donglePath;
+    if (action === 'issue') {
+      return json(await store.issueDongle(id, await request.json()));
+    }
+    return json(await store.returnDongleToStock(id));
+  }
+
   if (path === '/api/database/info' && method === 'GET') {
     return json({ success: true, info: await store.getDatabaseInfo() });
   }
@@ -231,7 +247,8 @@ async function handleApi(request, env, url) {
       exportedAt: new Date().toISOString(),
       projects,
       totalPanels: data.length,
-      panels: data
+      panels: data,
+      dongles: await store.getDongleInventory()
     };
     const filename = `solartrack_backup_${new Date().toISOString().slice(0, 10)}.json`;
     return json(backupData, 200, { 'Content-Disposition': `attachment; filename="${filename}"`,
@@ -291,6 +308,12 @@ function equipmentError(message) {
   return error;
 }
 
+function dongleError(message, status = 400) {
+  const error = new Error(message);
+  error.status = status;
+  return error;
+}
+
 function normalizeEquipmentIssue(payload, catalog, previousItems = []) {
   const projectName = typeof payload?.project_name === 'string' ? payload.project_name.trim() : '';
   const issuedAt = typeof payload?.issued_at === 'string' ? payload.issued_at.trim() : '';
@@ -333,6 +356,21 @@ function normalizeEquipmentIssue(payload, catalog, previousItems = []) {
   return { project_name: projectName, issued_at: issuedAt, issued_by: issuedBy, notes, items };
 }
 
+function normalizeDongleIssue(payload) {
+  const projectName = typeof payload?.project_name === 'string' ? payload.project_name.trim() : '';
+  const responsible = typeof payload?.responsible === 'string' ? payload.responsible.trim() : '';
+  const issuedAt = typeof payload?.issued_at === 'string' ? payload.issued_at.trim() : '';
+  const parsedDate = new Date(`${issuedAt}T00:00:00Z`);
+  if (!projectName || projectName.toLowerCase() === WAREHOUSE_PROJECT_NAME.toLowerCase()) {
+    throw dongleError('กรุณาเลือกโครงการหน้างาน');
+  }
+  if (!responsible) throw dongleError('กรุณาระบุผู้รับผิดชอบ');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(issuedAt) || Number.isNaN(parsedDate.getTime()) || parsedDate.toISOString().slice(0, 10) !== issuedAt) {
+    throw dongleError('กรุณาระบุวันที่เบิกให้ถูกต้อง');
+  }
+  return { project_name: projectName, responsible, issued_at: issuedAt };
+}
+
 let inMemoryStore = null;
 
 class DataStore {
@@ -346,7 +384,8 @@ class DataStore {
       panels: demoPanels(),
       projects: DEFAULT_PROJECTS.map((p) => ({ ...p })),
       equipmentCatalog: [],
-      equipmentIssues: []
+      equipmentIssues: [],
+      dongles: []
     };
   }
 
@@ -359,6 +398,7 @@ class DataStore {
       this.cache = inMemoryStore;
       if (!Array.isArray(this.cache.equipmentCatalog)) this.cache.equipmentCatalog = [];
       if (!Array.isArray(this.cache.equipmentIssues)) this.cache.equipmentIssues = [];
+      if (!Array.isArray(this.cache.dongles)) this.cache.dongles = [];
       return this.cache;
     }
     let raw = null;
@@ -378,9 +418,11 @@ class DataStore {
       if (!Array.isArray(this.cache.projects)) this.cache.projects = DEFAULT_PROJECTS.map((p) => ({ ...p }));
       const needsEquipmentMigration = !Array.isArray(this.cache.equipmentCatalog) ||
         !Array.isArray(this.cache.equipmentIssues);
+      const needsDongleMigration = !Array.isArray(this.cache.dongles);
       if (!Array.isArray(this.cache.equipmentCatalog)) this.cache.equipmentCatalog = [];
       if (!Array.isArray(this.cache.equipmentIssues)) this.cache.equipmentIssues = [];
-      if (needsEquipmentMigration) await this.save();
+      if (!Array.isArray(this.cache.dongles)) this.cache.dongles = [];
+      if (needsEquipmentMigration || needsDongleMigration) await this.save();
     } catch {
       this.cache = this.emptyStore();
     }
@@ -759,6 +801,87 @@ class DataStore {
     if (memory.equipmentIssues.length === initialCount) throw equipmentError('ไม่พบประวัติการเบิก');
     await this.save();
     return { success: true };
+  }
+
+  async getDongleInventory() {
+    const memory = await this.load();
+    return [...memory.dongles].sort((a, b) =>
+      String(a.status).localeCompare(String(b.status)) ||
+      String(a.serial_number).localeCompare(String(b.serial_number), undefined, { sensitivity: 'base' })
+    );
+  }
+
+  async addDongles(records) {
+    if (!Array.isArray(records) || records.length === 0) {
+      throw dongleError('กรุณาระบุ Serial Number อย่างน้อย 1 รายการ');
+    }
+    const cleanRecords = records.map((record) => ({
+      serial_number: typeof record?.serial_number === 'string' ? record.serial_number.trim() : '',
+      model: typeof record?.model === 'string' ? record.model.trim() : ''
+    }));
+    const seen = new Set();
+    for (const record of cleanRecords) {
+      if (!record.serial_number) throw dongleError('กรุณาระบุ Serial Number ให้ครบ');
+      if (!record.model) throw dongleError('กรุณาระบุรุ่นดองเกิ้ล');
+      const key = record.serial_number.toLowerCase();
+      if (seen.has(key)) throw dongleError(`พบ SN ${record.serial_number} ซ้ำในรายการ`);
+      seen.add(key);
+    }
+
+    const memory = await this.load();
+    const existing = new Set(memory.dongles.map((item) => String(item.serial_number).toLowerCase()));
+    const duplicate = cleanRecords.find((record) => existing.has(record.serial_number.toLowerCase()));
+    if (duplicate) throw dongleError(`SN ${duplicate.serial_number} มีในสต๊อกแล้ว`, 409);
+
+    const now = new Date().toISOString();
+    const nextId = Math.max(Date.now(), ...memory.dongles.map((item) => Number(item.id) + 1 || 0));
+    const created = cleanRecords.map((record, index) => ({
+      id: nextId + index,
+      ...record,
+      status: 'warehouse',
+      project_name: '',
+      responsible: '',
+      issued_at: '',
+      created_at: now,
+      updated_at: now
+    }));
+    memory.dongles.push(...created);
+    await this.save();
+    return { success: true, count: created.length };
+  }
+
+  async issueDongle(id, payload) {
+    const dongleId = Number(id);
+    if (!Number.isSafeInteger(dongleId) || dongleId <= 0) {
+      throw dongleError('รหัสดองเกิ้ลไม่ถูกต้อง');
+    }
+    const issue = normalizeDongleIssue(payload || {});
+    const memory = await this.load();
+    const dongle = memory.dongles.find((item) => Number(item.id) === dongleId);
+    if (!dongle) throw dongleError('ไม่พบข้อมูลดองเกิ้ล');
+    if (dongle.status !== 'warehouse') {
+      throw dongleError(`SN ${dongle.serial_number} ถูกเบิกไปแล้ว`, 409);
+    }
+    Object.assign(dongle, issue, { status: 'issued', updated_at: new Date().toISOString() });
+    await this.save();
+    return { success: true, dongle };
+  }
+
+  async returnDongleToStock(id) {
+    const dongleId = Number(id);
+    if (!Number.isSafeInteger(dongleId) || dongleId <= 0) {
+      throw dongleError('รหัสดองเกิ้ลไม่ถูกต้อง');
+    }
+    const memory = await this.load();
+    const dongle = memory.dongles.find((item) => Number(item.id) === dongleId);
+    if (!dongle) throw dongleError('ไม่พบข้อมูลดองเกิ้ล');
+    if (dongle.status !== 'issued') {
+      throw dongleError(`SN ${dongle.serial_number} อยู่ในสต๊อกแล้ว`, 409);
+    }
+    dongle.status = 'warehouse';
+    dongle.updated_at = new Date().toISOString();
+    await this.save();
+    return { success: true, dongle };
   }
 
   async getDatabaseInfo() {
