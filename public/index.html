@@ -89,7 +89,7 @@
     <div id="view-dashboard" class="view-panel space-y-5 w-full block">
 
       <!-- Field Quick Actions (Big Thumb-friendly Buttons) -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 w-full">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 w-full">
         <button onclick="app.startManualEntryMode('warehouse')" class="dashboard-action-warehouse touch-press w-full bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white p-4 sm:p-5 rounded-2xl shadow-md flex items-center space-x-3.5 transition text-left">
           <div class="w-12 h-12 p-2.5 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center shrink-0">
             <i data-lucide="package-plus" class="w-6 h-6 text-white"></i>
@@ -116,7 +116,7 @@
           </div>
         </button>
 
-        <button onclick="app.showDbTab('equipment')" class="dashboard-action-equipment touch-press w-full bg-violet-50 hover:bg-violet-100 border border-violet-100 text-violet-900 p-4 sm:p-5 rounded-2xl shadow-sm flex items-center space-x-3.5 transition text-left">
+        <button onclick="app.showView('equipment')" class="dashboard-action-equipment touch-press w-full bg-violet-50 hover:bg-violet-100 border border-violet-100 text-violet-900 p-4 sm:p-5 rounded-2xl shadow-sm flex items-center space-x-3.5 transition text-left">
           <div class="w-12 h-12 p-2.5 rounded-xl bg-violet-100 text-violet-700 flex items-center justify-center shrink-0">
             <i data-lucide="package" class="w-6 h-6"></i>
           </div>
@@ -126,6 +126,19 @@
               <span class="text-[10px] uppercase font-semibold bg-violet-100 px-1.5 py-0.5 rounded tracking-wider">Equipment</span>
             </div>
             <p class="text-xs text-violet-700 mt-0.5">บันทึกจำนวนอุปกรณ์ ประวัติ ผู้เบิก และโครงการ</p>
+          </div>
+        </button>
+
+        <button onclick="app.showView('dongle')" class="dashboard-action-dongle touch-press w-full bg-cyan-50 hover:bg-cyan-100 border border-cyan-100 text-cyan-900 p-4 sm:p-5 rounded-2xl shadow-sm flex items-center space-x-3.5 transition text-left">
+          <div class="w-12 h-12 p-2.5 rounded-xl bg-cyan-100 text-cyan-700 flex items-center justify-center shrink-0">
+            <i data-lucide="radio" class="w-6 h-6"></i>
+          </div>
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="font-bold text-base sm:text-lg">สต๊อกดองเกิ้ล</span>
+              <span class="text-[10px] uppercase font-semibold bg-cyan-100 px-1.5 py-0.5 rounded tracking-wider">Dongle</span>
+            </div>
+            <p class="text-xs text-cyan-700 mt-0.5">รับเข้าและเบิกดองเกิ้ลด้วย Serial Number</p>
           </div>
         </button>
       </div>
@@ -361,7 +374,11 @@
               </div>
 
               <div>
-                <label class="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5">เลือกจากที่มีในคลัง</label>
+                <label for="field-stock-model" class="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5">เลือกรุ่นแผงก่อน <span class="text-red-500">*</span></label>
+                <select id="field-stock-model" required class="w-full text-sm px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-slate-800">
+                  <option value="">-- เลือกรุ่นแผง --</option>
+                </select>
+                <label class="block text-xs font-bold text-slate-800 uppercase tracking-wider mt-3 mb-1.5">เลือก SN / Code จากสต๊อก</label>
                 <button type="button" onclick="app.openFieldStockSelectorModal()" class="w-full text-sm font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-xl px-3 py-3 flex items-center justify-center gap-2 transition">
                   <i data-lucide="list-checks" class="w-4 h-4"></i> เลือกหลายแผงจากรายการในคลัง
                 </button>
@@ -375,21 +392,13 @@
             <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-4">
               <div>
                 <label class="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5">Serial Number / SN ที่เลือก <span class="text-red-500">*</span></label>
-                <textarea id="input-serial" rows="6" placeholder="รายการแผงที่เลือกจะปรากฏที่นี่" class="w-full text-xs font-mono px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-slate-900"></textarea>
+                <textarea id="input-serial" rows="6" readonly placeholder="เลือกรุ่นแผง แล้วเลือก SN / Code จากสต๊อก" class="w-full text-xs font-mono px-3.5 py-2.5 bg-slate-100 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-slate-900"></textarea>
               </div>
             </div>
           </div>
 
           <div id="field-installation-fields" class="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
-            <div class="grid grid-cols-3 gap-2.5">
-              <div>
-                <label class="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5">Inverter</label>
-                <input type="text" id="input-inverter" placeholder="INV-01" class="w-full text-xs sm:text-sm px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-slate-800">
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5">String</label>
-                <input type="text" id="input-string" placeholder="STR-04" class="w-full text-xs sm:text-sm px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-slate-800">
-              </div>
+            <div class="grid grid-cols-1 gap-2.5">
               <div>
                 <label class="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5">ลำดับแผง (#)</label>
                 <input type="number" id="input-index" placeholder="1" min="0" class="w-full text-xs sm:text-sm px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-slate-800">
@@ -507,6 +516,179 @@
       </div>
     </div>
 
+    <!-- VIEW: DONGLE STOCK -->
+    <div id="view-dongle" class="view-panel hidden w-full space-y-4">
+      <div class="flex items-center justify-between gap-3 rounded-2xl bg-slate-900 p-4 sm:p-5 text-white shadow-lg">
+        <div class="flex items-center gap-3">
+          <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/20 text-cyan-300">
+            <i data-lucide="radio" class="h-5 w-5"></i>
+          </div>
+          <div>
+            <h2 class="text-base font-bold">สต๊อกดองเกิ้ล</h2>
+            <p class="text-xs text-slate-400">รับเข้าและเบิกดองเกิ้ลด้วย Serial Number</p>
+          </div>
+        </div>
+        <button type="button" onclick="app.showView('dashboard')" class="rounded-lg bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700">กลับหน้าหลัก</button>
+      </div>
+      <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div class="border-b border-slate-100 bg-emerald-50/70 p-4 sm:p-5">
+          <h3 class="flex items-center gap-2 text-sm font-bold text-slate-800 sm:text-base">
+            <i data-lucide="package-plus" class="h-4 w-4 text-emerald-600"></i> รับเข้าและเบิกดองเกิ้ล
+          </h3>
+          <p class="mt-1 text-xs text-slate-500">บันทึก SN และรุ่นเมื่อรับเข้า พร้อมโครงการ ผู้รับผิดชอบ และวันที่เมื่อเบิก</p>
+        </div>
+        <div class="grid gap-4 p-4 sm:p-5 xl:grid-cols-2">
+          <form id="dongle-stock-form" onsubmit="app.addDonglesToStock(event)" class="space-y-3">
+            <h4 class="text-xs font-bold text-slate-700">รับดองเกิ้ลเข้าสต๊อก</h4>
+            <div>
+              <label for="dongle-model" class="mb-1 block text-xs font-semibold text-slate-700">รุ่นดองเกิ้ล <span class="text-rose-500">*</span></label>
+              <input type="text" id="dongle-model" required placeholder="ระบุรุ่น" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm">
+            </div>
+            <div>
+              <label for="dongle-serials" class="mb-1 block text-xs font-semibold text-slate-700">Serial Number <span class="text-rose-500">*</span></label>
+              <textarea id="dongle-serials" rows="3" required placeholder="กรอก SN ทีละบรรทัด เพื่อรับเข้าหลายชิ้นพร้อมกัน" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-mono text-sm"></textarea>
+            </div>
+            <button type="submit" class="flex w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-emerald-700">
+              <i data-lucide="package-plus" class="h-4 w-4"></i> บันทึกรับเข้าสต๊อก
+            </button>
+          </form>
+
+          <form id="dongle-issue-form" onsubmit="app.issueDongleFromStock(event)" class="space-y-3">
+            <h4 class="text-xs font-bold text-slate-700">เบิกดองเกิ้ลไปโครงการ</h4>
+            <div>
+              <label for="dongle-issue-item" class="mb-1 block text-xs font-semibold text-slate-700">ดองเกิ้ลในสต๊อก <span class="text-rose-500">*</span></label>
+              <select id="dongle-issue-item" required class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm"></select>
+            </div>
+            <div class="grid grid-cols-1 gap-2 sm:grid-cols-3">
+              <div>
+                <label for="dongle-issue-project" class="mb-1 block text-xs font-semibold text-slate-700">โครงการ <span class="text-rose-500">*</span></label>
+                <select id="dongle-issue-project" required class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm"></select>
+              </div>
+              <div>
+                <label for="dongle-issue-by" class="mb-1 block text-xs font-semibold text-slate-700">ผู้รับผิดชอบ <span class="text-rose-500">*</span></label>
+                <input type="text" id="dongle-issue-by" required placeholder="ชื่อผู้รับผิดชอบ" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm">
+              </div>
+              <div>
+                <label for="dongle-issue-date" class="mb-1 block text-xs font-semibold text-slate-700">วันที่เบิก <span class="text-rose-500">*</span></label>
+                <input type="date" id="dongle-issue-date" required class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm">
+              </div>
+            </div>
+            <button type="submit" class="flex w-full items-center justify-center gap-1.5 rounded-xl bg-sky-600 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-sky-700">
+              <i data-lucide="package-minus" class="h-4 w-4"></i> บันทึกการเบิก
+            </button>
+          </form>
+        </div>
+        <div id="dongle-inventory-list" class="overflow-x-auto border-t border-slate-100">
+          <div class="p-6 text-center text-xs text-slate-400">กำลังโหลดสต๊อกดองเกิ้ล...</div>
+        </div>
+      </section>
+    </div>
+
+    <!-- VIEW: FIELD EQUIPMENT -->
+    <div id="view-equipment" class="view-panel hidden w-full space-y-4">
+      <div class="flex items-center justify-between gap-3 rounded-2xl bg-slate-900 p-4 sm:p-5 text-white shadow-lg">
+        <div class="flex items-center gap-3">
+          <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-500/20 text-violet-300">
+            <i data-lucide="package" class="h-5 w-5"></i>
+          </div>
+          <div>
+            <h2 class="text-base font-bold">เบิกอุปกรณ์หน้างาน</h2>
+            <p class="text-xs text-slate-400">บันทึกอุปกรณ์ ผู้เบิก โครงการ และประวัติการเบิก</p>
+          </div>
+        </div>
+        <button type="button" onclick="app.showView('dashboard')" class="rounded-lg bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700">กลับหน้าหลัก</button>
+      </div>
+
+      <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div class="border-b border-slate-100 bg-sky-50/70 p-4 sm:p-5">
+          <h3 class="flex items-center gap-2 text-sm font-bold text-slate-800 sm:text-base">
+            <i data-lucide="package-plus" class="h-4 w-4 text-sky-600"></i>
+            <span id="equipment-issue-form-title">บันทึกเบิกอุปกรณ์ไปหน้างาน</span>
+          </h3>
+          <p class="mt-1 text-xs text-slate-500">บันทึกประเภทและจำนวนอุปกรณ์ ไม่ตัดยอดสต๊อกแผงโซลาร์</p>
+        </div>
+        <form id="equipment-issue-form" onsubmit="app.saveEquipmentIssue(event)" class="space-y-3 p-4 sm:p-5">
+          <input type="hidden" id="equipment-issue-id">
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div class="sm:col-span-2">
+              <label for="equipment-issue-project" class="mb-1 block text-xs font-semibold text-slate-700">โครงการหน้างาน <span class="text-rose-500">*</span></label>
+              <select id="equipment-issue-project" required class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm">
+                <option value="">-- เลือกโครงการ --</option>
+              </select>
+            </div>
+            <div>
+              <label for="equipment-issue-date" class="mb-1 block text-xs font-semibold text-slate-700">วันที่เบิก <span class="text-rose-500">*</span></label>
+              <input type="date" id="equipment-issue-date" required class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm">
+            </div>
+            <div>
+              <label for="equipment-issue-by" class="mb-1 block text-xs font-semibold text-slate-700">ผู้เบิก <span class="text-rose-500">*</span></label>
+              <input type="text" id="equipment-issue-by" required placeholder="ชื่อผู้เบิก" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm">
+            </div>
+          </div>
+          <div>
+            <div class="mb-2 flex items-center justify-between">
+              <label class="block text-xs font-semibold text-slate-700">รายการอุปกรณ์และจำนวน</label>
+              <button type="button" onclick="app.addEquipmentIssueLine()" class="flex items-center gap-1 text-xs font-semibold text-sky-700 hover:text-sky-900">
+                <i data-lucide="plus" class="h-3.5 w-3.5"></i> เพิ่มรายการ
+              </button>
+            </div>
+            <div id="equipment-issue-lines" class="space-y-2"></div>
+          </div>
+          <div>
+            <label for="equipment-issue-notes" class="mb-1 block text-xs font-semibold text-slate-700">หมายเหตุ</label>
+            <textarea id="equipment-issue-notes" rows="2" placeholder="รายละเอียดเพิ่มเติม (ถ้ามี)" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm"></textarea>
+          </div>
+          <div class="flex flex-col-reverse gap-2 border-t border-slate-100 pt-2 sm:flex-row">
+            <button type="button" id="btn-cancel-equipment-edit" onclick="app.cancelEquipmentIssueEdit()" class="hidden rounded-xl bg-slate-100 px-4 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-200">ยกเลิกการแก้ไข</button>
+            <button type="submit" class="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-sky-600 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-sky-700">
+              <i data-lucide="save" class="h-4 w-4"></i> บันทึกประวัติการเบิก
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <div class="grid gap-4 xl:grid-cols-2">
+        <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div class="flex flex-col justify-between gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:p-5">
+            <div>
+              <h3 class="flex items-center gap-2 text-sm font-bold text-slate-800">
+                <i data-lucide="history" class="h-4 w-4 text-violet-500"></i> ประวัติการเบิกอุปกรณ์
+              </h3>
+              <p class="mt-1 text-[11px] text-slate-500">กดแสดงรายการเพื่อดูอุปกรณ์และหมายเหตุเพิ่มเติม</p>
+            </div>
+            <button type="button" id="equipment-toggle-details" onclick="app.toggleAllEquipmentIssueDetails()" class="hidden self-start items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 sm:self-auto">
+              <i data-lucide="chevrons-down-up" class="h-3.5 w-3.5"></i><span>แสดงรายละเอียดทั้งหมด</span>
+            </button>
+          </div>
+          <div id="equipment-issue-history" class="equipment-history-table-wrap">
+            <div class="p-6 text-center text-xs text-slate-400">กำลังโหลดประวัติ...</div>
+          </div>
+        </section>
+
+        <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div class="border-b border-slate-100 bg-violet-50/60 p-4 sm:p-5">
+            <h3 class="flex items-center gap-2 text-sm font-bold text-slate-800">
+              <i data-lucide="tags" class="h-4 w-4 text-violet-600"></i> ทะเบียนข้อมูลอุปกรณ์
+            </h3>
+            <p class="mt-1 text-xs text-slate-500">เพิ่ม แก้ไข หรือลบชื่ออุปกรณ์และหน่วยนับที่ใช้ในรายการเบิก</p>
+          </div>
+          <form onsubmit="app.saveEquipmentCatalogItem(event)" class="p-4 sm:p-5">
+            <input type="hidden" id="equipment-catalog-id">
+            <div class="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_180px_auto]">
+              <input type="text" id="equipment-catalog-name" required placeholder="ชื่ออุปกรณ์ เช่น สายไฟ, หัว MC4" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm">
+              <input type="text" id="equipment-catalog-unit" required value="ชิ้น" placeholder="หน่วย เช่น ชิ้น, ม้วน" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm">
+              <button type="submit" class="flex items-center justify-center gap-1.5 rounded-xl bg-violet-500 px-4 py-2.5 text-xs font-bold text-white hover:bg-violet-600">
+                <i data-lucide="plus" class="h-4 w-4"></i> <span id="equipment-catalog-submit-label">เพิ่มอุปกรณ์</span>
+              </button>
+            </div>
+          </form>
+          <div id="equipment-catalog-list" class="divide-y divide-slate-100 border-t border-slate-100">
+            <div class="p-5 text-center text-xs text-slate-400">กำลังโหลดทะเบียนอุปกรณ์...</div>
+          </div>
+        </section>
+      </div>
+    </div>
+
     <!-- ========================================== -->
     <!-- VIEW 5: DATABASE MANAGEMENT STUDIO         -->
     <!-- ========================================== -->
@@ -570,9 +752,6 @@
         </button>
         <button id="tab-btn-projects" onclick="app.switchDbTab('projects')" class="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-600 border border-slate-200 flex items-center gap-1.5 transition shrink-0">
           <i data-lucide="folder-kanban" class="w-3.5 h-3.5"></i> จัดการโครงการ
-        </button>
-        <button id="tab-btn-equipment" onclick="app.switchDbTab('equipment')" class="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-600 border border-slate-200 flex items-center gap-1.5 transition shrink-0">
-          <i data-lucide="package" class="w-3.5 h-3.5"></i> เบิกอุปกรณ์หน้างาน
         </button>
         <button id="tab-btn-tools" onclick="app.switchDbTab('tools')" class="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-600 border border-slate-200 flex items-center gap-1.5 transition shrink-0">
           <i data-lucide="wrench" class="w-3.5 h-3.5"></i> เครื่องมือ & กู้คืนข้อมูล
@@ -679,98 +858,6 @@
           <div class="col-span-full p-8 bg-white rounded-2xl border border-slate-200 text-center text-slate-400 text-xs">
             กำลังโหลดข้อมูลโครงการ...
           </div>
-        </div>
-      </div>
-
-      <!-- TAB: EQUIPMENT ISSUE HISTORY -->
-      <div id="db-tab-equipment" class="hidden space-y-4">
-        <section class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          <div class="p-4 sm:p-5 border-b border-slate-100 bg-sky-50/70">
-            <h3 class="font-bold text-slate-800 text-sm sm:text-base flex items-center gap-2">
-              <i data-lucide="package-plus" class="w-4 h-4 text-sky-600"></i>
-              <span id="equipment-issue-form-title">บันทึกเบิกอุปกรณ์ไปหน้างาน</span>
-            </h3>
-            <p class="text-xs text-slate-500 mt-1">บันทึกประเภทและจำนวนอุปกรณ์ ไม่ตัดยอดสต๊อกแผงโซลาร์</p>
-          </div>
-          <form id="equipment-issue-form" onsubmit="app.saveEquipmentIssue(event)" class="p-4 sm:p-5 space-y-3">
-            <input type="hidden" id="equipment-issue-id">
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              <div class="sm:col-span-2">
-                <label for="equipment-issue-project" class="block text-xs font-semibold text-slate-700 mb-1">โครงการหน้างาน <span class="text-rose-500">*</span></label>
-                <select id="equipment-issue-project" required class="w-full text-sm px-3 py-2.5 bg-white border border-slate-300 rounded-xl">
-                  <option value="">-- เลือกโครงการ --</option>
-                </select>
-              </div>
-              <div>
-                <label for="equipment-issue-date" class="block text-xs font-semibold text-slate-700 mb-1">วันที่เบิก <span class="text-rose-500">*</span></label>
-                <input type="date" id="equipment-issue-date" required class="w-full text-sm px-3 py-2.5 bg-white border border-slate-300 rounded-xl">
-              </div>
-              <div>
-                <label for="equipment-issue-by" class="block text-xs font-semibold text-slate-700 mb-1">ผู้เบิก <span class="text-rose-500">*</span></label>
-                <input type="text" id="equipment-issue-by" required placeholder="ชื่อผู้เบิก" class="w-full text-sm px-3 py-2.5 bg-white border border-slate-300 rounded-xl">
-              </div>
-            </div>
-            <div>
-              <div class="flex items-center justify-between mb-2">
-                <label class="block text-xs font-semibold text-slate-700">รายการอุปกรณ์และจำนวน</label>
-                <button type="button" onclick="app.addEquipmentIssueLine()" class="text-xs font-semibold text-sky-700 hover:text-sky-900 flex items-center gap-1">
-                  <i data-lucide="plus" class="w-3.5 h-3.5"></i> เพิ่มรายการ
-                </button>
-              </div>
-              <div id="equipment-issue-lines" class="space-y-2"></div>
-            </div>
-            <div>
-              <label for="equipment-issue-notes" class="block text-xs font-semibold text-slate-700 mb-1">หมายเหตุ</label>
-              <textarea id="equipment-issue-notes" rows="2" placeholder="รายละเอียดเพิ่มเติม (ถ้ามี)" class="w-full text-sm px-3 py-2.5 bg-white border border-slate-300 rounded-xl"></textarea>
-            </div>
-            <div class="flex flex-col-reverse sm:flex-row gap-2 pt-2 border-t border-slate-100">
-              <button type="button" id="btn-cancel-equipment-edit" onclick="app.cancelEquipmentIssueEdit()" class="hidden px-4 py-2.5 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl">ยกเลิกการแก้ไข</button>
-              <button type="submit" class="flex-1 py-2.5 text-xs font-bold text-white bg-sky-600 hover:bg-sky-700 rounded-xl shadow-sm flex items-center justify-center gap-1.5">
-                <i data-lucide="save" class="w-4 h-4"></i> บันทึกประวัติการเบิก
-              </button>
-            </div>
-          </form>
-        </section>
-
-        <div class="grid gap-4 xl:grid-cols-2">
-          <section class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-            <div class="p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
-                  <i data-lucide="history" class="w-4 h-4 text-violet-500"></i> ประวัติการเบิกอุปกรณ์
-                </h3>
-                <p class="text-[11px] text-slate-500 mt-1">กดแสดงรายการเพื่อดูอุปกรณ์และหมายเหตุเพิ่มเติม</p>
-              </div>
-              <button type="button" id="equipment-toggle-details" onclick="app.toggleAllEquipmentIssueDetails()" class="hidden self-start sm:self-auto px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs font-semibold text-slate-600 hover:bg-slate-50 flex items-center gap-1.5">
-                <i data-lucide="chevrons-down-up" class="w-3.5 h-3.5"></i><span>แสดงรายละเอียดทั้งหมด</span>
-              </button>
-            </div>
-            <div id="equipment-issue-history" class="equipment-history-table-wrap">
-              <div class="p-6 text-center text-xs text-slate-400">กำลังโหลดประวัติ...</div>
-            </div>
-          </section>
-
-          <section class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-            <div class="p-4 sm:p-5 border-b border-slate-100 bg-violet-50/60">
-              <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
-                <i data-lucide="tags" class="w-4 h-4 text-violet-600"></i> ทะเบียนข้อมูลอุปกรณ์
-              </h3>
-              <p class="text-xs text-slate-500 mt-1">เพิ่ม แก้ไข หรือลบชื่ออุปกรณ์และหน่วยนับที่ใช้ในรายการเบิก</p>
-            </div>
-            <form onsubmit="app.saveEquipmentCatalogItem(event)" class="p-4 sm:p-5">
-              <input type="hidden" id="equipment-catalog-id">
-              <div class="grid grid-cols-1 sm:grid-cols-[1fr_180px_auto] gap-2">
-                <input type="text" id="equipment-catalog-name" required placeholder="ชื่ออุปกรณ์ เช่น สายไฟ, หัว MC4" class="w-full text-sm px-3 py-2.5 bg-white border border-slate-300 rounded-xl">
-                <input type="text" id="equipment-catalog-unit" required value="ชิ้น" placeholder="หน่วย เช่น ชิ้น, ม้วน" class="w-full text-sm px-3 py-2.5 bg-white border border-slate-300 rounded-xl">
-                <button type="submit" class="px-4 py-2.5 text-xs font-bold text-white bg-violet-500 hover:bg-violet-600 rounded-xl flex items-center justify-center gap-1.5">
-                  <i data-lucide="plus" class="w-4 h-4"></i> <span id="equipment-catalog-submit-label">เพิ่มอุปกรณ์</span>
-                </button>
-              </div>
-            </form>
-            <div id="equipment-catalog-list" class="border-t border-slate-100 divide-y divide-slate-100">
-              <div class="p-5 text-center text-xs text-slate-400">กำลังโหลดทะเบียนอุปกรณ์...</div>
-            </div>
-          </section>
         </div>
       </div>
 
@@ -920,15 +1007,7 @@
             <select id="manual-preset-project" class="w-full text-xs px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg">
             </select>
           </div>
-          <div class="grid grid-cols-3 gap-2">
-            <div>
-              <label class="block text-[10px] font-semibold text-slate-600 mb-0.5">Inverter</label>
-              <input type="text" id="manual-preset-inverter" placeholder="INV-01" value="INV-01" class="w-full text-xs px-2 py-1.5 bg-white border border-slate-300 rounded-lg font-mono">
-            </div>
-            <div>
-              <label class="block text-[10px] font-semibold text-slate-600 mb-0.5">String</label>
-              <input type="text" id="manual-preset-string" placeholder="STR-01" value="STR-01" class="w-full text-xs px-2 py-1.5 bg-white border border-slate-300 rounded-lg font-mono">
-            </div>
+          <div class="grid grid-cols-1 gap-2">
             <div>
               <label class="block text-[10px] font-semibold text-slate-600 mb-0.5">เลขแผง (#)</label>
               <input type="number" id="manual-preset-index" value="1" min="1" class="w-full text-xs px-2 py-1.5 bg-white border border-slate-300 rounded-lg font-mono font-bold text-amber-700">
@@ -963,14 +1042,7 @@
               <option value="">-- เลือกโครงการ --</option>
             </select>
           </div>
-          <div class="grid grid-cols-2 gap-2">
-            <div>
-              <label class="block text-[10px] font-semibold text-slate-600 mb-0.5">Inverter / String</label>
-              <div class="flex gap-1">
-                <input type="text" id="bulk-preset-inverter" placeholder="INV-01" value="INV-01" class="w-1/2 text-xs px-2 py-1.5 bg-white border border-slate-300 rounded-lg font-mono">
-                <input type="text" id="bulk-preset-string" placeholder="STR-01" value="STR-01" class="w-1/2 text-xs px-2 py-1.5 bg-white border border-slate-300 rounded-lg font-mono">
-              </div>
-            </div>
+          <div class="grid grid-cols-1 gap-2">
             <div>
               <label class="block text-[10px] font-semibold text-slate-600 mb-0.5">สถานะ</label>
               <select id="bulk-preset-status" class="w-full text-xs px-2 py-1.5 bg-white border border-slate-300 rounded-lg font-bold">
@@ -1004,8 +1076,8 @@
             <i data-lucide="list-checks" class="w-5 h-5"></i>
           </div>
           <div>
-            <h3 class="font-bold text-slate-900 text-sm sm:text-base">เลือกแผงจากคลังหลายรายการ</h3>
-            <p class="text-xs text-slate-500">เลือกแผงที่พร้อมเบิกออกไปหน้างานได้</p>
+            <h3 class="font-bold text-slate-900 text-sm sm:text-base">เลือก SN / Code ของรุ่นที่เลือก</h3>
+            <p class="text-xs text-slate-500">แสดงเฉพาะแผงในสต๊อกของรุ่นที่เลือกไว้</p>
           </div>
         </div>
         <button type="button" onclick="app.closeFieldStockSelectorModal()" class="text-slate-400 hover:text-slate-600 p-1">
@@ -1015,7 +1087,7 @@
 
       <div class="relative mb-3">
         <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
-        <input id="field-stock-search" type="text" oninput="app.filterFieldStockModal()" placeholder="ค้นหา SN / รุ่น / วัตต์" class="w-full text-xs pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-slate-800">
+        <input id="field-stock-search" type="text" oninput="app.filterFieldStockModal()" placeholder="ค้นหา SN / Code / วัตต์" class="w-full text-xs pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-slate-800">
       </div>
 
       <div id="field-stock-modal-list" class="space-y-2 max-h-[52vh] overflow-y-auto pr-1"></div>

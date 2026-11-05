@@ -266,6 +266,44 @@ app.delete('/api/equipment/issues/:id', async (req, res) => {
   }
 });
 
+app.get('/api/dongles', async (req, res) => {
+  try {
+    const dongles = await db.getDongleInventory();
+    res.json({ success: true, dongles });
+  } catch (err) {
+    console.error('Error fetching dongle inventory:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/dongles/import', async (req, res) => {
+  try {
+    const result = await db.addDongles(req.body?.dongles);
+    res.status(201).json(result);
+  } catch (err) {
+    console.error('Error adding dongles to stock:', err);
+    res.status(err.code === 'STOCK_CONFLICT' ? 409 : 400).json({ success: false, error: err.message });
+  }
+});
+
+app.put('/api/dongles/:id/issue', async (req, res) => {
+  try {
+    res.json(await db.issueDongle(req.params.id, req.body || {}));
+  } catch (err) {
+    console.error('Error issuing dongle:', err);
+    res.status(err.code === 'STOCK_CONFLICT' ? 409 : 400).json({ success: false, error: err.message });
+  }
+});
+
+app.put('/api/dongles/:id/return', async (req, res) => {
+  try {
+    res.json(await db.returnDongleToStock(req.params.id));
+  } catch (err) {
+    console.error('Error returning dongle to stock:', err);
+    res.status(err.code === 'STOCK_CONFLICT' ? 409 : 400).json({ success: false, error: err.message });
+  }
+});
+
 // ---------------- Database Management Endpoints ----------------
 
 // Get Database Info & Metrics
@@ -381,13 +419,15 @@ app.get('/api/database/backup', async (req, res) => {
   try {
     const { data } = await db.getPanels({ limit: 50000 });
     const projects = await db.getProjectsList();
+    const dongles = await db.getDongleInventory();
     const backupData = {
       app: 'SolarTrack Field Operations',
       version: '1.0.0',
       exportedAt: new Date().toISOString(),
       projects,
       totalPanels: data.length,
-      panels: data
+      panels: data,
+      dongles
     };
 
     const filename = `solartrack_backup_${new Date().toISOString().slice(0, 10)}.json`;

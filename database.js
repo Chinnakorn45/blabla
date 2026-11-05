@@ -26,7 +26,8 @@ let memoryStore = {
   panels: [],
   projects: [],
   equipmentCatalog: [],
-  equipmentIssues: []
+  equipmentIssues: [],
+  dongles: []
 };
 
 function initDb() {
@@ -59,14 +60,15 @@ function useJsonFallback() {
       memoryStore = data;
       memoryStore.equipmentCatalog ||= [];
       memoryStore.equipmentIssues ||= [];
+      memoryStore.dongles ||= [];
       saveJsonStore();
     } catch (err) {
       console.error('Failed reading existing JSON file, initializing new store:', err);
-      memoryStore = { panels: [], projects: [], equipmentCatalog: [], equipmentIssues: [] };
+      memoryStore = { panels: [], projects: [], equipmentCatalog: [], equipmentIssues: [], dongles: [] };
       saveJsonStore();
     }
   } else {
-    memoryStore = { panels: [], projects: [], equipmentCatalog: [], equipmentIssues: [] };
+    memoryStore = { panels: [], projects: [], equipmentCatalog: [], equipmentIssues: [], dongles: [] };
     saveJsonStore();
   }
 }
@@ -138,11 +140,26 @@ function setupTables() {
         )
       `);
 
+      db.run(`
+        CREATE TABLE IF NOT EXISTS dongle_inventory (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          serial_number TEXT NOT NULL COLLATE NOCASE UNIQUE,
+          model TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'warehouse',
+          project_name TEXT,
+          responsible TEXT,
+          issued_at TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
       db.get('SELECT COUNT(*) as count FROM panels', (err) => {
         if (err) return reject(err);
         if (useJsonStore) {
           memoryStore.equipmentCatalog ||= [];
           memoryStore.equipmentIssues ||= [];
+          memoryStore.dongles ||= [];
           saveJsonStore();
         }
         resolve();
@@ -1242,6 +1259,193 @@ function deleteEquipmentIssue(id) {
   });
 }
 
+function getDongleInventory() {
+  if (useJsonStore) {
+    memoryStore.dongles ||= [];
+    return Promise.resolve([...memoryStore.dongles].sort((a, b) =>
+      String(a.status).localeCompare(String(b.status)) || String(a.serial_number).localeCompare(String(b.serial_number))
+    ));
+  }
+  return new Promise((resolve, reject) => {
+    db.all(
+      'SELECT id, serial_number, model, status, project_name, responsible, issued_at, created_at, updated_at FROM dongle_inventory ORDER BY status, serial_number COLLATE NOCASE',
+      (err, rows) => {
+        if (err) return reject(err);
+        resolve(rows || []);
+      }
+    );
+  });
+}
+
+async function addDongles(records) {
+  if (!Array.isArray(records) || records.length === 0) {
+    throw new Error('กรุณาระบุ Serial Number อย่างน้อย 1 รายการ');
+  }
+  const cleanRecords = records.map(record => ({
+    serial_number: typeof record?.serial_number === 'string' ? record.serial_number.trim() : '',
+    model: typeof record?.model === 'string' ? record.model.trim() : ''
+  }));
+  const seen = new Set();
+  for (const record of cleanRecords) {
+    if (!record.serial_number) throw new Error('กรุณาระบุ Serial Number ให้ครบ');
+    if (!record.model) throw new Error('กรุณาระบุรุ่นดองเกิ้ล');
+    const key = record.serial_number.toLowerCase();
+    if (seen.has(key)) throw new Error(`พบ SN ${record.serial_number} ซ้ำในรายการ`);
+    seen.add(key);
+  }
+
+  if (useJsonStore) {
+    memoryStore.dongles ||= [];
+    const existing = new Set(memoryStore.dongles.map(item => item.serial_number.toLowerCase()));
+    const duplicate = cleanRecords.find(record => existing.has(record.serial_number.toLowerCase()));
+    if (duplicate) throw stockConflict(`SN ${duplicate.serial_number} มีในสต๊อกแล้ว`);
+    const now = new Date().toISOString();
+    const created = cleanRecords.map(record => ({
+      id: Date.now() + memoryStore.dongles.length,
+      ...record,
+      status: 'warehouse',
+      project_name: '',
+      responsible: '',
+      issued_at: '',
+      created_at: now,
+      updated_at: now
+    }));
+    memoryStore.dongles.push(...created);
+    saveJsonStore();
+    return { success: true, count: created.length };
+  }
+
+  return new Promise((resolve, reject) => {
+    db.serialize(() => {
+      db.run('BEGIN IMMEDIATE', beginError => {
+        if (beginError) return reject(beginError);
+        let index = 0;
+        const rollback = error => {
+          db.run('ROLLBACK', rollbackError => reject(rollbackError || error));
+        };
+        const insertNext = () => {
+          if (index >= cleanRecords.length) {
+            db.run('COMMIT', commitError => {
+              if (commitError) return rollback(commitError);
+              resolve({ success: true, count: cleanRecords.length });
+            });
+            return;
+          }
+          const record = cleanRecords[index];
+          db.run(
+            'INSERT INTO dongle_inventory (serial_number, model) VALUES (?, ?)',
+            [record.serial_number, record.model],
+            error => {
+              if (error) {
+                if (error.code === 'SQLITE_CONSTRAINT') {
+                  return rollback(stockConflict(`SN ${record.serial_number} มีในสต๊อกแล้ว`));
+                }
+                return rollback(error);
+              }
+              index++;
+              insertNext();
+            }
+          );
+        };
+        insertNext();
+      });
+    });
+  });
+}
+
+function normalizeDongleIssue(payload) {
+  const projectName = typeof payload.project_name === 'string' ? payload.project_name.trim() : '';
+  const responsible = typeof payload.responsible === 'string' ? payload.responsible.trim() : '';
+  const issuedAt = typeof payload.issued_at === 'string' ? payload.issued_at.trim() : '';
+  const parsedDate = new Date(`${issuedAt}T00:00:00Z`);
+  if (!projectName || isWarehouseProject(projectName)) throw new Error('กรุณาเลือกโครงการหน้างาน');
+  if (!responsible) throw new Error('กรุณาระบุผู้รับผิดชอบ');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(issuedAt) || Number.isNaN(parsedDate.getTime()) || parsedDate.toISOString().slice(0, 10) !== issuedAt) {
+    throw new Error('กรุณาระบุวันที่เบิกให้ถูกต้อง');
+  }
+  return { project_name: projectName, responsible, issued_at: issuedAt };
+}
+
+async function issueDongle(id, payload) {
+  const dongleId = Number(id);
+  if (!Number.isSafeInteger(dongleId) || dongleId <= 0) throw new Error('รหัสดองเกิ้ลไม่ถูกต้อง');
+  const issue = normalizeDongleIssue(payload || {});
+  if (useJsonStore) {
+    memoryStore.dongles ||= [];
+    const dongle = memoryStore.dongles.find(item => Number(item.id) === dongleId);
+    if (!dongle) throw new Error('ไม่พบข้อมูลดองเกิ้ล');
+    if (dongle.status !== 'warehouse') throw stockConflict(`SN ${dongle.serial_number} ถูกเบิกไปแล้ว`);
+    Object.assign(dongle, issue, { status: 'issued', updated_at: new Date().toISOString() });
+    saveJsonStore();
+    return { success: true, dongle };
+  }
+  return new Promise((resolve, reject) => {
+    db.run(
+      "UPDATE dongle_inventory SET status = 'issued', project_name = ?, responsible = ?, issued_at = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'warehouse'",
+      [issue.project_name, issue.responsible, issue.issued_at, dongleId],
+      function (err) {
+        if (err) return reject(err);
+        if (!this.changes) {
+          db.get('SELECT serial_number, status FROM dongle_inventory WHERE id = ?', [dongleId], (getError, row) => {
+            if (getError) return reject(getError);
+            if (!row) return reject(new Error('ไม่พบข้อมูลดองเกิ้ล'));
+            reject(stockConflict(`SN ${row.serial_number} ถูกเบิกไปแล้ว`));
+          });
+          return;
+        }
+        db.get(
+          'SELECT id, serial_number, model, status, project_name, responsible, issued_at, created_at, updated_at FROM dongle_inventory WHERE id = ?',
+          [dongleId],
+          (getError, dongle) => {
+            if (getError) return reject(getError);
+            resolve({ success: true, dongle });
+          }
+        );
+      }
+    );
+  });
+}
+
+async function returnDongleToStock(id) {
+  const dongleId = Number(id);
+  if (!Number.isSafeInteger(dongleId) || dongleId <= 0) throw new Error('รหัสดองเกิ้ลไม่ถูกต้อง');
+  if (useJsonStore) {
+    memoryStore.dongles ||= [];
+    const dongle = memoryStore.dongles.find(item => Number(item.id) === dongleId);
+    if (!dongle) throw new Error('ไม่พบข้อมูลดองเกิ้ล');
+    if (dongle.status !== 'issued') throw stockConflict(`SN ${dongle.serial_number} อยู่ในสต๊อกแล้ว`);
+    dongle.status = 'warehouse';
+    dongle.updated_at = new Date().toISOString();
+    saveJsonStore();
+    return { success: true, dongle };
+  }
+  return new Promise((resolve, reject) => {
+    db.run(
+      "UPDATE dongle_inventory SET status = 'warehouse', updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'issued'",
+      [dongleId],
+      function (err) {
+        if (err) return reject(err);
+        if (!this.changes) {
+          db.get('SELECT serial_number, status FROM dongle_inventory WHERE id = ?', [dongleId], (getError, row) => {
+            if (getError) return reject(getError);
+            if (!row) return reject(new Error('ไม่พบข้อมูลดองเกิ้ล'));
+            reject(stockConflict(`SN ${row.serial_number} อยู่ในสต๊อกแล้ว`));
+          });
+          return;
+        }
+        db.get(
+          'SELECT id, serial_number, model, status, project_name, responsible, issued_at, created_at, updated_at FROM dongle_inventory WHERE id = ?',
+          [dongleId],
+          (getError, dongle) => {
+            if (getError) return reject(getError);
+            resolve({ success: true, dongle });
+          }
+        );
+      }
+    );
+  });
+}
+
 function getDatabaseInfo() {
   const filePath = useJsonStore ? JSON_FILE : DB_FILE;
   let fileSizeBytes = 0;
@@ -1368,6 +1572,10 @@ module.exports = {
   getEquipmentIssues,
   saveEquipmentIssue,
   deleteEquipmentIssue,
+  getDongleInventory,
+  addDongles,
+  issueDongle,
+  returnDongleToStock,
   getDatabaseInfo,
   getProjectsFull
 };
