@@ -51,7 +51,9 @@ class SolarTrackingApp {
 
   async init() {
     this.bindEvents();
+    await appSettings.syncWithServer();
     appSettings.updateBrandDatalist();
+    window.addEventListener('focus', () => appSettings.refreshFromServer());
     await this.checkBackendConnectivity();
     await this.loadProjects();
     await this.loadDashboardData();

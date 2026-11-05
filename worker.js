@@ -57,6 +57,26 @@ function json(data, status = 200, headers = {}) {
   });
 }
 
+function normalizeSharedSettings(value) {
+  const source = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  const brands = [];
+  const seen = new Set();
+  if (Array.isArray(source.brands)) {
+    for (const entry of source.brands) {
+      const name = typeof entry === 'string' ? entry.trim() : String(entry?.name || '').trim();
+      const wattage = Number(typeof entry === 'string' ? 550 : entry?.wattage);
+      const key = name.toLocaleLowerCase();
+      if (!name || seen.has(key) || !Number.isInteger(wattage) || wattage < 1 || wattage > 2000) continue;
+      seen.add(key);
+      brands.push({ name, wattage });
+    }
+  }
+  return {
+    defaultTechnician: typeof source.defaultTechnician === 'string' ? source.defaultTechnician : '',
+    brands
+  };
+}
+
 async function handleApi(request, env, url) {
   const method = request.method;
   const path = url.pathname.replace(/\/+$/, '') || '/';
@@ -75,6 +95,20 @@ async function handleApi(request, env, url) {
 
   if (path === '/api/stats' && method === 'GET') {
     return json({ success: true, stats: await store.getStats() });
+  }
+
+  if (path === '/api/settings' && method === 'GET') {
+    const data = await store.load();
+    return json({ success: true, settings: data.settings || null });
+  }
+
+  if (path === '/api/settings' && method === 'PUT') {
+    const body = await request.json().catch(() => ({}));
+    const settings = normalizeSharedSettings(body?.settings);
+    const data = await store.load();
+    data.settings = settings;
+    await store.save();
+    return json({ success: true, settings });
   }
 
   if (path === '/api/panels' && method === 'GET') {

@@ -84,11 +84,68 @@ class SettingsManager {
     return this.settings;
   }
 
+  async syncWithServer() {
+    try {
+      const response = await fetch('/api/settings');
+      if (!response.ok) throw new Error(`Settings request failed (${response.status})`);
+      const result = await response.json();
+      if (result.settings) {
+        this.settings = result.settings;
+        saveSettings(this.settings);
+        return this.settings;
+      }
+
+      // Migrate settings already saved in this browser when the shared store is empty.
+      const saveResponse = await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ settings: this.settings })
+      });
+      if (!saveResponse.ok) throw new Error(`Settings migration failed (${saveResponse.status})`);
+      const saved = await saveResponse.json();
+      this.settings = saved.settings || this.settings;
+      saveSettings(this.settings);
+      return this.settings;
+    } catch (error) {
+      console.warn('Unable to sync settings with server; using this device\'s saved settings:', error);
+      return this.settings;
+    }
+  }
+
+  async refreshFromServer() {
+    try {
+      const response = await fetch('/api/settings');
+      if (!response.ok) return;
+      const result = await response.json();
+      if (!result.settings) return;
+      this.settings = result.settings;
+      saveSettings(this.settings);
+      this.updateBrandDatalist();
+      if (typeof app !== 'undefined' && app?.currentView === 'settings') this.renderBrandList();
+    } catch (error) {
+      console.warn('Unable to refresh settings from server:', error);
+    }
+  }
+
   save(updates) {
     const nextSettings = { ...this.settings, ...updates };
     if (!saveSettings(nextSettings)) return false;
     this.settings = nextSettings;
+    this.saveToServer(nextSettings);
     return true;
+  }
+
+  async saveToServer(settings) {
+    try {
+      const response = await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ settings })
+      });
+      if (!response.ok) throw new Error(`Settings save failed (${response.status})`);
+    } catch (error) {
+      console.warn('Unable to sync settings with server; changes remain on this device:', error);
+    }
   }
 
   getDefaultBrand() {
@@ -143,7 +200,8 @@ class SettingsManager {
   }
 
   /** Render the settings view into #view-settings */
-  renderSettingsView() {
+  async renderSettingsView() {
+    await this.refreshFromServer();
     this.load();
     this.renderBrandList();
     this.updateBrandDatalist();
