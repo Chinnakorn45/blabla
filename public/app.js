@@ -83,6 +83,19 @@ class SolarTrackingApp {
 
     const warehouseSerialInput = document.querySelector('#view-warehouse #input-serial');
     warehouseSerialInput?.addEventListener('input', () => {
+      const normalizeSerials = value => value
+        .split(/[\s,;，；]+/)
+        .map(serial => serial.replace(/[^a-z0-9]/gi, ''))
+        .filter(Boolean)
+        .join('\n');
+      const cursor = warehouseSerialInput.selectionStart;
+      const normalized = normalizeSerials(warehouseSerialInput.value);
+      if (normalized !== warehouseSerialInput.value) {
+        const normalizedCursor = normalizeSerials(warehouseSerialInput.value.slice(0, cursor)).length;
+        warehouseSerialInput.value = normalized;
+        warehouseSerialInput.setSelectionRange(normalizedCursor, normalizedCursor);
+      }
+
       const saveBtn = document.querySelector('#view-warehouse #btn-save-panel');
       if (saveBtn) saveBtn.disabled = !warehouseSerialInput.value.trim();
     });
@@ -97,6 +110,9 @@ class SolarTrackingApp {
       if (saveBtn) saveBtn.disabled = true;
       this.updateFieldSelectionSummary();
     });
+
+    document.getElementById('edit-project')?.addEventListener('change', () => this.syncEditPanelLocationStatus('project'));
+    document.getElementById('edit-status')?.addEventListener('change', () => this.syncEditPanelLocationStatus('status'));
 
     window.addEventListener('keydown', (event) => {
       if (event.key === 'Escape' && this.pendingConfirmation) {
@@ -3030,10 +3046,27 @@ class SolarTrackingApp {
   }
 
   async openEditModal(id) {
-    let panel = this.cachedDbPanels.find(p => p.id === id);
-    if (!panel) {
+    const cachedPanel = this.cachedDbPanels.find(p => Number(p.id) === Number(id));
+    if (!cachedPanel) {
       this.showToast('ไม่พบข้อมูลแผง', 'error');
       return;
+    }
+
+    let panel = cachedPanel;
+    if (this.isMockMode) {
+      panel = this.getMockPanels().find(item => Number(item.id) === Number(id)) || cachedPanel;
+    } else {
+      try {
+        const response = await fetch(`/api/panels/${encodeURIComponent(cachedPanel.serial_number)}`);
+        const result = await response.json();
+        if (!response.ok || !result.panel) {
+          throw new Error(result.error || result.message || `HTTP ${response.status}`);
+        }
+        panel = result.panel;
+      } catch (error) {
+        this.showToast(`โหลดข้อมูลแผงไม่สำเร็จ: ${error.message}`, 'error');
+        return;
+      }
     }
 
     await this.populateDbProjectDropdowns();
@@ -3041,11 +3074,18 @@ class SolarTrackingApp {
     document.getElementById('edit-id').value = panel.id;
     document.getElementById('edit-serial').value = panel.serial_number;
     const editProject = document.getElementById('edit-project');
-    if (panel.status === 'warehouse' || panel.project_name === WAREHOUSE_PROJECT_NAME) {
-      editProject.innerHTML = `<option value="${this.escapeHtml(WAREHOUSE_PROJECT_NAME)}">คลังสินค้ากลาง (สต๊อก)</option>` + editProject.innerHTML;
-      editProject.value = WAREHOUSE_PROJECT_NAME;
-    } else {
-      editProject.value = panel.project_name;
+    const originalProject = panel.status === 'warehouse' || panel.project_name === WAREHOUSE_PROJECT_NAME
+      ? WAREHOUSE_PROJECT_NAME
+      : String(panel.project_name || '').trim();
+    if (editProject && originalProject) {
+      const hasOriginalProject = Array.from(editProject.options).some(option => option.value === originalProject);
+      if (!hasOriginalProject) {
+        const originalOption = document.createElement('option');
+        originalOption.value = originalProject;
+        originalOption.textContent = originalProject;
+        editProject.add(originalOption);
+      }
+      editProject.value = originalProject;
     }
     document.getElementById('edit-inverter').value = panel.inverter || '';
     document.getElementById('edit-string').value = panel.string_name || '';
@@ -3058,6 +3098,31 @@ class SolarTrackingApp {
 
     document.getElementById('modal-edit-panel').classList.remove('hidden');
     this.refreshIcons();
+  }
+
+  syncEditPanelLocationStatus(changedField) {
+    const projectSelect = document.getElementById('edit-project');
+    const statusSelect = document.getElementById('edit-status');
+    if (!projectSelect || !statusSelect) return;
+
+    const isWarehouseProject = project => String(project || '').trim() === WAREHOUSE_PROJECT_NAME;
+    if (changedField === 'status' && statusSelect.value === 'warehouse') {
+      if (!Array.from(projectSelect.options).some(option => option.value === WAREHOUSE_PROJECT_NAME)) {
+        const warehouseOption = document.createElement('option');
+        warehouseOption.value = WAREHOUSE_PROJECT_NAME;
+        warehouseOption.textContent = WAREHOUSE_PROJECT_NAME;
+        projectSelect.add(warehouseOption);
+      }
+      projectSelect.value = WAREHOUSE_PROJECT_NAME;
+    } else if (changedField === 'status' && isWarehouseProject(projectSelect.value)) {
+      const firstFieldProject = Array.from(projectSelect.options).find(option => option.value && !isWarehouseProject(option.value));
+      if (firstFieldProject) projectSelect.value = firstFieldProject.value;
+    }
+
+    if (changedField === 'project') {
+      statusSelect.value = isWarehouseProject(projectSelect.value) ? 'warehouse'
+        : (statusSelect.value === 'warehouse' ? 'installing' : statusSelect.value);
+    }
   }
 
   closeEditModal() {
