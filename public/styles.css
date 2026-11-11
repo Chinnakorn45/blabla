@@ -480,6 +480,103 @@ body {
   transform: translateY(10px) scale(.98);
 }
 
+/* Clearer responsive layout and lightweight interaction feedback */
+body {
+  background-image:
+    radial-gradient(ellipse at 4% 0%, rgb(219 234 254 / 45%), transparent 34rem),
+    radial-gradient(ellipse at 96% 12%, rgb(209 250 229 / 25%), transparent 30rem);
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  transition-property: color, background-color, border-color, box-shadow, transform;
+  transition-duration: 160ms;
+  transition-timing-function: ease;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid rgb(59 130 246 / 45%);
+  outline-offset: 2px;
+}
+
+.view-panel:not(.hidden) {
+  animation: view-enter 240ms cubic-bezier(.2, .75, .25, 1) both;
+}
+
+.view-panel [class~="cursor-pointer"] {
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.view-panel [class~="cursor-pointer"]:hover {
+  transform: translateY(-2px);
+}
+
+.view-panel [class~="shadow-sm"][class~="border"] {
+  box-shadow: 0 2px 8px rgb(30 64 175 / 4%);
+}
+
+@keyframes view-enter {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 639px) {
+  .page-header-dark > .max-w-5xl {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 11px;
+    padding-top: 11px;
+    padding-bottom: 11px;
+  }
+
+  .page-header-dark > .max-w-5xl > :first-child {
+    justify-content: center;
+  }
+
+  .page-header-dark nav {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: 100%;
+    gap: 4px;
+  }
+
+  .page-header-dark nav button {
+    min-width: 0;
+    min-height: 40px;
+    justify-content: center;
+    padding-right: 5px;
+    padding-left: 5px;
+    font-size: 11px;
+  }
+
+  main {
+    padding-right: 12px !important;
+    padding-left: 12px !important;
+  }
+
+  .action-confirm-dialog {
+    width: min(100%, 420px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 .app-toast-exit {
   opacity: 0;
   transform: translateY(8px) scale(.98);

@@ -260,6 +260,7 @@
             </tbody>
           </table>
         </div>
+        <div id="dashboard-pagination" class="bg-white"></div>
       </div>
     </div>
 
@@ -616,9 +617,8 @@
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <div class="sm:col-span-2">
               <label for="equipment-issue-project" class="mb-1 block text-xs font-semibold text-slate-700">โครงการหน้างาน <span class="text-rose-500">*</span></label>
-              <select id="equipment-issue-project" required class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm">
-                <option value="">-- เลือกโครงการ --</option>
-              </select>
+              <input type="text" id="equipment-issue-project" list="equipment-project-options" required placeholder="ระบุชื่อโครงการ / งาน" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm">
+              <datalist id="equipment-project-options"></datalist>
             </div>
             <div>
               <label for="equipment-issue-date" class="mb-1 block text-xs font-semibold text-slate-700">วันที่เบิก <span class="text-rose-500">*</span></label>
@@ -636,6 +636,7 @@
                 <i data-lucide="plus" class="h-3.5 w-3.5"></i> เพิ่มรายการ
               </button>
             </div>
+            <p class="mb-2 text-[11px] text-slate-500">เลือกอุปกรณ์จากรายการ หรือพิมพ์ชื่อและหน่วยเองได้</p>
             <div id="equipment-issue-lines" class="space-y-2"></div>
           </div>
           <div>

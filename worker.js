@@ -378,7 +378,7 @@ function normalizeEquipmentIssue(payload, catalog, previousItems = []) {
   }
 
   const items = payload.items.map((line) => {
-    const itemId = Number(line?.equipment_id);
+    const itemId = Number(line?.equipment_id) || 0;
     const quantity = Number(line?.quantity);
     const equipment = catalog.find((entry) => Number(entry.id) === itemId);
     const previousItem = previousItems.find((entry) =>
@@ -386,16 +386,18 @@ function normalizeEquipmentIssue(payload, catalog, previousItems = []) {
       entry.name === line?.name &&
       (entry.unit || 'ชิ้น') === (line?.unit || 'ชิ้น')
     );
-    if (!equipment && !previousItem) {
-      throw equipmentError('มีอุปกรณ์ในรายการที่ไม่พบในทะเบียน กรุณาเลือกใหม่');
-    }
+    const name = typeof line?.name === 'string' ? line.name.trim() : '';
+    const unit = typeof line?.unit === 'string' ? line.unit.trim() : '';
+    const resolvedName = name || previousItem?.name || equipment?.name || '';
+    const resolvedUnit = unit || previousItem?.unit || equipment?.unit || 'ชิ้น';
+    if (!resolvedName) throw equipmentError('กรุณาระบุชื่ออุปกรณ์ในรายการ');
     if (!Number.isFinite(quantity) || quantity <= 0 || quantity > 1000000) {
-      throw equipmentError(`จำนวน "${previousItem?.name || equipment?.name}" ต้องมากกว่า 0`);
+      throw equipmentError(`จำนวน "${resolvedName}" ต้องมากกว่า 0`);
     }
     return {
-      equipment_id: itemId,
-      name: previousItem ? previousItem.name : equipment.name,
-      unit: previousItem ? previousItem.unit : (equipment.unit || 'ชิ้น'),
+      equipment_id: itemId > 0 ? itemId : null,
+      name: resolvedName,
+      unit: resolvedUnit,
       quantity
     };
   });

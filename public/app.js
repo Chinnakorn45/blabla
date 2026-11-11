@@ -25,6 +25,9 @@ class SolarTrackingApp {
       project: 'all',
       status: 'all'
     };
+    this.dashboardPage = 1;
+    this.dashboardPageSize = 10;
+    this.dashboardRecordsTotal = 0;
 
     // Database Studio state
     this.selectedIds = new Set();
@@ -821,7 +824,7 @@ class SolarTrackingApp {
     try {
       let stats, panelsData;
       if (this.isMockMode) {
-        const all = this.getMockPanels();
+        let all = this.getMockPanels();
         stats = {
           total: all.length,
           warehouse: all.filter(p => p.status === 'warehouse').length,
@@ -832,9 +835,23 @@ class SolarTrackingApp {
             .filter(p => p.status !== 'warehouse' && p.project_name !== WAREHOUSE_PROJECT_NAME)
             .map(p => p.project_name))].filter(Boolean).length
         };
-        panelsData = { total: all.length, data: all };
+        if (this.filters.search) {
+          const query = this.filters.search.toLowerCase();
+          all = all.filter(panel => [panel.serial_number, panel.project_name, panel.inverter, panel.string_name, panel.technician_name]
+            .some(value => String(value || '').toLowerCase().includes(query)));
+        }
+        if (this.filters.project !== 'all') all = all.filter(panel => panel.project_name === this.filters.project);
+        if (this.filters.status !== 'all') all = all.filter(panel => panel.status === this.filters.status);
+        all.sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at));
+        const total = all.length;
+        const offset = (this.dashboardPage - 1) * this.dashboardPageSize;
+        panelsData = { total, data: all.slice(offset, offset + this.dashboardPageSize) };
       } else {
-        const query = new URLSearchParams(this.filters);
+        const query = new URLSearchParams({
+          ...this.filters,
+          limit: String(this.dashboardPageSize),
+          offset: String((this.dashboardPage - 1) * this.dashboardPageSize)
+        });
         const [statsRes, panelsRes] = await Promise.all([
           fetch('/api/stats'),
           fetch(`/api/panels?${query.toString()}`)
@@ -844,8 +861,14 @@ class SolarTrackingApp {
       }
 
       this.renderStats(stats);
-      this.renderPanelsTable(panelsData.data);
-      this.updateWarehouseStockDatalist(panelsData.data);
+      this.dashboardRecordsTotal = Number(panelsData.total) || 0;
+      const pageCount = Math.max(1, Math.ceil(this.dashboardRecordsTotal / this.dashboardPageSize));
+      if (this.dashboardPage > pageCount) {
+        this.dashboardPage = pageCount;
+        return this.loadDashboardData();
+      }
+      this.renderPanelsTable(panelsData.data, this.dashboardRecordsTotal);
+      this.updateWarehouseStockDatalist();
     } catch (err) {
       console.error('Error loading dashboard data:', err);
     }
@@ -860,7 +883,7 @@ class SolarTrackingApp {
     document.getElementById('stat-projects').textContent = (stats.projects || 0).toLocaleString();
   }
 
-  renderPanelsTable(panels) {
+  renderPanelsTable(panels, total = panels?.length || 0) {
     const tbody = document.getElementById('panels-table-body');
     const cardsContainer = document.getElementById('panels-cards-container');
 
@@ -882,6 +905,7 @@ class SolarTrackingApp {
           </tr>
         `;
       }
+      this.renderDashboardPagination(total);
       this.refreshIcons();
       return;
     }
@@ -901,7 +925,7 @@ class SolarTrackingApp {
               <span class="truncate font-medium">${this.escapeHtml(this.getPanelLocationLabel(p))}</span>
             </div>
             <div class="flex items-center justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-100">
-              <span class="font-mono text-slate-600">${this.escapeHtml(p.inverter || '-')} / ${this.escapeHtml(p.string_name || '-')} (#${p.panel_index || 0})</span>
+              <span class="font-mono text-slate-600">แผงที่ #${p.panel_index || 0} · ${Number(p.wattage) || 0} Wp</span>
               <div class="flex items-center gap-2">
                 <span>${timeStr}</span>
                 <button onclick="app.editPanelBySerial('${this.escapeHtml(p.serial_number)}')" class="p-1 hover:bg-slate-200 rounded text-slate-600" title="แก้ไข">
@@ -936,13 +960,38 @@ class SolarTrackingApp {
       }).join('');
     }
 
+    this.renderDashboardPagination(total);
     this.refreshIcons();
+  }
+
+  renderDashboardPagination(total) {
+    const container = document.getElementById('dashboard-pagination');
+    if (!container) return;
+    const pageCount = Math.max(1, Math.ceil(total / this.dashboardPageSize));
+    const first = total ? (this.dashboardPage - 1) * this.dashboardPageSize + 1 : 0;
+    const last = Math.min(this.dashboardPage * this.dashboardPageSize, total);
+    container.innerHTML = `
+      <div class="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-100 px-4 py-3">
+        <p class="text-xs text-slate-500">แสดง <strong class="text-slate-700">${first}–${last}</strong> จาก ${total.toLocaleString()} รายการ</p>
+        <div class="flex items-center gap-2">
+          <button type="button" onclick="app.changeDashboardPage(-1)" ${this.dashboardPage <= 1 ? 'disabled' : ''} class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">ก่อนหน้า</button>
+          <span class="min-w-16 text-center text-xs font-semibold text-slate-600">${this.dashboardPage} / ${pageCount}</span>
+          <button type="button" onclick="app.changeDashboardPage(1)" ${this.dashboardPage >= pageCount ? 'disabled' : ''} class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">ถัดไป</button>
+        </div>
+      </div>`;
+  }
+
+  changeDashboardPage(direction) {
+    const pageCount = Math.max(1, Math.ceil(this.dashboardRecordsTotal / this.dashboardPageSize));
+    this.dashboardPage = Math.max(1, Math.min(pageCount, this.dashboardPage + direction));
+    this.loadDashboardData();
   }
 
   handleFilterChange() {
     this.filters.search = document.getElementById('filter-search').value.trim();
     this.filters.project = document.getElementById('filter-project').value;
     this.filters.status = document.getElementById('filter-status').value;
+    this.dashboardPage = 1;
     this.loadDashboardData();
   }
 
@@ -1760,6 +1809,27 @@ class SolarTrackingApp {
     }
   }
 
+  async getProjectPanelsForExport(projectName) {
+    let panels;
+    if (this.isMockMode) {
+      panels = this.getMockPanels().filter(panel => panel.project_name === projectName);
+    } else {
+      const query = new URLSearchParams({ project: projectName, limit: '50000' });
+      const response = await fetch(`/api/panels?${query.toString()}`);
+      const result = await response.json();
+      if (!response.ok || result.success === false) {
+        throw new Error(result.error || `โหลดข้อมูลโครงการไม่สำเร็จ (HTTP ${response.status})`);
+      }
+      panels = result.data || [];
+    }
+    return panels.sort((a, b) =>
+      String(a.inverter || '').localeCompare(String(b.inverter || ''), 'th') ||
+      String(a.string_name || '').localeCompare(String(b.string_name || ''), 'th') ||
+      (Number(a.panel_index) || 0) - (Number(b.panel_index) || 0) ||
+      String(a.serial_number || '').localeCompare(String(b.serial_number || ''), 'en')
+    );
+  }
+
   async exportProjectExcel(projectName) {
     if (!projectName) {
       this.showToast('ไม่พบชื่อโครงการสำหรับส่งออก', 'error');
@@ -1767,25 +1837,7 @@ class SolarTrackingApp {
     }
 
     try {
-      let panels;
-      if (this.isMockMode) {
-        panels = this.getMockPanels().filter(panel => panel.project_name === projectName);
-      } else {
-        const query = new URLSearchParams({ project: projectName, limit: '50000' });
-        const response = await fetch(`/api/panels?${query.toString()}`);
-        const result = await response.json();
-        if (!response.ok || result.success === false) {
-          throw new Error(result.error || `โหลดข้อมูลโครงการไม่สำเร็จ (HTTP ${response.status})`);
-        }
-        panels = result.data || [];
-      }
-
-      panels.sort((a, b) =>
-        String(a.inverter || '').localeCompare(String(b.inverter || ''), 'th') ||
-        String(a.string_name || '').localeCompare(String(b.string_name || ''), 'th') ||
-        (Number(a.panel_index) || 0) - (Number(b.panel_index) || 0) ||
-        String(a.serial_number || '').localeCompare(String(b.serial_number || ''), 'en')
-      );
+      const panels = await this.getProjectPanelsForExport(projectName);
 
       const models = new Map();
       panels.forEach(panel => {
@@ -1859,6 +1911,75 @@ class SolarTrackingApp {
     } catch (error) {
       console.error('Project Excel export failed:', error);
       this.showToast(`ส่งออกรายงานไม่สำเร็จ: ${error.message}`, 'error');
+    }
+  }
+
+  async exportProjectPdf(projectName) {
+    if (!projectName) {
+      this.showToast('ไม่พบชื่อโครงการสำหรับส่งออก', 'error');
+      return;
+    }
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      this.showToast('เบราว์เซอร์บล็อกหน้าต่าง PDF กรุณาอนุญาตป๊อปอัปแล้วลองอีกครั้ง', 'warning');
+      return;
+    }
+
+    printWindow.document.write('<!doctype html><html lang="th"><head><meta charset="utf-8"><title>กำลังเตรียมรายงาน</title></head><body style="font-family:sans-serif;padding:24px">กำลังเตรียมรายงาน PDF...</body></html>');
+    printWindow.document.close();
+
+    try {
+      const panels = await this.getProjectPanelsForExport(projectName);
+      const exportedAt = new Date();
+      const safeName = projectName.replace(/[<>:"/\\|?*\x00-\x1f]/g, '_').trim().replace(/\s+/g, '_') || 'project';
+      const rows = panels.map((panel, index) => `
+        <tr>
+          <td class="number">${index + 1}</td>
+          <td class="serial">${this.escapeHtml(panel.serial_number || '')}</td>
+          <td>${this.escapeHtml(panel.brand_model || 'ไม่ระบุรุ่น')}</td>
+          <td class="number">${Number(panel.wattage) || 0}</td>
+          <td>${this.escapeHtml(this.translateStatus(panel.status))}</td>
+        </tr>`).join('');
+
+      printWindow.document.open();
+      printWindow.document.write(`<!doctype html>
+        <html lang="th"><head><meta charset="utf-8"><title>SolarTrack_${this.escapeHtml(safeName)}_${exportedAt.toISOString().slice(0, 10)}</title>
+        <style>
+          @page{size:A4 portrait;margin:14mm}
+          *{box-sizing:border-box}
+          body{font-family:Tahoma,Arial,sans-serif;color:#172033;font-size:10pt;margin:0}
+          h1{font-size:18pt;margin:0 0 5px}
+          .meta{color:#64748b;font-size:9pt;margin-bottom:16px}
+          .summary{display:flex;gap:10px;margin-bottom:18px}
+          .summary div{border:1px solid #cbd5e1;border-radius:6px;padding:9px 12px;min-width:150px}
+          .summary span{display:block;color:#64748b;font-size:8pt;margin-bottom:3px}
+          .summary strong{font-size:13pt}
+          table{width:100%;border-collapse:collapse}
+          th,td{border:1px solid #cbd5e1;padding:6px 7px;text-align:left}
+          th{background:#e2e8f0;font-weight:bold}
+          tbody tr:nth-child(even){background:#f8fafc}
+          .number{text-align:right;white-space:nowrap}
+          .serial{font-family:Consolas,monospace;white-space:nowrap}
+          thead{display:table-header-group}
+          tr{break-inside:avoid}
+          .empty{text-align:center;color:#64748b;padding:20px}
+          @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+        </style></head><body>
+          <h1>รายงานแผงโซลาร์เซลล์ประจำโครงการ</h1>
+          <div class="meta">โครงการ: <strong>${this.escapeHtml(projectName)}</strong> · ส่งออกเมื่อ ${this.escapeHtml(exportedAt.toLocaleString('th-TH'))}</div>
+          <div class="summary"><div><span>จำนวนแผง</span><strong>${panels.length.toLocaleString('th-TH')} แผง</strong></div><div><span>จำนวนรุ่น</span><strong>${new Set(panels.map(panel => panel.brand_model || 'ไม่ระบุรุ่น')).size.toLocaleString('th-TH')} รุ่น</strong></div></div>
+          <table><thead><tr><th>ลำดับ</th><th>Serial Number (SN)</th><th>ยี่ห้อ / รุ่น</th><th>กำลัง (Wp)</th><th>สถานะ</th></tr></thead>
+          <tbody>${rows || '<tr><td class="empty" colspan="5">ยังไม่มีข้อมูลแผงในโครงการนี้</td></tr>'}</tbody></table>
+        </body></html>`);
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => printWindow.print(), 400);
+      this.showToast(`เตรียมรายงาน PDF โครงการ ${projectName} แล้ว เลือกบันทึกเป็น PDF ในหน้าต่างพิมพ์`, 'success');
+    } catch (error) {
+      printWindow.close();
+      console.error('Project PDF export failed:', error);
+      this.showToast(`ส่งออกรายงาน PDF ไม่สำเร็จ: ${error.message}`, 'error');
     }
   }
 
@@ -2158,7 +2279,7 @@ class SolarTrackingApp {
     const filterSelect = document.getElementById('db-filter-project');
     const batchSelect = document.getElementById('batch-project-select');
     const editSelect = document.getElementById('edit-project');
-    const equipmentProjectSelect = document.getElementById('equipment-issue-project');
+    const equipmentProjectOptions = document.getElementById('equipment-project-options');
     const dongleProjectSelect = document.getElementById('dongle-issue-project');
 
     const optionsHtml = projects.map(p => `<option value="${this.escapeHtml(p)}">${this.escapeHtml(p)}</option>`).join('');
@@ -2172,9 +2293,7 @@ class SolarTrackingApp {
     if (editSelect) {
       editSelect.innerHTML = optionsHtml;
     }
-    if (equipmentProjectSelect) {
-      equipmentProjectSelect.innerHTML = `<option value="">-- เลือกโครงการ --</option>` + optionsHtml;
-    }
+    if (equipmentProjectOptions) equipmentProjectOptions.innerHTML = optionsHtml;
     if (dongleProjectSelect) {
       dongleProjectSelect.innerHTML = `<option value="">-- เลือกโครงการ --</option>` + optionsHtml;
     }
@@ -2546,27 +2665,61 @@ class SolarTrackingApp {
           ${this.escapeHtml(item.name)} (${this.escapeHtml(item.unit || 'ชิ้น')})
         </option>`).join('');
       return `
-        <div class="equipment-issue-line grid grid-cols-[minmax(0,1fr)_100px_40px] sm:grid-cols-[minmax(0,1fr)_130px_40px] gap-2 items-center">
+        <div class="equipment-issue-line grid grid-cols-[minmax(0,1fr)_72px_72px_36px] sm:grid-cols-[minmax(0,1fr)_100px_110px_40px] gap-2 items-center">
           <select required aria-label="อุปกรณ์รายการ ${index + 1}" class="equipment-line-select w-full text-sm px-3 py-2.5 bg-white border border-slate-300 rounded-xl">
             <option value="">-- เลือกอุปกรณ์ --</option>${oldItemOption}${options}
           </select>
-          <input type="number" min="0.01" step="any" required value="${this.escapeHtml(line.quantity ?? '')}" aria-label="จำนวนรายการ ${index + 1}" placeholder="จำนวน" class="equipment-line-quantity w-full text-sm px-3 py-2.5 bg-white border border-slate-300 rounded-xl">
+          <input type="number" min="0.01" step="any" required value="${this.escapeHtml(line.quantity ?? 1)}" aria-label="จำนวนรายการ ${index + 1}" placeholder="จำนวน" class="equipment-line-quantity w-full text-sm px-2 py-2.5 bg-white border border-slate-300 rounded-xl">
           <button type="button" onclick="app.removeEquipmentIssueLine(this)" class="w-10 h-10 rounded-xl text-rose-600 hover:bg-rose-50 flex items-center justify-center" aria-label="ลบรายการอุปกรณ์">
             <i data-lucide="x" class="w-4 h-4"></i>
           </button>
         </div>`;
     }).join('');
+    Array.from(container.querySelectorAll('.equipment-issue-line')).forEach((row, index) => {
+      const select = row.querySelector('.equipment-line-select');
+      const quantity = row.querySelector('.equipment-line-quantity');
+      const line = lines[index] || {};
+      const selectedOption = select?.options[select.selectedIndex];
+      if (select) {
+        select.required = false;
+        select.classList.add('col-span-full');
+        select.addEventListener('change', () => this.fillEquipmentIssueLine(select));
+      }
+
+      const nameInput = document.createElement('input');
+      nameInput.type = 'text';
+      nameInput.value = line.name || selectedOption?.dataset.name || '';
+      nameInput.placeholder = 'ชื่ออุปกรณ์';
+      nameInput.setAttribute('aria-label', `ชื่ออุปกรณ์รายการ ${index + 1}`);
+      nameInput.className = 'equipment-line-name min-w-0 w-full text-sm px-3 py-2.5 bg-white border border-slate-300 rounded-xl';
+      if (select) select.insertAdjacentElement('afterend', nameInput);
+
+      const unitInput = document.createElement('input');
+      unitInput.type = 'text';
+      unitInput.value = line.unit || selectedOption?.dataset.unit || 'ชิ้น';
+      unitInput.placeholder = 'หน่วย';
+      unitInput.setAttribute('aria-label', `หน่วยรายการ ${index + 1}`);
+      unitInput.className = 'equipment-line-unit min-w-0 w-full text-sm px-2 py-2.5 bg-white border border-slate-300 rounded-xl';
+      if (quantity) quantity.insertAdjacentElement('afterend', unitInput);
+    });
     this.refreshIcons();
+  }
+
+  fillEquipmentIssueLine(select) {
+    const option = select?.options[select.selectedIndex];
+    const row = select?.closest('.equipment-issue-line');
+    if (!row || !option?.value) return;
+    row.querySelector('.equipment-line-name').value = option.dataset.name || '';
+    row.querySelector('.equipment-line-unit').value = option.dataset.unit || 'ชิ้น';
   }
 
   addEquipmentIssueLine(item = {}) {
     const currentItems = Array.from(document.querySelectorAll('#equipment-issue-lines .equipment-issue-line')).map(row => {
       const select = row.querySelector('.equipment-line-select');
-      const selectedOption = select.options[select.selectedIndex];
       return {
-        equipment_id: select.value,
-        name: selectedOption?.dataset.name || '',
-        unit: selectedOption?.dataset.unit || 'ชิ้น',
+        equipment_id: select.value || null,
+        name: row.querySelector('.equipment-line-name').value.trim(),
+        unit: row.querySelector('.equipment-line-unit').value.trim(),
         quantity: row.querySelector('.equipment-line-quantity').value
       };
     });
@@ -2662,15 +2815,14 @@ class SolarTrackingApp {
     const rows = Array.from(document.querySelectorAll('#equipment-issue-lines .equipment-issue-line'));
     const items = rows.map(row => {
       const select = row.querySelector('.equipment-line-select');
-      const option = select.options[select.selectedIndex];
       return {
-        equipment_id: select.value,
-        name: option?.dataset.name || '',
-        unit: option?.dataset.unit || 'ชิ้น',
+        equipment_id: select.value || null,
+        name: row.querySelector('.equipment-line-name').value.trim(),
+        unit: row.querySelector('.equipment-line-unit').value.trim(),
         quantity: Number(row.querySelector('.equipment-line-quantity').value)
       };
-    });
-    if (!items.length || items.some(item => !item.equipment_id || !Number.isFinite(item.quantity) || item.quantity <= 0)) {
+    }).filter(item => item.name);
+    if (!items.length || items.some(item => !item.unit || !Number.isFinite(item.quantity) || item.quantity <= 0)) {
       this.showToast('กรุณาเลือกอุปกรณ์และระบุจำนวนให้ครบทุกบรรทัด', 'warning');
       return;
     }
@@ -2689,14 +2841,17 @@ class SolarTrackingApp {
     try {
       if (this.isMockMode) {
         const normalizedItems = items.map(line => {
-          const catalogItem = this.equipmentCatalog.find(item => String(item.id) === String(line.equipment_id));
-          const previousItem = issueId
-            ? this.equipmentIssues.find(issue => String(issue.id) === issueId)?.items?.find(item => String(item.equipment_id) === String(line.equipment_id))
+          const catalogItem = line.equipment_id
+            ? this.equipmentCatalog.find(item => String(item.id) === String(line.equipment_id))
             : null;
-          const usePreviousSnapshot = previousItem && previousItem.name === line.name && (previousItem.unit || 'ชิ้น') === line.unit;
-          const item = usePreviousSnapshot ? previousItem : catalogItem;
-          if (!item) throw new Error('มีอุปกรณ์ในรายการที่ไม่พบในทะเบียน');
-          return { equipment_id: Number(line.equipment_id), name: item.name, unit: item.unit || 'ชิ้น', quantity: line.quantity };
+          const previousItem = issueId
+            ? this.equipmentIssues.find(issue => String(issue.id) === issueId)?.items?.find(item =>
+              String(item.equipment_id || '') === String(line.equipment_id || '') && item.name === line.name)
+            : null;
+          const name = line.name || previousItem?.name || catalogItem?.name || '';
+          const unit = line.unit || previousItem?.unit || catalogItem?.unit || 'ชิ้น';
+          if (!name) throw new Error('กรุณาระบุชื่ออุปกรณ์');
+          return { equipment_id: line.equipment_id ? Number(line.equipment_id) : null, name, unit, quantity: line.quantity };
         });
         const now = new Date().toISOString();
         const existing = this.equipmentIssues.find(issue => String(issue.id) === issueId);
@@ -2864,8 +3019,8 @@ class SolarTrackingApp {
                 <span>${this.escapeHtml(this.getPanelLocationLabel(p))}</span>
               </div>
               <div class="text-[10px] text-slate-500">รับเข้า ${receivedDate} · ย้าย/จ่ายออก ${movedDate}</div>
-              <div class="text-[11px] text-slate-500 flex items-center justify-between pt-1 border-t border-slate-100">
-                <span class="font-mono">${this.escapeHtml(p.inverter || '-')} / ${this.escapeHtml(p.string_name || '-')} (#${p.panel_index || 0})</span>
+              <div class="text-[11px] text-slate-500 flex items-center justify-between gap-2 pt-1 border-t border-slate-100">
+                <span class="truncate">${this.escapeHtml(p.brand_model || '-')} · ${Number(p.wattage) || 0} Wp</span>
                 <div class="flex items-center gap-1.5">
                   <button onclick="app.openEditModal(${p.id})" class="p-1 hover:bg-slate-200 rounded text-slate-600" title="แก้ไข">
                     <i data-lucide="edit-2" class="w-3.5 h-3.5"></i>
@@ -3347,10 +3502,10 @@ class SolarTrackingApp {
                   <div class="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0">
                     <i data-lucide="folder-check" class="w-5 h-5"></i>
                   </div>
-                  <div class="min-w-0">
-                    <h4 class="font-bold text-sm sm:text-base text-slate-900 truncate" title="${this.escapeHtml(proj.name)}">${this.escapeHtml(proj.name)}</h4>
+                  <div class="min-w-0 flex-1">
+                    <h4 class="font-bold text-sm sm:text-base text-slate-900 break-words" title="${this.escapeHtml(proj.name)}">${this.escapeHtml(proj.name)}</h4>
                     <div class="flex items-center gap-1.5 text-[11px] text-slate-500 flex-wrap mt-0.5">
-                      <span class="inline-flex items-center gap-0.5 text-slate-600"><i data-lucide="map-pin" class="w-3 h-3 text-slate-400"></i> ${this.escapeHtml(locationText)}</span>
+                      <span class="inline-flex min-w-0 items-start gap-0.5 text-slate-600 break-words"><i data-lucide="map-pin" class="w-3 h-3 text-slate-400 shrink-0 mt-0.5"></i> <span class="min-w-0 break-words">${this.escapeHtml(locationText)}</span></span>
                       <span>โ€ข</span>
                       <span>ติดตั้งจริง: <strong class="text-slate-800">${kwp} kWp</strong></span>
                       ${targetKwp ? `<span class="text-slate-400 font-medium">/ เป้า ${targetKwp} kWp</span>` : ''}
@@ -3361,7 +3516,7 @@ class SolarTrackingApp {
               </div>
 
               <div class="space-y-1">
-                <div class="flex justify-between text-[11px] text-slate-500 font-medium">
+                <div class="flex flex-wrap justify-between gap-x-2 gap-y-0.5 text-[11px] text-slate-500 font-medium">
                   <span>ติดตั้งแล้ว: <strong class="text-slate-800">${installed}</strong> / ${total} แผง</span>
                   <span>${pct}% เสร็จสิ้น</span>
                 </div>
@@ -3390,18 +3545,21 @@ class SolarTrackingApp {
               </div>
             </div>
 
-            <div class="pt-2 flex items-center justify-between gap-1.5 border-t border-slate-100 text-xs">
-              <button onclick="app.filterByProjectAndShow('${this.escapeHtml(proj.name)}')" class="touch-press flex-1 py-1.5 px-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg flex items-center justify-center gap-1">
+            <div class="pt-2 grid grid-cols-2 gap-2 border-t border-slate-100 text-xs">
+              <button onclick="app.filterByProjectAndShow('${this.escapeHtml(proj.name)}')" class="touch-press col-span-2 min-w-0 py-2 px-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg flex items-center justify-center gap-1">
                 <i data-lucide="eye" class="w-3.5 h-3.5 text-slate-500"></i> ดูแผง
               </button>
-              <button onclick="app.exportProjectExcel(this.dataset.project)" data-project="${this.escapeHtml(proj.name)}" class="touch-press flex-1 py-1.5 px-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-medium rounded-lg flex items-center justify-center gap-1">
+              <button onclick="app.exportProjectExcel(this.dataset.project)" data-project="${this.escapeHtml(proj.name)}" class="touch-press min-w-0 py-2 px-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-medium rounded-lg flex items-center justify-center gap-1 whitespace-nowrap">
                 <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5"></i> Excel
               </button>
-              <button onclick="app.openEditProjectModal('${this.escapeHtml(proj.name)}')" class="touch-press py-1.5 px-3 bg-blue-50 hover:bg-blue-100 text-blue-700 font-medium rounded-lg flex items-center gap-1">
+              <button onclick="app.exportProjectPdf(this.dataset.project)" data-project="${this.escapeHtml(proj.name)}" class="touch-press min-w-0 py-2 px-2 bg-rose-50 hover:bg-rose-100 text-rose-700 font-medium rounded-lg flex items-center justify-center gap-1 whitespace-nowrap">
+                <i data-lucide="file-text" class="w-3.5 h-3.5"></i> PDF
+              </button>
+              <button onclick="app.openEditProjectModal('${this.escapeHtml(proj.name)}')" class="touch-press min-w-0 py-2 px-2 bg-blue-50 hover:bg-blue-100 text-blue-700 font-medium rounded-lg flex items-center justify-center gap-1 whitespace-nowrap">
                 <i data-lucide="edit-2" class="w-3.5 h-3.5"></i> แก้ไข
               </button>
               ${proj.name === 'คลังสินค้ากลาง (Central Warehouse)' ? '' : `
-              <button onclick="app.openDeleteProjectModal('${this.escapeHtml(proj.name)}', ${total})" class="touch-press py-1.5 px-3 bg-rose-50 hover:bg-rose-100 text-rose-600 font-medium rounded-lg flex items-center gap-1">
+              <button onclick="app.openDeleteProjectModal('${this.escapeHtml(proj.name)}', ${total})" class="touch-press min-w-0 py-2 px-2 bg-rose-50 hover:bg-rose-100 text-rose-600 font-medium rounded-lg flex items-center justify-center gap-1 whitespace-nowrap">
                 <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> ลบ
               </button>
               `}
