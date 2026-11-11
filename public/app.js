@@ -883,6 +883,58 @@ class SolarTrackingApp {
     document.getElementById('stat-projects').textContent = (stats.projects || 0).toLocaleString();
   }
 
+  async openWarehouseModelStockModal() {
+    const modal = document.getElementById('warehouse-model-stock-modal');
+    const list = document.getElementById('warehouse-model-stock-list');
+    const totalLabel = document.getElementById('warehouse-model-stock-total');
+    if (!modal || !list || !totalLabel) return;
+
+    modal.classList.remove('hidden');
+    list.innerHTML = '<div class="py-8 text-center text-sm text-slate-500">กำลังโหลดสต๊อก...</div>';
+    totalLabel.textContent = 'กำลังโหลดข้อมูล...';
+    try {
+      let panels;
+      if (this.isMockMode) {
+        panels = this.getMockPanels();
+      } else {
+        const result = await this.requestJson('/api/panels?status=warehouse&limit=10000');
+        panels = Array.isArray(result.data) ? result.data : [];
+      }
+
+      const stock = new Map();
+      panels
+        .filter(panel => panel && (panel.status === 'warehouse' || panel.project_name === WAREHOUSE_PROJECT_NAME))
+        .forEach(panel => {
+          const model = String(panel.brand_model || '').trim() || 'ไม่ระบุรุ่น';
+          const row = stock.get(model) || { count: 0, wattages: new Set() };
+          row.count++;
+          if (Number(panel.wattage)) row.wattages.add(Number(panel.wattage));
+          stock.set(model, row);
+        });
+
+      const entries = [...stock.entries()].sort(([a], [b]) => a.localeCompare(b, 'th'));
+      const total = entries.reduce((sum, [, row]) => sum + row.count, 0);
+      totalLabel.textContent = `${total.toLocaleString('th-TH')} แผง · ${entries.length.toLocaleString('th-TH')} รุ่น`;
+      list.innerHTML = entries.length ? entries.map(([model, row]) => `
+        <div class="flex items-center justify-between gap-3 rounded-xl border border-slate-200 px-3.5 py-3">
+          <div class="min-w-0">
+            <div class="break-words text-sm font-semibold text-slate-800">${this.escapeHtml(model)}</div>
+            <div class="mt-0.5 text-xs text-slate-500">${[...row.wattages].sort((a, b) => a - b).map(wattage => `${wattage} Wp`).join(' / ') || 'ไม่ระบุกำลัง'}</div>
+          </div>
+          <span class="shrink-0 rounded-full bg-emerald-50 px-3 py-1 text-sm font-bold text-emerald-700">${row.count.toLocaleString('th-TH')} แผง</span>
+        </div>`).join('') : '<div class="py-8 text-center text-sm text-slate-500">ไม่มีแผงอยู่ในสต๊อก</div>';
+      this.refreshIcons();
+    } catch (error) {
+      list.innerHTML = '<div class="py-8 text-center text-sm text-rose-600">โหลดสต๊อกไม่สำเร็จ กรุณาลองอีกครั้ง</div>';
+      totalLabel.textContent = 'โหลดข้อมูลไม่สำเร็จ';
+      this.showToast(`โหลดสต๊อกแยกรุ่นไม่สำเร็จ: ${error.message}`, 'error');
+    }
+  }
+
+  closeWarehouseModelStockModal() {
+    document.getElementById('warehouse-model-stock-modal')?.classList.add('hidden');
+  }
+
   renderPanelsTable(panels, total = panels?.length || 0) {
     const tbody = document.getElementById('panels-table-body');
     const cardsContainer = document.getElementById('panels-cards-container');
@@ -3297,7 +3349,16 @@ class SolarTrackingApp {
     document.getElementById('edit-index').value = panel.panel_index || 0;
     document.getElementById('edit-status').value = panel.status;
     document.getElementById('edit-wattage').value = panel.wattage || 550;
-    document.getElementById('edit-brand').value = panel.brand_model || '';
+    const editBrand = document.getElementById('edit-brand');
+    const currentModel = String(panel.brand_model || '').trim();
+    const registeredModels = appSettings.getBrandEntries();
+    editBrand.innerHTML = '<option value="">-- เลือกรุ่นจากรายการในระบบ --</option>' +
+      registeredModels.map(brand => `<option value="${this.escapeHtml(brand.name)}">${this.escapeHtml(brand.name)} (${Number(brand.wattage) || 0} Wp)</option>`).join('');
+    if (currentModel && !registeredModels.some(brand => brand.name === currentModel)) {
+      editBrand.insertAdjacentHTML('beforeend', `<option value="${this.escapeHtml(currentModel)}">${this.escapeHtml(currentModel)} (รุ่นเดิม · ไม่มีในรายการตั้งค่า)</option>`);
+    }
+    editBrand.value = currentModel;
+    editBrand.dataset.originalModel = currentModel;
     document.getElementById('edit-technician').value = panel.technician_name || '';
     document.getElementById('edit-notes').value = panel.notes || '';
 
@@ -3336,6 +3397,8 @@ class SolarTrackingApp {
 
   async handleSaveEditPanel(e) {
     e.preventDefault();
+    const editBrand = document.getElementById('edit-brand');
+    const previousModel = (editBrand.dataset.originalModel || '').trim();
     const payload = {
       id: parseInt(document.getElementById('edit-id').value, 10),
       serial_number: document.getElementById('edit-serial').value,
@@ -3345,11 +3408,29 @@ class SolarTrackingApp {
       panel_index: parseInt(document.getElementById('edit-index').value, 10) || 0,
       status: document.getElementById('edit-status').value,
       wattage: parseInt(document.getElementById('edit-wattage').value, 10) || 550,
-      brand_model: document.getElementById('edit-brand').value.trim() || 'Standard Tier-1 Solar',
+      brand_model: editBrand.value.trim() || previousModel,
       technician_name: document.getElementById('edit-technician').value.trim() || 'ช่างตรวจ',
       notes: document.getElementById('edit-notes').value.trim(),
       scanned_mode: 'database-edit'
     };
+
+    const modelChanged = payload.brand_model !== previousModel;
+    const registeredModels = appSettings.getBrands();
+    if (modelChanged && !registeredModels.includes(payload.brand_model)) {
+      this.showToast('กรุณาเลือกรุ่นแผงจากรายการที่ตั้งค่าไว้ในระบบ', 'warning');
+      editBrand.focus();
+      return;
+    }
+
+    if (modelChanged) {
+      const confirmed = await this.confirmAction({
+        title: 'ยืนยันเปลี่ยนรุ่นแผง',
+        message: `ต้องการเปลี่ยนรุ่นแผง SN ${payload.serial_number} จาก "${previousModel || 'ไม่ระบุรุ่น'}" เป็น "${payload.brand_model}" หรือไม่? ยอดสต๊อกแยกรุ่นจะปรับตามรุ่นใหม่`,
+        confirmText: 'ยืนยันเปลี่ยนรุ่น',
+        tone: 'primary'
+      });
+      if (!confirmed) return;
+    }
 
     try {
       if (this.isMockMode) {
