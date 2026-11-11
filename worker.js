@@ -233,11 +233,15 @@ async function handleApi(request, env, url) {
     return json(await store.addDongles((await request.json())?.dongles), 201);
   }
 
-  const donglePath = path.match(/^\/api\/dongles\/(\d+)\/(issue|return)$/);
+  const donglePath = path.match(/^\/api\/dongles\/(\d+)\/(issue|return|status)$/);
   if (donglePath && method === 'PUT') {
     const [, id, action] = donglePath;
     if (action === 'issue') {
       return json(await store.issueDongle(id, await request.json()));
+    }
+    if (action === 'status') {
+      const body = await request.json().catch(() => ({}));
+      return json(await store.setDongleStatus(id, body?.status));
     }
     return json(await store.returnDongleToStock(id));
   }
@@ -940,6 +944,29 @@ class DataStore {
       throw dongleError(`SN ${dongle.serial_number} อยู่ในสต๊อกแล้ว`, 409);
     }
     dongle.status = 'warehouse';
+    dongle.updated_at = new Date().toISOString();
+    await this.save();
+    return { success: true, dongle };
+  }
+
+  async setDongleStatus(id, nextStatus) {
+    const dongleId = Number(id);
+    if (!Number.isSafeInteger(dongleId) || dongleId <= 0) {
+      throw dongleError('รหัสดองเกิ้ลไม่ถูกต้อง');
+    }
+    if (!['damaged', 'warehouse'].includes(nextStatus)) {
+      throw dongleError('สถานะดองเกิ้ลไม่ถูกต้อง');
+    }
+
+    const allowedCurrentStatuses = nextStatus === 'damaged' ? ['warehouse', 'issued'] : ['damaged'];
+    const memory = await this.load();
+    const dongle = memory.dongles.find((item) => Number(item.id) === dongleId);
+    if (!dongle) throw dongleError('ไม่พบข้อมูลดองเกิ้ล');
+    if (!allowedCurrentStatuses.includes(dongle.status)) {
+      throw dongleError(`ไม่สามารถเปลี่ยนสถานะ SN ${dongle.serial_number} จาก ${dongle.status} เป็น ${nextStatus} ได้`, 409);
+    }
+
+    dongle.status = nextStatus;
     dongle.updated_at = new Date().toISOString();
     await this.save();
     return { success: true, dongle };
