@@ -2489,7 +2489,7 @@ class SolarTrackingApp {
         <tr class="border-b border-slate-100 last:border-0 hover:bg-slate-50/70">
           <td class="px-4 py-3 text-xs font-mono font-semibold text-slate-800">${this.escapeHtml(dongle.serial_number)}</td>
           <td class="px-4 py-3 text-xs text-slate-700">${this.escapeHtml(dongle.model)}</td>
-          <td class="px-4 py-3"><span class="rounded-full px-2 py-1 text-[10px] font-bold ${status.classes}">${status.label}</span></td>
+          <td class="min-w-[88px] whitespace-nowrap px-4 py-3"><span class="inline-flex whitespace-nowrap rounded-full px-2 py-1 text-[10px] font-bold ${status.classes}">${status.label}</span></td>
           <td class="px-4 py-3 text-xs text-slate-700">${this.escapeHtml(dongle.project_name || '-')}</td>
           <td class="px-4 py-3 text-xs text-slate-700">${this.escapeHtml(dongle.responsible || '-')}</td>
           <td class="px-4 py-3 text-xs text-slate-600 whitespace-nowrap">${this.escapeHtml(dongle.issued_at || '-')}</td>
@@ -2502,7 +2502,7 @@ class SolarTrackingApp {
           <tr>
             <th class="px-4 py-3">Serial Number</th>
             <th class="px-4 py-3">รุ่น</th>
-            <th class="px-4 py-3">สถานะ</th>
+            <th class="min-w-[88px] whitespace-nowrap px-4 py-3">สถานะ</th>
             <th class="px-4 py-3">โครงการล่าสุด</th>
             <th class="px-4 py-3">ผู้รับผิดชอบล่าสุด</th>
             <th class="px-4 py-3">วันที่เบิกล่าสุด</th>
