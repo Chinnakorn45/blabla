@@ -63,8 +63,8 @@ app.get('/api/stats', async (req, res) => {
 // List / Filter Panels
 app.get('/api/panels', async (req, res) => {
   try {
-    const { search, project, status, limit, offset } = req.query;
-    const result = await db.getPanels({ search, project, status, limit, offset });
+    const { search, project, status, received_from, received_to, moved_from, moved_to, limit, offset } = req.query;
+    const result = await db.getPanels({ search, project, status, received_from, received_to, moved_from, moved_to, limit, offset });
     res.json({ success: true, ...result });
   } catch (err) {
     console.error('Error listing panels:', err);

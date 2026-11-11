@@ -103,7 +103,8 @@ function setupTables() {
           notes TEXT,
           scanned_mode TEXT DEFAULT 'warehouse',
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          moved_at DATETIME
         )
       `);
 
@@ -161,8 +162,17 @@ function setupTables() {
           memoryStore.equipmentIssues ||= [];
           memoryStore.dongles ||= [];
           saveJsonStore();
+          resolve();
+          return;
         }
-        resolve();
+        db.all('PRAGMA table_info(panels)', (pragmaErr, columns) => {
+          if (pragmaErr) return reject(pragmaErr);
+          if (columns.some(column => column.name === 'moved_at')) return resolve();
+          db.run('ALTER TABLE panels ADD COLUMN moved_at DATETIME', alterErr => {
+            if (alterErr) return reject(alterErr);
+            resolve();
+          });
+        });
       });
     });
   });
@@ -210,8 +220,18 @@ function getStats() {
   });
 }
 
+function getThaiDateBoundary(date, nextDay = false) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date || ''))) return null;
+  const [year, month, day] = date.split('-').map(Number);
+  return new Date(Date.UTC(year, month - 1, day + (nextDay ? 1 : 0), -7)).toISOString().slice(0, 19).replace('T', ' ');
+}
+
 function getPanels(filters = {}) {
-  const { search, project, status, limit = 50, offset = 0 } = filters;
+  const { search, project, status, received_from, received_to, moved_from, moved_to, limit = 50, offset = 0 } = filters;
+  const receivedStart = getThaiDateBoundary(received_from);
+  const receivedEnd = getThaiDateBoundary(received_to, true);
+  const movedStart = getThaiDateBoundary(moved_from);
+  const movedEnd = getThaiDateBoundary(moved_to, true);
 
   if (useJsonStore) {
     let result = [...memoryStore.panels];
@@ -231,6 +251,16 @@ function getPanels(filters = {}) {
     if (status && status !== 'all') {
       result = result.filter(p => p.status === status);
     }
+    const withinRange = (value, start, end) => {
+      if (!start && !end) return true;
+      if (!value) return false;
+      const timestamp = new Date(value).getTime();
+      if (!Number.isFinite(timestamp)) return false;
+      return (!start || timestamp >= new Date(`${start.replace(' ', 'T')}Z`).getTime()) &&
+        (!end || timestamp < new Date(`${end.replace(' ', 'T')}Z`).getTime());
+    };
+    if (receivedStart || receivedEnd) result = result.filter(p => withinRange(p.created_at, receivedStart, receivedEnd));
+    if (movedStart || movedEnd) result = result.filter(p => withinRange(p.moved_at || (p.status !== 'warehouse' ? p.updated_at : null), movedStart, movedEnd));
     result.sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at));
     const paginated = result.slice(Number(offset), Number(offset) + Number(limit));
     return Promise.resolve({ total: result.length, data: paginated });
@@ -252,6 +282,23 @@ function getPanels(filters = {}) {
     if (status && status !== 'all') {
       whereClause.push(`status = ?`);
       params.push(status);
+    }
+    if (receivedStart) {
+      whereClause.push(`created_at >= ?`);
+      params.push(receivedStart);
+    }
+    if (receivedEnd) {
+      whereClause.push(`created_at < ?`);
+      params.push(receivedEnd);
+    }
+    const movedAtExpr = `COALESCE(moved_at, CASE WHEN status != 'warehouse' THEN updated_at END)`;
+    if (movedStart) {
+      whereClause.push(`${movedAtExpr} >= ?`);
+      params.push(movedStart);
+    }
+    if (movedEnd) {
+      whereClause.push(`${movedAtExpr} < ?`);
+      params.push(movedEnd);
     }
 
     const whereStr = whereClause.length ? `WHERE ${whereClause.join(' AND ')}` : '';
@@ -337,8 +384,12 @@ function savePanel(panelData, { requireWarehouseStock = false } = {}) {
     let record;
     if (idx >= 0) {
       // Update existing
+      const current = memoryStore.panels[idx];
+      const movedAt = current.project_name !== project_name || (current.status === 'warehouse' && status !== 'warehouse')
+        ? now
+        : current.moved_at || null;
       record = {
-        ...memoryStore.panels[idx],
+        ...current,
         project_name,
         inverter,
         string_name,
@@ -351,6 +402,7 @@ function savePanel(panelData, { requireWarehouseStock = false } = {}) {
         gps_lng: replaceGps ? (gps_lng ? Number(gps_lng) : null) : (gps_lng ? Number(gps_lng) : memoryStore.panels[idx].gps_lng),
         notes,
         scanned_mode,
+        moved_at: movedAt,
         updated_at: now
       };
       memoryStore.panels[idx] = record;
@@ -372,6 +424,7 @@ function savePanel(panelData, { requireWarehouseStock = false } = {}) {
         notes,
         scanned_mode,
         created_at: now,
+        moved_at: status === 'warehouse' ? null : now,
         updated_at: now
       };
       memoryStore.panels.unshift(record);
@@ -413,6 +466,7 @@ function savePanel(panelData, { requireWarehouseStock = false } = {}) {
             gps_lng = ${replaceGps ? '?' : 'COALESCE(?, gps_lng)'},
             notes = ?,
             scanned_mode = ?,
+            moved_at = CASE WHEN project_name != ? OR (status = 'warehouse' AND ? != 'warehouse') THEN CURRENT_TIMESTAMP ELSE moved_at END,
             updated_at = CURRENT_TIMESTAMP
           ${updateCondition}
         `;
@@ -420,7 +474,7 @@ function savePanel(panelData, { requireWarehouseStock = false } = {}) {
           project_name, inverter, string_name, Number(panel_index),
           requireWarehouseStock && !isWarehouse ? row.brand_model : brand_model,
           requireWarehouseStock && !isWarehouse ? row.wattage : Number(wattage),
-          status, technician_name, gps_lat, gps_lng, notes, scanned_mode, row.id
+          status, technician_name, gps_lat, gps_lng, notes, scanned_mode, project_name, status, row.id
         ];
         if (requireWarehouseStock && !isWarehouse) updateValues.push('warehouse');
         db.run(
@@ -445,12 +499,12 @@ function savePanel(panelData, { requireWarehouseStock = false } = {}) {
         const insertQuery = `
           INSERT INTO panels (
             serial_number, project_name, inverter, string_name, panel_index,
-            brand_model, wattage, status, technician_name, gps_lat, gps_lng, notes, scanned_mode, created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            brand_model, wattage, status, technician_name, gps_lat, gps_lng, notes, scanned_mode, created_at, updated_at, moved_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CASE WHEN ? = 'warehouse' THEN NULL ELSE CURRENT_TIMESTAMP END)
         `;
         db.run(
           insertQuery,
-          [serial_number.trim(), project_name, inverter, string_name, Number(panel_index), brand_model, Number(wattage), status, technician_name, gps_lat, gps_lng, notes, scanned_mode],
+          [serial_number.trim(), project_name, inverter, string_name, Number(panel_index), brand_model, Number(wattage), status, technician_name, gps_lat, gps_lng, notes, scanned_mode, status],
           function (err2) {
             if (err2) return reject(err2);
             db.get('SELECT * FROM panels WHERE id = ?', [this.lastID], (err3, inserted) => {
@@ -691,6 +745,7 @@ function batchUpdateStatus(ids, status) {
     let count = 0;
     memoryStore.panels.forEach(p => {
       if (idArray.includes(p.id)) {
+        if (p.status === 'warehouse' && status !== 'warehouse') p.moved_at = now;
         p.status = status;
         p.updated_at = now;
         count++;
@@ -702,7 +757,7 @@ function batchUpdateStatus(ids, status) {
 
   return new Promise((resolve, reject) => {
     const placeholders = idArray.map(() => '?').join(',');
-    db.run(`UPDATE panels SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id IN (${placeholders})`, [status, ...idArray], function (err) {
+    db.run(`UPDATE panels SET moved_at = CASE WHEN status = 'warehouse' AND ? != 'warehouse' THEN CURRENT_TIMESTAMP ELSE moved_at END, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id IN (${placeholders})`, [status, status, ...idArray], function (err) {
       if (err) return reject(err);
       resolve({ success: true, count: this.changes });
     });
@@ -719,6 +774,7 @@ function batchUpdateProject(ids, projectName) {
     let count = 0;
     memoryStore.panels.forEach(p => {
       if (idArray.includes(p.id)) {
+        if (p.project_name !== projectName) p.moved_at = now;
         p.project_name = projectName;
         p.updated_at = now;
         count++;
@@ -730,7 +786,7 @@ function batchUpdateProject(ids, projectName) {
 
   return new Promise((resolve, reject) => {
     const placeholders = idArray.map(() => '?').join(',');
-    db.run(`UPDATE panels SET project_name = ?, updated_at = CURRENT_TIMESTAMP WHERE id IN (${placeholders})`, [projectName, ...idArray], function (err) {
+    db.run(`UPDATE panels SET moved_at = CASE WHEN project_name != ? THEN CURRENT_TIMESTAMP ELSE moved_at END, project_name = ?, updated_at = CURRENT_TIMESTAMP WHERE id IN (${placeholders})`, [projectName, projectName, ...idArray], function (err) {
       if (err) return reject(err);
       resolve({ success: true, count: this.changes });
     });

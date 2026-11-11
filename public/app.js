@@ -32,7 +32,11 @@ class SolarTrackingApp {
     this.dbFilters = {
       search: '',
       project: 'all',
-      status: 'all'
+      status: 'all',
+      received_from: '',
+      received_to: '',
+      moved_from: '',
+      moved_to: ''
     };
     this.cachedDbPanels = [];
     this.equipmentCatalog = [];
@@ -331,10 +335,12 @@ class SolarTrackingApp {
   updateNavButtons(viewId) {
     const navDashboard = document.getElementById('nav-btn-dashboard');
     const navSettings = document.getElementById('nav-btn-settings');
+    const navProjects = document.getElementById('nav-btn-projects');
     const activeClass = 'text-xs px-2.5 sm:px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 bg-amber-500 text-slate-950 font-bold shadow-xs';
     const inactiveClass = 'text-xs px-2.5 sm:px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 text-slate-300 hover:text-white';
     if (navDashboard) navDashboard.className = viewId === 'dashboard' ? activeClass : inactiveClass;
-    if (navSettings) navSettings.className = viewId === 'settings' || viewId === 'database' ? activeClass : inactiveClass;
+    if (navSettings) navSettings.className = viewId === 'settings' || (viewId === 'database' && this.dbCurrentTab !== 'projects') ? activeClass : inactiveClass;
+    if (navProjects) navProjects.className = viewId === 'database' && this.dbCurrentTab === 'projects' ? activeClass : inactiveClass;
   }
 
   getFormElement(id, fallbackIds = []) {
@@ -1888,16 +1894,37 @@ class SolarTrackingApp {
   formatDateTime(isoString) {
     if (!isoString) return '-';
     try {
-      const d = new Date(isoString);
-      return d.toLocaleDateString('th-TH', {
+      const d = this.parsePanelDate(isoString);
+      if (Number.isNaN(d.getTime())) return '-';
+      return d.toLocaleString('th-TH', {
+        timeZone: 'Asia/Bangkok',
         day: '2-digit',
         month: 'short',
+        year: '2-digit',
         hour: '2-digit',
         minute: '2-digit'
       });
     } catch (e) {
       return isoString;
     }
+  }
+
+  parsePanelDate(value) {
+    if (!value) return new Date(NaN);
+    const normalized = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(value)
+      ? `${value.replace(' ', 'T')}Z`
+      : value;
+    return new Date(normalized);
+  }
+
+  getBangkokDateKey(value) {
+    const date = this.parsePanelDate(value);
+    if (Number.isNaN(date.getTime())) return '';
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Bangkok', year: 'numeric', month: '2-digit', day: '2-digit'
+    }).formatToParts(date);
+    const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
+    return `${values.year}-${values.month}-${values.day}`;
   }
 
   escapeHtml(str) {
@@ -2010,6 +2037,11 @@ class SolarTrackingApp {
     this.switchDbTab(tabName);
   }
 
+  openProjectManagement() {
+    this.dbCurrentTab = 'projects';
+    this.showView('database');
+  }
+
   switchDbTab(tabName) {
     this.dbCurrentTab = tabName;
     const tabs = ['records', 'projects', 'tools'];
@@ -2032,6 +2064,8 @@ class SolarTrackingApp {
         }
       }
     });
+
+    this.updateNavButtons(this.currentView);
 
     this.refreshIcons();
 
@@ -2737,6 +2771,10 @@ class SolarTrackingApp {
     this.dbFilters.search = document.getElementById('db-filter-search').value.trim();
     this.dbFilters.project = document.getElementById('db-filter-project').value;
     this.dbFilters.status = document.getElementById('db-filter-status').value;
+    this.dbFilters.received_from = document.getElementById('db-filter-received-from').value;
+    this.dbFilters.received_to = document.getElementById('db-filter-received-to').value;
+    this.dbFilters.moved_from = document.getElementById('db-filter-moved-from').value;
+    this.dbFilters.moved_to = document.getElementById('db-filter-moved-to').value;
     this.loadDbRecords();
   }
 
@@ -2761,6 +2799,11 @@ class SolarTrackingApp {
         if (this.dbFilters.status && this.dbFilters.status !== 'all') {
           panels = panels.filter(p => p.status === this.dbFilters.status);
         }
+        if (this.dbFilters.received_from) panels = panels.filter(p => this.getBangkokDateKey(p.created_at) >= this.dbFilters.received_from);
+        if (this.dbFilters.received_to) panels = panels.filter(p => this.getBangkokDateKey(p.created_at) <= this.dbFilters.received_to);
+        const movedDate = panel => panel.moved_at || (panel.status !== 'warehouse' ? panel.updated_at : '');
+        if (this.dbFilters.moved_from) panels = panels.filter(p => this.getBangkokDateKey(movedDate(p)) >= this.dbFilters.moved_from);
+        if (this.dbFilters.moved_to) panels = panels.filter(p => this.getBangkokDateKey(movedDate(p)) <= this.dbFilters.moved_to);
       } else {
         const query = new URLSearchParams(this.dbFilters);
         const res = await fetch(`/api/panels?${query.toString()}&limit=200`);
@@ -2790,7 +2833,7 @@ class SolarTrackingApp {
       if (tbody) {
         tbody.innerHTML = `
           <tr>
-            <td colspan="9" class="py-10 text-center text-slate-400">
+            <td colspan="11" class="py-10 text-center text-slate-400">
               <i data-lucide="inbox" class="w-8 h-8 mx-auto mb-2 text-slate-300"></i>
               ไม่พบรายการข้อมูลในฐานข้อมูลตามเงื่อนไขที่เลือก
             </td>
@@ -2806,6 +2849,8 @@ class SolarTrackingApp {
       cardsContainer.innerHTML = panels.map(p => {
         const isChecked = this.selectedIds.has(p.id) ? 'checked' : '';
         const statusBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap ${this.getStatusBadgeClass(p.status)}">${this.translateStatus(p.status)}</span>`;
+        const receivedDate = this.formatDateTime(p.created_at);
+        const movedDate = this.formatDateTime(p.moved_at || (p.status !== 'warehouse' ? p.updated_at : null));
         return `
           <div class="p-3.5 hover:bg-slate-50 transition flex items-start gap-3">
             <input type="checkbox" ${isChecked} onchange="app.toggleSelectRow(${p.id}, this.checked)" class="mt-1 rounded text-amber-500 focus:ring-amber-400">
@@ -2818,6 +2863,7 @@ class SolarTrackingApp {
                 <i data-lucide="folder" class="w-3 h-3 text-amber-500 shrink-0"></i>
                 <span>${this.escapeHtml(this.getPanelLocationLabel(p))}</span>
               </div>
+              <div class="text-[10px] text-slate-500">รับเข้า ${receivedDate} · ย้าย/จ่ายออก ${movedDate}</div>
               <div class="text-[11px] text-slate-500 flex items-center justify-between pt-1 border-t border-slate-100">
                 <span class="font-mono">${this.escapeHtml(p.inverter || '-')} / ${this.escapeHtml(p.string_name || '-')} (#${p.panel_index || 0})</span>
                 <div class="flex items-center gap-1.5">
@@ -2839,6 +2885,8 @@ class SolarTrackingApp {
       tbody.innerHTML = panels.map(p => {
         const isChecked = this.selectedIds.has(p.id) ? 'checked' : '';
         const statusBadge = `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold whitespace-nowrap ${this.getStatusBadgeClass(p.status)}">${this.translateStatus(p.status)}</span>`;
+        const receivedDate = this.formatDateTime(p.created_at);
+        const movedDate = this.formatDateTime(p.moved_at || (p.status !== 'warehouse' ? p.updated_at : null));
         return `
           <tr class="hover:bg-slate-50 transition border-b border-slate-100 ${isChecked ? 'bg-amber-50/50' : ''}">
             <td class="py-3 px-3 text-center">
@@ -2851,6 +2899,8 @@ class SolarTrackingApp {
             <td class="py-3 px-3 text-slate-600 whitespace-nowrap">${this.escapeHtml(p.brand_model || '-')} (${p.wattage || 550}W)</td>
             <td class="py-3 px-3 whitespace-nowrap">${statusBadge}</td>
             <td class="py-3 px-3 text-slate-600 whitespace-nowrap">${this.escapeHtml(p.technician_name || '-')}</td>
+            <td class="py-3 px-3 text-slate-600 whitespace-nowrap">${receivedDate}</td>
+            <td class="py-3 px-3 text-slate-600 whitespace-nowrap">${movedDate}</td>
             <td class="py-3 px-3 text-center whitespace-nowrap">
               <div class="flex items-center justify-center gap-1">
                 <button onclick="app.openEditModal(${p.id})" class="p-1 hover:bg-slate-200 rounded text-slate-600 hover:text-slate-900 transition" title="แก้ไข">

@@ -4,6 +4,14 @@
  */
 
 const STORE_KEY = 'solartrack';
+const bangkokDateKey = value => {
+  if (!value) return '';
+  const normalized = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(value) ? `${value.replace(' ', 'T')}Z` : value;
+  const date = new Date(normalized);
+  return Number.isNaN(date.getTime()) ? '' : new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Bangkok', year: 'numeric', month: '2-digit', day: '2-digit'
+  }).format(date);
+};
 const WAREHOUSE_PROJECT_NAME = 'คลังสินค้ากลาง (Central Warehouse)';
 const DEFAULT_PROJECTS = [
   { id: 1, name: 'Solar Farm Lopburi Phase 2', location: 'ลพบุรี', target_capacity_kw: 5000 },
@@ -116,6 +124,10 @@ async function handleApi(request, env, url) {
       search: url.searchParams.get('search') || '',
       project: url.searchParams.get('project') || 'all',
       status: url.searchParams.get('status') || 'all',
+      received_from: url.searchParams.get('received_from') || '',
+      received_to: url.searchParams.get('received_to') || '',
+      moved_from: url.searchParams.get('moved_from') || '',
+      moved_to: url.searchParams.get('moved_to') || '',
       limit: url.searchParams.get('limit') || 50,
       offset: url.searchParams.get('offset') || 0
     });
@@ -486,7 +498,7 @@ class DataStore {
   }
 
   async getPanels(filters = {}) {
-    const { search, project, status, limit = 50, offset = 0 } = filters;
+    const { search, project, status, received_from, received_to, moved_from, moved_to, limit = 50, offset = 0 } = filters;
     const { panels } = await this.load();
     let result = [...panels];
     if (search) {
@@ -501,6 +513,11 @@ class DataStore {
     }
     if (project && project !== 'all') result = result.filter((p) => p.project_name === project);
     if (status && status !== 'all') result = result.filter((p) => p.status === status);
+    if (received_from) result = result.filter(p => bangkokDateKey(p.created_at) >= received_from);
+    if (received_to) result = result.filter(p => bangkokDateKey(p.created_at) <= received_to);
+    const movementDate = p => p.moved_at || (p.status !== 'warehouse' ? p.updated_at : '');
+    if (moved_from) result = result.filter(p => bangkokDateKey(movementDate(p)) >= moved_from);
+    if (moved_to) result = result.filter(p => bangkokDateKey(movementDate(p)) <= moved_to);
     result.sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at));
     const paginated = result.slice(Number(offset), Number(offset) + Number(limit));
     return { total: result.length, data: paginated };
@@ -541,8 +558,12 @@ class DataStore {
     const idx = memory.panels.findIndex((p) => p.serial_number.toLowerCase() === serial_number.toLowerCase());
     let record;
     if (idx >= 0) {
+      const current = memory.panels[idx];
+      const movedAt = current.project_name !== project_name || (current.status === 'warehouse' && status !== 'warehouse')
+        ? now
+        : current.moved_at || null;
       record = {
-        ...memory.panels[idx],
+        ...current,
         project_name,
         inverter,
         string_name,
@@ -555,6 +576,7 @@ class DataStore {
         gps_lng: gps_lng ? Number(gps_lng) : memory.panels[idx].gps_lng,
         notes,
         scanned_mode,
+        moved_at: movedAt,
         updated_at: now
       };
       memory.panels[idx] = record;
@@ -575,6 +597,7 @@ class DataStore {
         notes,
         scanned_mode,
         created_at: now,
+        moved_at: status === 'warehouse' ? null : now,
         updated_at: now
       };
       memory.panels.unshift(record);
@@ -681,6 +704,7 @@ class DataStore {
     let count = 0;
     memory.panels.forEach((p) => {
       if (idArray.includes(p.id)) {
+        if (p.status === 'warehouse' && status !== 'warehouse') p.moved_at = now;
         p.status = status;
         p.updated_at = now;
         count++;
@@ -697,6 +721,7 @@ class DataStore {
     let count = 0;
     memory.panels.forEach((p) => {
       if (idArray.includes(p.id)) {
+        if (p.project_name !== projectName) p.moved_at = now;
         p.project_name = projectName;
         p.updated_at = now;
         count++;

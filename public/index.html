@@ -68,6 +68,10 @@
           <i data-lucide="settings" class="w-3.5 h-3.5"></i>
           <span>ตั้งค่า</span>
         </button>
+        <button id="nav-btn-projects" onclick="app.openProjectManagement()" class="text-xs px-2.5 sm:px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 text-slate-300 hover:text-white">
+          <i data-lucide="folder-kanban" class="w-3.5 h-3.5"></i>
+          <span>จัดการโครงการ</span>
+        </button>
       </nav>
 
       <!-- System Status / Mode Indicator -->
@@ -750,9 +754,6 @@
         <button id="tab-btn-records" onclick="app.switchDbTab('records')" class="px-3.5 py-2 rounded-xl bg-slate-900 text-white flex items-center gap-1.5 transition shrink-0">
           <i data-lucide="table" class="w-3.5 h-3.5"></i> ตารางข้อมูลแผงโซลาร์
         </button>
-        <button id="tab-btn-projects" onclick="app.switchDbTab('projects')" class="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-600 border border-slate-200 flex items-center gap-1.5 transition shrink-0">
-          <i data-lucide="folder-kanban" class="w-3.5 h-3.5"></i> จัดการโครงการ
-        </button>
         <button id="tab-btn-tools" onclick="app.switchDbTab('tools')" class="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-600 border border-slate-200 flex items-center gap-1.5 transition shrink-0">
           <i data-lucide="wrench" class="w-3.5 h-3.5"></i> เครื่องมือ & กู้คืนข้อมูล
         </button>
@@ -783,7 +784,7 @@
         </div>
 
         <!-- Filter & Search Controls -->
-        <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs grid grid-cols-1 sm:grid-cols-4 gap-2.5">
+        <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs grid grid-cols-1 sm:grid-cols-4 lg:grid-cols-8 gap-2.5">
           <div class="relative sm:col-span-2">
             <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
             <input type="text" id="db-filter-search" oninput="app.handleDbFilterChange()" placeholder="ค้นหา Serial, Inverter, ช่าง, ยี่ห้อ..." class="w-full text-xs pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500">
@@ -802,6 +803,18 @@
               <option value="damaged">ชำรุด / เคลม (Damaged)</option>
             </select>
           </div>
+          <label class="block text-[10px] text-slate-500">รับเข้าตั้งแต่
+            <input type="date" id="db-filter-received-from" onchange="app.handleDbFilterChange()" class="mt-1 w-full text-xs px-2 py-2 bg-slate-50 border border-slate-200 rounded-lg">
+          </label>
+          <label class="block text-[10px] text-slate-500">ถึง
+            <input type="date" id="db-filter-received-to" onchange="app.handleDbFilterChange()" class="mt-1 w-full text-xs px-2 py-2 bg-slate-50 border border-slate-200 rounded-lg">
+          </label>
+          <label class="block text-[10px] text-slate-500">ย้าย/จ่ายออกตั้งแต่
+            <input type="date" id="db-filter-moved-from" onchange="app.handleDbFilterChange()" class="mt-1 w-full text-xs px-2 py-2 bg-slate-50 border border-slate-200 rounded-lg">
+          </label>
+          <label class="block text-[10px] text-slate-500">ถึง
+            <input type="date" id="db-filter-moved-to" onchange="app.handleDbFilterChange()" class="mt-1 w-full text-xs px-2 py-2 bg-slate-50 border border-slate-200 rounded-lg">
+          </label>
         </div>
 
         <!-- Master Data Records Container -->
@@ -826,12 +839,14 @@
                   <th class="py-3 px-3 whitespace-nowrap">รุ่น / วัตต์</th>
                   <th class="py-3 px-3 whitespace-nowrap">สถานะ</th>
                   <th class="py-3 px-3 whitespace-nowrap">ช่างผู้ตรวจ</th>
+                  <th class="py-3 px-3 whitespace-nowrap">วันที่รับเข้า (ไทย)</th>
+                  <th class="py-3 px-3 whitespace-nowrap">วันที่ย้าย/จ่ายออก (ไทย)</th>
                   <th class="py-3 px-3 text-center whitespace-nowrap">จัดการ</th>
                 </tr>
               </thead>
               <tbody id="db-table-body" class="divide-y divide-slate-100 text-slate-700">
                 <tr>
-                  <td colspan="9" class="py-8 text-center text-slate-400">กำลังโหลดข้อมูล...</td>
+                  <td colspan="11" class="py-8 text-center text-slate-400">กำลังโหลดข้อมูล...</td>
                 </tr>
               </tbody>
             </table>
