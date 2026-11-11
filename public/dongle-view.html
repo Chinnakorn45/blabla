@@ -1,0 +1,82 @@
+    <!-- VIEW: DONGLE STOCK -->
+    <div id="view-dongle" class="view-panel hidden w-full space-y-4">
+      <div class="flex items-center justify-between gap-3 rounded-2xl bg-slate-900 p-4 sm:p-5 text-white shadow-lg">
+        <div class="flex items-center gap-3">
+          <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/20 text-cyan-300">
+            <i data-lucide="radio" class="h-5 w-5"></i>
+          </div>
+          <div>
+            <h2 class="text-base font-bold">สต๊อกดองเกิ้ล</h2>
+            <p class="text-xs text-slate-400">รับเข้าและเบิกดองเกิ้ลด้วย Serial Number</p>
+          </div>
+        </div>
+        <button type="button" onclick="app.showView('dashboard')" class="rounded-lg bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700">กลับหน้าหลัก</button>
+      </div>
+      <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div class="border-b border-slate-100 bg-emerald-50/70 p-4 sm:p-5">
+          <h3 class="flex items-center gap-2 text-sm font-bold text-slate-800 sm:text-base">
+            <i data-lucide="package-plus" class="h-4 w-4 text-emerald-600"></i> รับเข้าและเบิกดองเกิ้ล
+          </h3>
+          <p class="mt-1 text-xs text-slate-500">บันทึก SN และรุ่นเมื่อรับเข้า พร้อมโครงการ ผู้รับผิดชอบ และวันที่เมื่อเบิก</p>
+        </div>
+        <div class="grid gap-4 p-4 sm:p-5 xl:grid-cols-2">
+          <form id="dongle-stock-form" onsubmit="app.addDonglesToStock(event)" class="space-y-3">
+            <h4 class="text-xs font-bold text-slate-700">รับดองเกิ้ลเข้าสต๊อก</h4>
+            <div>
+              <label for="dongle-model" class="mb-1 block text-xs font-semibold text-slate-700">รุ่นดองเกิ้ล <span class="text-rose-500">*</span></label>
+              <input type="text" id="dongle-model" required placeholder="ระบุรุ่น" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm">
+            </div>
+            <div>
+              <label for="dongle-serials" class="mb-1 block text-xs font-semibold text-slate-700">Serial Number <span class="text-rose-500">*</span></label>
+              <textarea id="dongle-serials" rows="3" required placeholder="กรอก SN ทีละบรรทัด เพื่อรับเข้าหลายชิ้นพร้อมกัน" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-mono text-sm"></textarea>
+            </div>
+            <button type="submit" class="flex w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-emerald-700">
+              <i data-lucide="package-plus" class="h-4 w-4"></i> บันทึกรับเข้าสต๊อก
+            </button>
+          </form>
+
+          <form id="dongle-issue-form" onsubmit="app.issueDongleFromStock(event)" class="space-y-3">
+            <h4 class="text-xs font-bold text-slate-700">เบิกดองเกิ้ลไปโครงการ</h4>
+            <div>
+              <label for="dongle-issue-item" class="mb-1 block text-xs font-semibold text-slate-700">ดองเกิ้ลในสต๊อก <span class="text-rose-500">*</span></label>
+              <select id="dongle-issue-item" required class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm"></select>
+            </div>
+            <div class="grid grid-cols-1 gap-2 sm:grid-cols-3">
+              <div>
+                <label for="dongle-issue-project" class="mb-1 block text-xs font-semibold text-slate-700">โครงการ <span class="text-rose-500">*</span></label>
+                <select id="dongle-issue-project" required class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm"></select>
+              </div>
+              <div>
+                <label for="dongle-issue-by" class="mb-1 block text-xs font-semibold text-slate-700">ผู้รับผิดชอบ <span class="text-rose-500">*</span></label>
+                <input type="text" id="dongle-issue-by" required placeholder="ชื่อผู้รับผิดชอบ" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm">
+              </div>
+              <div>
+                <label for="dongle-issue-date" class="mb-1 block text-xs font-semibold text-slate-700">วันที่เบิก <span class="text-rose-500">*</span></label>
+                <input type="date" id="dongle-issue-date" required class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm">
+              </div>
+            </div>
+            <button type="submit" class="flex w-full items-center justify-center gap-1.5 rounded-xl bg-sky-600 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-sky-700">
+              <i data-lucide="package-minus" class="h-4 w-4"></i> บันทึกการเบิก
+            </button>
+          </form>
+        </div>
+        <div class="border-t border-slate-100 bg-slate-50/70 p-4 sm:p-5">
+          <div id="dongle-summary" class="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4"></div>
+          <div class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_200px]">
+            <label class="sr-only" for="dongle-filter-search">ค้นหา Serial Number หรือรุ่น</label>
+            <input id="dongle-filter-search" type="search" oninput="app.renderDongleInventory()" placeholder="ค้นหา Serial Number หรือรุ่น..." class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-100">
+            <label class="sr-only" for="dongle-filter-status">กรองตามสถานะ</label>
+            <select id="dongle-filter-status" onchange="app.renderDongleInventory()" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-100">
+              <option value="all">ทุกสถานะ</option>
+              <option value="warehouse">ในสต๊อก</option>
+              <option value="issued">เบิกแล้ว</option>
+              <option value="damaged">ชำรุด</option>
+            </select>
+          </div>
+        </div>
+        <div id="dongle-inventory-list" class="overflow-x-auto">
+          <div class="p-6 text-center text-xs text-slate-400">กำลังโหลดสต๊อกดองเกิ้ล...</div>
+        </div>
+      </section>
+    </div>
+

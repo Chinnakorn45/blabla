@@ -40,6 +40,26 @@ app.get('/vendor/lucide.js', (req, res) => {
 
 // ---------------- API Routes ----------------
 
+app.get('/api/settings', async (req, res) => {
+  try {
+    const settings = await db.getAppSettings();
+    res.json({ success: true, settings });
+  } catch (err) {
+    console.error('Error fetching app settings:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.put('/api/settings', async (req, res) => {
+  try {
+    const settings = await db.saveAppSettings(req.body?.settings);
+    res.json({ success: true, settings });
+  } catch (err) {
+    console.error('Error saving app settings:', err);
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({
@@ -300,6 +320,15 @@ app.put('/api/dongles/:id/return', async (req, res) => {
     res.json(await db.returnDongleToStock(req.params.id));
   } catch (err) {
     console.error('Error returning dongle to stock:', err);
+    res.status(err.code === 'STOCK_CONFLICT' ? 409 : 400).json({ success: false, error: err.message });
+  }
+});
+
+app.put('/api/dongles/:id/status', async (req, res) => {
+  try {
+    res.json(await db.setDongleStatus(req.params.id, req.body?.status));
+  } catch (err) {
+    console.error('Error updating dongle status:', err);
     res.status(err.code === 'STOCK_CONFLICT' ? 409 : 400).json({ success: false, error: err.message });
   }
 });

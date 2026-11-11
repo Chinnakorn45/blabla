@@ -529,28 +529,48 @@ textarea:focus-visible {
 
 @media (max-width: 639px) {
   .page-header-dark > .max-w-5xl {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    gap: 11px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
     padding-top: 11px;
     padding-bottom: 11px;
   }
 
   .page-header-dark > .max-w-5xl > :first-child {
-    justify-content: center;
+    justify-content: flex-start;
   }
 
   .page-header-dark nav {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    width: 100%;
+    position: absolute;
+    top: 100%;
+    right: 12px;
+    left: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    width: min(18rem, calc(100vw - 24px));
     gap: 4px;
+    margin-top: 8px;
+  }
+
+  .page-header-dark .mobile-nav-menu > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .page-header-dark .mobile-nav-menu:not([open]) > nav {
+    display: none;
+  }
+
+  .page-header-dark .mobile-nav-menu[open] > nav {
+    display: flex;
   }
 
   .page-header-dark nav button {
+    width: 100%;
     min-width: 0;
     min-height: 40px;
-    justify-content: center;
+    justify-content: flex-start;
     padding-right: 5px;
     padding-left: 5px;
     font-size: 11px;

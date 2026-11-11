@@ -45,6 +45,7 @@ class SolarTrackingApp {
     this.equipmentCatalog = [];
     this.equipmentIssues = [];
     this.dongles = [];
+    this.dongleFilters = { search: '', status: 'all' };
     this.fieldStockModalPanels = [];
     this.expandedEquipmentIssueIds = new Set();
     this.pendingConfirmation = null;
@@ -68,6 +69,16 @@ class SolarTrackingApp {
   }
 
   bindEvents() {
+    document.addEventListener('pointerdown', event => {
+      const menu = document.getElementById('mobile-nav-menu');
+      if (menu?.open && !menu.contains(event.target)) {
+        this.closeMainNavigation();
+      }
+    });
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape') this.closeMainNavigation();
+    });
+
     window.addEventListener('popstate', (e) => {
       if (this.currentView === 'scanner') {
         this.stopScannerAndReturn();
@@ -305,6 +316,7 @@ class SolarTrackingApp {
   // ---------------- Navigation & View Switching ----------------
 
   showView(viewId) {
+    this.closeMainNavigation();
     const views = ['dashboard', 'warehouse', 'field', 'form', 'success', 'database', 'settings', 'dongle', 'equipment'];
     views.forEach(v => {
       const el = document.getElementById(`view-${v}`);
@@ -335,14 +347,21 @@ class SolarTrackingApp {
     }
   }
 
+  closeMainNavigation() {
+    const menu = document.getElementById('mobile-nav-menu');
+    if (menu?.open) menu.open = false;
+  }
+
   updateNavButtons(viewId) {
     const navDashboard = document.getElementById('nav-btn-dashboard');
     const navSettings = document.getElementById('nav-btn-settings');
+    const navRecords = document.getElementById('nav-btn-records');
     const navProjects = document.getElementById('nav-btn-projects');
-    const activeClass = 'text-xs px-2.5 sm:px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 bg-amber-500 text-slate-950 font-bold shadow-xs';
-    const inactiveClass = 'text-xs px-2.5 sm:px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 text-slate-300 hover:text-white';
+    const activeClass = 'text-xs w-full md:w-auto justify-start md:justify-center px-2.5 sm:px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 bg-amber-500 text-slate-950 font-bold shadow-xs';
+    const inactiveClass = 'text-xs w-full md:w-auto justify-start md:justify-center px-2.5 sm:px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 text-slate-300 hover:text-white';
     if (navDashboard) navDashboard.className = viewId === 'dashboard' ? activeClass : inactiveClass;
-    if (navSettings) navSettings.className = viewId === 'settings' || (viewId === 'database' && this.dbCurrentTab !== 'projects') ? activeClass : inactiveClass;
+    if (navSettings) navSettings.className = viewId === 'settings' || (viewId === 'database' && this.dbCurrentTab === 'tools') ? activeClass : inactiveClass;
+    if (navRecords) navRecords.className = viewId === 'database' && this.dbCurrentTab === 'records' ? activeClass : inactiveClass;
     if (navProjects) navProjects.className = viewId === 'database' && this.dbCurrentTab === 'projects' ? activeClass : inactiveClass;
   }
 
@@ -2413,33 +2432,68 @@ class SolarTrackingApp {
   renderDongleInventory() {
     const container = document.getElementById('dongle-inventory-list');
     const dongleSelect = document.getElementById('dongle-issue-item');
-    if (!container || !dongleSelect) return;
+    const summary = document.getElementById('dongle-summary');
+    if (!container || !dongleSelect || !summary) return;
+
+    const counts = {
+      total: this.dongles.length,
+      warehouse: this.dongles.filter(item => item.status === 'warehouse').length,
+      issued: this.dongles.filter(item => item.status === 'issued').length,
+      damaged: this.dongles.filter(item => item.status === 'damaged').length
+    };
+    summary.innerHTML = [
+      { label: 'ดองเกิ้ลทั้งหมด', value: counts.total, classes: 'border-slate-200 bg-white text-slate-800' },
+      { label: 'ในสต๊อก', value: counts.warehouse, classes: 'border-emerald-200 bg-emerald-50 text-emerald-800' },
+      { label: 'เบิกแล้ว', value: counts.issued, classes: 'border-sky-200 bg-sky-50 text-sky-800' },
+      { label: 'ชำรุด', value: counts.damaged, classes: 'border-rose-200 bg-rose-50 text-rose-800' }
+    ].map(item => `
+      <div class="rounded-xl border ${item.classes} px-3 py-2.5">
+        <div class="text-[10px] font-semibold opacity-75">${item.label}</div>
+        <div class="mt-0.5 text-lg font-bold tabular-nums">${item.value.toLocaleString()}</div>
+      </div>`).join('');
 
     const inStock = this.dongles.filter(dongle => dongle.status === 'warehouse');
     dongleSelect.innerHTML = `<option value="">${inStock.length ? '-- เลือกดองเกิ้ล --' : 'ไม่มีดองเกิ้ลในสต๊อก'}</option>` +
       inStock.map(dongle => `<option value="${Number(dongle.id)}">${this.escapeHtml(dongle.serial_number)} (${this.escapeHtml(dongle.model)})</option>`).join('');
     dongleSelect.disabled = inStock.length === 0;
 
-    if (!this.dongles.length) {
-      container.innerHTML = '<div class="p-6 text-center text-xs text-slate-400">ยังไม่มีดองเกิ้ลในสต๊อก</div>';
+    const search = (document.getElementById('dongle-filter-search')?.value || '').trim().toLocaleLowerCase();
+    const statusFilter = document.getElementById('dongle-filter-status')?.value || 'all';
+    const filtered = this.dongles.filter(dongle => {
+      if (statusFilter !== 'all' && dongle.status !== statusFilter) return false;
+      if (!search) return true;
+      return [dongle.serial_number, dongle.model, dongle.project_name, dongle.responsible]
+        .some(value => String(value || '').toLocaleLowerCase().includes(search));
+    });
+
+    if (!this.dongles.length || !filtered.length) {
+      const message = this.dongles.length
+        ? 'ไม่พบดองเกิ้ลที่ตรงกับตัวกรอง'
+        : 'ยังไม่มีดองเกิ้ลในระบบ รับเข้าสต๊อกได้จากแบบฟอร์มด้านบน';
+      container.innerHTML = `<div class="p-8 text-center text-xs text-slate-500">${message}</div>`;
       return;
     }
 
-    const rows = this.dongles.map(dongle => {
-      const isInStock = dongle.status === 'warehouse';
+    const statusLabels = {
+      warehouse: { label: 'ในสต๊อก', classes: 'bg-emerald-100 text-emerald-700' },
+      issued: { label: 'เบิกแล้ว', classes: 'bg-sky-100 text-sky-700' },
+      damaged: { label: 'ชำรุด', classes: 'bg-rose-100 text-rose-700' }
+    };
+    const rows = filtered.map(dongle => {
+      const status = statusLabels[dongle.status] || { label: 'ไม่ทราบสถานะ', classes: 'bg-slate-100 text-slate-600' };
+      const id = Number(dongle.id);
+      const actions = dongle.status === 'damaged'
+        ? `<button type="button" onclick="app.setDongleStatus(${id}, 'warehouse')" class="rounded-lg border border-emerald-200 px-2.5 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50">คืนเข้าสต๊อก</button>`
+        : `<div class="flex justify-end gap-1.5">${dongle.status === 'issued' ? `<button type="button" onclick="app.returnDongleToStock(${id})" class="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50">คืนเข้าสต๊อก</button>` : ''}<button type="button" onclick="app.setDongleStatus(${id}, 'damaged')" class="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-50">ทำเครื่องหมายชำรุด</button></div>`;
       return `
-        <tr class="border-b border-slate-100 last:border-0">
+        <tr class="border-b border-slate-100 last:border-0 hover:bg-slate-50/70">
           <td class="px-4 py-3 text-xs font-mono font-semibold text-slate-800">${this.escapeHtml(dongle.serial_number)}</td>
           <td class="px-4 py-3 text-xs text-slate-700">${this.escapeHtml(dongle.model)}</td>
-          <td class="px-4 py-3">
-            <span class="rounded-full px-2 py-1 text-[10px] font-bold ${isInStock ? 'bg-emerald-100 text-emerald-700' : 'bg-sky-100 text-sky-700'}">${isInStock ? 'ในสต๊อก' : 'เบิกแล้ว'}</span>
-          </td>
+          <td class="px-4 py-3"><span class="rounded-full px-2 py-1 text-[10px] font-bold ${status.classes}">${status.label}</span></td>
           <td class="px-4 py-3 text-xs text-slate-700">${this.escapeHtml(dongle.project_name || '-')}</td>
           <td class="px-4 py-3 text-xs text-slate-700">${this.escapeHtml(dongle.responsible || '-')}</td>
           <td class="px-4 py-3 text-xs text-slate-600 whitespace-nowrap">${this.escapeHtml(dongle.issued_at || '-')}</td>
-          <td class="px-4 py-3 text-right whitespace-nowrap">
-            ${isInStock ? '-' : `<button type="button" onclick="app.returnDongleToStock(${Number(dongle.id)})" class="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50">คืนเข้าสต๊อก</button>`}
-          </td>
+          <td class="px-4 py-3 text-right whitespace-nowrap">${actions}</td>
         </tr>`;
     }).join('');
     container.innerHTML = `
@@ -2566,6 +2620,46 @@ class SolarTrackingApp {
       this.showToast('คืนดองเกิ้ลเข้าสต๊อกแล้ว', 'success');
     } catch (error) {
       this.showToast(`คืนดองเกิ้ลไม่สำเร็จ: ${error.message}`, 'error');
+    }
+  }
+
+  async setDongleStatus(id, nextStatus) {
+    const dongle = this.dongles.find(item => Number(item.id) === Number(id));
+    const isMarkingDamaged = nextStatus === 'damaged';
+    if (!dongle || !['damaged', 'warehouse'].includes(nextStatus)) return;
+    if (isMarkingDamaged && !['warehouse', 'issued'].includes(dongle.status)) return;
+    if (nextStatus === 'warehouse' && dongle.status !== 'damaged') return;
+
+    const confirmed = await this.confirmAction({
+      title: isMarkingDamaged ? 'ทำเครื่องหมายดองเกิ้ลชำรุด' : 'คืนดองเกิ้ลที่ซ่อมแล้วเข้าสต๊อก',
+      message: isMarkingDamaged
+        ? `เปลี่ยนสถานะ SN ${dongle.serial_number} เป็นชำรุดหรือไม่? รายการนี้จะไม่สามารถเบิกได้`
+        : `ยืนยันว่า SN ${dongle.serial_number} ใช้งานได้และคืนเข้าสต๊อกหรือไม่?`,
+      confirmText: isMarkingDamaged ? 'ยืนยันสถานะชำรุด' : 'คืนเข้าสต๊อก'
+    });
+    if (!confirmed) return;
+
+    try {
+      if (this.isMockMode) {
+        const current = this.dongles.find(item => Number(item.id) === Number(id));
+        if (!current) throw new Error('ไม่พบข้อมูลดองเกิ้ล');
+        const validTransition = nextStatus === 'damaged'
+          ? ['warehouse', 'issued'].includes(current.status)
+          : current.status === 'damaged';
+        if (!validTransition) throw new Error('สถานะดองเกิ้ลเปลี่ยนไปแล้ว กรุณาโหลดรายการใหม่');
+        current.status = nextStatus;
+        current.updated_at = new Date().toISOString();
+        localStorage.setItem('solartrack_dongles', JSON.stringify(this.dongles));
+      } else {
+        await this.requestJson(`/api/dongles/${encodeURIComponent(id)}/status`, {
+          method: 'PUT',
+          body: { status: nextStatus }
+        });
+      }
+      await this.loadDongleData();
+      this.showToast(isMarkingDamaged ? 'บันทึกสถานะชำรุดแล้ว' : 'คืนดองเกิ้ลเข้าสต๊อกแล้ว', 'success');
+    } catch (error) {
+      this.showToast(`เปลี่ยนสถานะดองเกิ้ลไม่สำเร็จ: ${error.message}`, 'error');
     }
   }
 
@@ -4156,6 +4250,23 @@ class SolarTrackingApp {
 }
 
 let app;
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('DOMContentLoaded', async () => {
+  const viewFragments = [
+    { mountId: 'database-view-mount', file: 'database-view.html', viewId: 'view-database', label: 'ตารางข้อมูล' },
+    { mountId: 'dongle-view-mount', file: 'dongle-view.html', viewId: 'view-dongle', label: 'สต๊อกดองเกิ้ล' }
+  ];
+  await Promise.all(viewFragments.map(async fragment => {
+    const mount = document.getElementById(fragment.mountId);
+    if (!mount) return;
+    try {
+      const response = await fetch(new URL(fragment.file, document.baseURI));
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      mount.innerHTML = await response.text();
+      if (!document.getElementById(fragment.viewId)) throw new Error(`${fragment.viewId} markup is missing`);
+    } catch (error) {
+      mount.innerHTML = `<section class="rounded-2xl border border-rose-200 bg-rose-50 p-5 text-sm text-rose-800">โหลดหน้า${fragment.label}ไม่สำเร็จ กรุณารีเฟรชหน้าเว็บ</section>`;
+      console.error(`Unable to load ${fragment.file}:`, error);
+    }
+  }));
   app = new SolarTrackingApp();
 });
