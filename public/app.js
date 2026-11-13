@@ -2405,7 +2405,7 @@ class SolarTrackingApp {
   async loadCTData() {
     try {
       if (this.isMockMode) this.cts = JSON.parse(localStorage.getItem('solartrack_cts') || '[]');
-      else this.cts = (await this.requestJson('/api/cts')).cts || [];
+      else this.cts = (await this.requestJson(`/api/cts?refresh=${Date.now()}`)).cts || [];
       this.renderCTInventory();
       const date = document.getElementById('ct-issue-date');
       if (date && !date.value) date.value = this.getLocalDateInputValue();

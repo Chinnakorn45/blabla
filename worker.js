@@ -260,6 +260,24 @@ async function handleApi(request, env, url) {
     return json(await store.returnDongleToStock(id));
   }
 
+  if (path === '/api/cts' && method === 'GET') {
+    return json({ success: true, cts: await store.getCTInventory() });
+  }
+  if (path === '/api/cts/import' && method === 'POST') {
+    return json(await store.addCTs((await request.json())?.cts), 201);
+  }
+
+  const ctPath = path.match(/^\/api\/cts\/(\d+)\/(issue|return|status)$/);
+  if (ctPath && method === 'PUT') {
+    const [, id, action] = ctPath;
+    if (action === 'issue') return json(await store.issueCT(id, await request.json()));
+    if (action === 'status') {
+      const body = await request.json().catch(() => ({}));
+      return json(await store.setCTStatus(id, body?.status));
+    }
+    return json(await store.returnCTToStock(id));
+  }
+
   if (path === '/api/database/info' && method === 'GET') {
     return json({ success: true, info: await store.getDatabaseInfo() });
   }
@@ -312,7 +330,8 @@ async function handleApi(request, env, url) {
       projects,
       totalPanels: data.length,
       panels: data,
-      dongles: await store.getDongleInventory()
+      dongles: await store.getDongleInventory(),
+      cts: await store.getCTInventory()
     };
     const filename = `solartrack_backup_${new Date().toISOString().slice(0, 10)}.json`;
     return json(backupData, 200, { 'Content-Disposition': `attachment; filename="${filename}"`,
@@ -437,6 +456,21 @@ function normalizeDongleIssue(payload) {
   return { project_name: projectName, responsible, issued_at: issuedAt };
 }
 
+function normalizeCTIssue(payload) {
+  const projectName = typeof payload?.project_name === 'string' ? payload.project_name.trim() : '';
+  const responsible = typeof payload?.responsible === 'string' ? payload.responsible.trim() : '';
+  const issuedAt = typeof payload?.issued_at === 'string' ? payload.issued_at.trim() : '';
+  const parsedDate = new Date(`${issuedAt}T00:00:00Z`);
+  if (!projectName || projectName.toLowerCase() === WAREHOUSE_PROJECT_NAME.toLowerCase()) {
+    throw dongleError('กรุณาเลือกโครงการหน้างาน');
+  }
+  if (!responsible) throw dongleError('กรุณาระบุผู้รับผิดชอบ');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(issuedAt) || Number.isNaN(parsedDate.getTime()) || parsedDate.toISOString().slice(0, 10) !== issuedAt) {
+    throw dongleError('กรุณาระบุวันที่เบิกให้ถูกต้อง');
+  }
+  return { project_name: projectName, responsible, issued_at: issuedAt };
+}
+
 let inMemoryStore = null;
 
 class DataStore {
@@ -453,7 +487,8 @@ class DataStore {
       equipmentIssues: [],
       toolAssets: [],
       toolEvents: [],
-      dongles: []
+      dongles: [],
+      cts: []
     };
   }
 
@@ -469,6 +504,7 @@ class DataStore {
       if (!Array.isArray(this.cache.toolAssets)) this.cache.toolAssets = [];
       if (!Array.isArray(this.cache.toolEvents)) this.cache.toolEvents = [];
       if (!Array.isArray(this.cache.dongles)) this.cache.dongles = [];
+      if (!Array.isArray(this.cache.cts)) this.cache.cts = [];
       return this.cache;
     }
     let raw = null;
@@ -490,12 +526,14 @@ class DataStore {
         !Array.isArray(this.cache.equipmentIssues);
       const needsToolMigration = !Array.isArray(this.cache.toolAssets) || !Array.isArray(this.cache.toolEvents);
       const needsDongleMigration = !Array.isArray(this.cache.dongles);
+      const needsCTMigration = !Array.isArray(this.cache.cts);
       if (!Array.isArray(this.cache.equipmentCatalog)) this.cache.equipmentCatalog = [];
       if (!Array.isArray(this.cache.equipmentIssues)) this.cache.equipmentIssues = [];
       if (!Array.isArray(this.cache.toolAssets)) this.cache.toolAssets = [];
       if (!Array.isArray(this.cache.toolEvents)) this.cache.toolEvents = [];
       if (!Array.isArray(this.cache.dongles)) this.cache.dongles = [];
-      if (needsEquipmentMigration || needsToolMigration || needsDongleMigration) await this.save();
+      if (!Array.isArray(this.cache.cts)) this.cache.cts = [];
+      if (needsEquipmentMigration || needsToolMigration || needsDongleMigration || needsCTMigration) await this.save();
     } catch {
       this.cache = this.emptyStore();
     }
@@ -1129,6 +1167,98 @@ class DataStore {
     dongle.updated_at = new Date().toISOString();
     await this.save();
     return { success: true, dongle };
+  }
+
+  async getCTInventory() {
+    const memory = await this.load();
+    return [...memory.cts].sort((a, b) =>
+      String(a.status).localeCompare(String(b.status)) ||
+      String(a.serial_number).localeCompare(String(b.serial_number), undefined, { sensitivity: 'base' })
+    );
+  }
+
+  async addCTs(records) {
+    if (!Array.isArray(records) || records.length === 0) {
+      throw dongleError('กรุณาระบุ Serial Number อย่างน้อย 1 รายการ');
+    }
+    const cleanRecords = records.map((record) => ({
+      serial_number: typeof record?.serial_number === 'string' ? record.serial_number.trim() : '',
+      model: typeof record?.model === 'string' ? record.model.trim() : '',
+      ratio: typeof record?.ratio === 'string' ? record.ratio.trim() : ''
+    }));
+    const seen = new Set();
+    for (const record of cleanRecords) {
+      if (!record.serial_number) throw dongleError('กรุณาระบุ Serial Number ให้ครบ');
+      if (!record.model) throw dongleError('กรุณาระบุรุ่น CT');
+      if (!record.ratio) throw dongleError('กรุณาระบุอัตราส่วน CT');
+      const key = record.serial_number.toLocaleLowerCase();
+      if (seen.has(key)) throw dongleError(`พบ SN ${record.serial_number} ซ้ำในรายการ`);
+      seen.add(key);
+    }
+
+    const memory = await this.load();
+    const existing = new Set(memory.cts.map((item) => String(item.serial_number).toLocaleLowerCase()));
+    const duplicate = cleanRecords.find((record) => existing.has(record.serial_number.toLocaleLowerCase()));
+    if (duplicate) throw dongleError(`SN ${duplicate.serial_number} มีในสต๊อกแล้ว`, 409);
+
+    const now = new Date().toISOString();
+    const nextId = Math.max(Date.now(), ...memory.cts.map((item) => Number(item.id) + 1 || 0));
+    const created = cleanRecords.map((record, index) => ({
+      id: nextId + index,
+      ...record,
+      status: 'warehouse',
+      project_name: '',
+      responsible: '',
+      issued_at: '',
+      created_at: now,
+      updated_at: now
+    }));
+    memory.cts.push(...created);
+    await this.save();
+    return { success: true, count: created.length };
+  }
+
+  async issueCT(id, payload) {
+    const ctId = Number(id);
+    if (!Number.isSafeInteger(ctId) || ctId <= 0) throw dongleError('รหัส CT ไม่ถูกต้อง');
+    const issue = normalizeCTIssue(payload || {});
+    const memory = await this.load();
+    const ct = memory.cts.find((item) => Number(item.id) === ctId);
+    if (!ct) throw dongleError('ไม่พบข้อมูล CT');
+    if (ct.status !== 'warehouse') throw dongleError(`SN ${ct.serial_number} ถูกเบิกไปแล้ว`, 409);
+    Object.assign(ct, issue, { status: 'issued', updated_at: new Date().toISOString() });
+    await this.save();
+    return { success: true, ct };
+  }
+
+  async returnCTToStock(id) {
+    const ctId = Number(id);
+    if (!Number.isSafeInteger(ctId) || ctId <= 0) throw dongleError('รหัส CT ไม่ถูกต้อง');
+    const memory = await this.load();
+    const ct = memory.cts.find((item) => Number(item.id) === ctId);
+    if (!ct) throw dongleError('ไม่พบข้อมูล CT');
+    if (ct.status !== 'issued') throw dongleError(`SN ${ct.serial_number} ไม่ได้อยู่ในสถานะเบิก`, 409);
+    ct.status = 'warehouse';
+    ct.updated_at = new Date().toISOString();
+    await this.save();
+    return { success: true, ct };
+  }
+
+  async setCTStatus(id, nextStatus) {
+    const ctId = Number(id);
+    if (!Number.isSafeInteger(ctId) || ctId <= 0) throw dongleError('รหัส CT ไม่ถูกต้อง');
+    if (!['damaged', 'warehouse'].includes(nextStatus)) throw dongleError('สถานะ CT ไม่ถูกต้อง');
+    const allowedCurrentStatuses = nextStatus === 'damaged' ? ['warehouse', 'issued'] : ['damaged'];
+    const memory = await this.load();
+    const ct = memory.cts.find((item) => Number(item.id) === ctId);
+    if (!ct) throw dongleError('ไม่พบข้อมูล CT');
+    if (!allowedCurrentStatuses.includes(ct.status)) {
+      throw dongleError(`ไม่สามารถเปลี่ยนสถานะ SN ${ct.serial_number} จาก ${ct.status} เป็น ${nextStatus} ได้`, 409);
+    }
+    ct.status = nextStatus;
+    ct.updated_at = new Date().toISOString();
+    await this.save();
+    return { success: true, ct };
   }
 
   async getDatabaseInfo() {
