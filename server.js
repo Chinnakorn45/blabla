@@ -374,6 +374,51 @@ app.put('/api/dongles/:id/status', async (req, res) => {
   }
 });
 
+app.get('/api/cts', async (req, res) => {
+  try {
+    res.json({ success: true, cts: await db.getCTInventory() });
+  } catch (err) {
+    console.error('Error fetching CT inventory:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/cts/import', async (req, res) => {
+  try {
+    res.status(201).json(await db.addCTs(req.body?.cts));
+  } catch (err) {
+    console.error('Error adding CTs to stock:', err);
+    res.status(err.code === 'STOCK_CONFLICT' ? 409 : 400).json({ success: false, error: err.message });
+  }
+});
+
+app.put('/api/cts/:id/issue', async (req, res) => {
+  try {
+    res.json(await db.issueCT(req.params.id, req.body || {}));
+  } catch (err) {
+    console.error('Error issuing CT:', err);
+    res.status(err.code === 'STOCK_CONFLICT' ? 409 : 400).json({ success: false, error: err.message });
+  }
+});
+
+app.put('/api/cts/:id/return', async (req, res) => {
+  try {
+    res.json(await db.returnCTToStock(req.params.id));
+  } catch (err) {
+    console.error('Error returning CT:', err);
+    res.status(err.code === 'STOCK_CONFLICT' ? 409 : 400).json({ success: false, error: err.message });
+  }
+});
+
+app.put('/api/cts/:id/status', async (req, res) => {
+  try {
+    res.json(await db.setCTStatus(req.params.id, req.body?.status));
+  } catch (err) {
+    console.error('Error updating CT status:', err);
+    res.status(err.code === 'STOCK_CONFLICT' ? 409 : 400).json({ success: false, error: err.message });
+  }
+});
+
 // ---------------- Database Management Endpoints ----------------
 
 // Get Database Info & Metrics

@@ -36,6 +36,7 @@ let memoryStore = {
   toolAssets: [],
   toolEvents: [],
   dongles: [],
+  cts: [],
   settings: null
 };
 
@@ -72,15 +73,16 @@ function useJsonFallback() {
       memoryStore.toolAssets ||= [];
       memoryStore.toolEvents ||= [];
       memoryStore.dongles ||= [];
+      memoryStore.cts ||= [];
       memoryStore.settings ??= null;
       saveJsonStore();
     } catch (err) {
       console.error('Failed reading existing JSON file, initializing new store:', err);
-      memoryStore = { panels: [], projects: [], equipmentCatalog: [], equipmentIssues: [], toolAssets: [], toolEvents: [], dongles: [], settings: null };
+      memoryStore = { panels: [], projects: [], equipmentCatalog: [], equipmentIssues: [], toolAssets: [], toolEvents: [], dongles: [], cts: [], settings: null };
       saveJsonStore();
     }
   } else {
-    memoryStore = { panels: [], projects: [], equipmentCatalog: [], equipmentIssues: [], toolAssets: [], toolEvents: [], dongles: [], settings: null };
+    memoryStore = { panels: [], projects: [], equipmentCatalog: [], equipmentIssues: [], toolAssets: [], toolEvents: [], dongles: [], cts: [], settings: null };
     saveJsonStore();
   }
 }
@@ -204,6 +206,21 @@ function setupTables() {
       `);
 
       db.run(`
+        CREATE TABLE IF NOT EXISTS ct_inventory (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          serial_number TEXT NOT NULL COLLATE NOCASE UNIQUE,
+          model TEXT NOT NULL,
+          ratio TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'warehouse',
+          project_name TEXT,
+          responsible TEXT,
+          issued_at TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      db.run(`
         CREATE TABLE IF NOT EXISTS app_settings (
           key TEXT PRIMARY KEY,
           value TEXT NOT NULL,
@@ -219,6 +236,7 @@ function setupTables() {
           memoryStore.toolAssets ||= [];
           memoryStore.toolEvents ||= [];
           memoryStore.dongles ||= [];
+          memoryStore.cts ||= [];
           saveJsonStore();
           resolve();
           return;
@@ -1931,6 +1949,132 @@ async function setDongleStatus(id, nextStatus) {
   });
 }
 
+function getCTInventory() {
+  if (useJsonStore) {
+    memoryStore.cts ||= [];
+    return Promise.resolve([...memoryStore.cts].sort((a, b) =>
+      String(a.status).localeCompare(String(b.status)) || String(a.serial_number).localeCompare(String(b.serial_number))
+    ));
+  }
+  return new Promise((resolve, reject) => {
+    db.all('SELECT id, serial_number, model, ratio, status, project_name, responsible, issued_at, created_at, updated_at FROM ct_inventory ORDER BY status, serial_number COLLATE NOCASE',
+      (err, rows) => err ? reject(err) : resolve(rows || []));
+  });
+}
+
+async function addCTs(records) {
+  if (!Array.isArray(records) || records.length === 0) throw new Error('กรุณาระบุ Serial Number อย่างน้อย 1 รายการ');
+  const cleanRecords = records.map(record => ({
+    serial_number: typeof record?.serial_number === 'string' ? record.serial_number.trim() : '',
+    model: typeof record?.model === 'string' ? record.model.trim() : '',
+    ratio: typeof record?.ratio === 'string' ? record.ratio.trim() : ''
+  }));
+  const seen = new Set();
+  for (const record of cleanRecords) {
+    if (!record.serial_number || !record.model || !record.ratio) throw new Error('กรุณาระบุรุ่น อัตราส่วน และ Serial Number ให้ครบ');
+    const key = record.serial_number.toLocaleLowerCase();
+    if (seen.has(key)) throw new Error(`พบ SN ${record.serial_number} ซ้ำในรายการ`);
+    seen.add(key);
+  }
+  if (useJsonStore) {
+    memoryStore.cts ||= [];
+    const existing = new Set(memoryStore.cts.map(item => item.serial_number.toLocaleLowerCase()));
+    const duplicate = cleanRecords.find(record => existing.has(record.serial_number.toLocaleLowerCase()));
+    if (duplicate) throw stockConflict(`SN ${duplicate.serial_number} มีในสต๊อกแล้ว`);
+    const now = new Date().toISOString();
+    memoryStore.cts.push(...cleanRecords.map((record, index) => ({ id: Date.now() + index, ...record, status: 'warehouse', project_name: '', responsible: '', issued_at: '', created_at: now, updated_at: now })));
+    saveJsonStore();
+    return { success: true, count: cleanRecords.length };
+  }
+  return new Promise((resolve, reject) => {
+    db.serialize(() => db.run('BEGIN IMMEDIATE', beginError => {
+      if (beginError) return reject(beginError);
+      let index = 0;
+      const rollback = error => db.run('ROLLBACK', rollbackError => reject(rollbackError || error));
+      const insertNext = () => {
+        if (index >= cleanRecords.length) return db.run('COMMIT', error => error ? rollback(error) : resolve({ success: true, count: cleanRecords.length }));
+        const record = cleanRecords[index++];
+        db.run('INSERT INTO ct_inventory (serial_number, model, ratio) VALUES (?, ?, ?)', [record.serial_number, record.model, record.ratio], error => {
+          if (error) return rollback(error.code === 'SQLITE_CONSTRAINT' ? stockConflict(`SN ${record.serial_number} มีในสต๊อกแล้ว`) : error);
+          insertNext();
+        });
+      };
+      insertNext();
+    }));
+  });
+}
+
+function normalizeCTIssue(payload = {}) {
+  const project_name = typeof payload.project_name === 'string' ? payload.project_name.trim() : '';
+  const responsible = typeof payload.responsible === 'string' ? payload.responsible.trim() : '';
+  const issued_at = typeof payload.issued_at === 'string' ? payload.issued_at.trim() : '';
+  const parsedDate = new Date(`${issued_at}T00:00:00Z`);
+  if (!project_name || isWarehouseProject(project_name)) throw new Error('กรุณาเลือกโครงการหน้างาน');
+  if (!responsible) throw new Error('กรุณาระบุผู้รับผิดชอบ');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(issued_at) || Number.isNaN(parsedDate.getTime()) || parsedDate.toISOString().slice(0, 10) !== issued_at) throw new Error('กรุณาระบุวันที่เบิกให้ถูกต้อง');
+  return { project_name, responsible, issued_at };
+}
+
+async function issueCT(id, payload) {
+  const ctId = Number(id);
+  if (!Number.isSafeInteger(ctId) || ctId <= 0) throw new Error('รหัส CT ไม่ถูกต้อง');
+  const issue = normalizeCTIssue(payload);
+  if (useJsonStore) {
+    memoryStore.cts ||= [];
+    const ct = memoryStore.cts.find(item => Number(item.id) === ctId);
+    if (!ct) throw new Error('ไม่พบข้อมูล CT');
+    if (ct.status !== 'warehouse') throw stockConflict(`SN ${ct.serial_number} ถูกเบิกไปแล้ว`);
+    Object.assign(ct, issue, { status: 'issued', updated_at: new Date().toISOString() });
+    saveJsonStore();
+    return { success: true, ct };
+  }
+  return new Promise((resolve, reject) => db.run("UPDATE ct_inventory SET status='issued', project_name=?, responsible=?, issued_at=?, updated_at=CURRENT_TIMESTAMP WHERE id=? AND status='warehouse'",
+    [issue.project_name, issue.responsible, issue.issued_at, ctId], function (err) {
+      if (err) return reject(err);
+      if (!this.changes) return db.get('SELECT serial_number FROM ct_inventory WHERE id=?', [ctId], (getError, row) => getError ? reject(getError) : reject(row ? stockConflict(`SN ${row.serial_number} ถูกเบิกไปแล้ว`) : new Error('ไม่พบข้อมูล CT')));
+      db.get('SELECT id, serial_number, model, ratio, status, project_name, responsible, issued_at, created_at, updated_at FROM ct_inventory WHERE id=?', [ctId], (getError, ct) => getError ? reject(getError) : resolve({ success: true, ct }));
+    }));
+}
+
+async function returnCTToStock(id) {
+  const ctId = Number(id);
+  if (!Number.isSafeInteger(ctId) || ctId <= 0) throw new Error('รหัส CT ไม่ถูกต้อง');
+  if (useJsonStore) {
+    memoryStore.cts ||= [];
+    const ct = memoryStore.cts.find(item => Number(item.id) === ctId);
+    if (!ct) throw new Error('ไม่พบข้อมูล CT');
+    if (ct.status !== 'issued') throw stockConflict(`SN ${ct.serial_number} ไม่ได้อยู่ในสถานะเบิก`);
+    ct.status = 'warehouse'; ct.updated_at = new Date().toISOString(); saveJsonStore();
+    return { success: true, ct };
+  }
+  return new Promise((resolve, reject) => db.run("UPDATE ct_inventory SET status='warehouse', updated_at=CURRENT_TIMESTAMP WHERE id=? AND status='issued'", [ctId], function (err) {
+    if (err) return reject(err);
+    if (!this.changes) return db.get('SELECT serial_number FROM ct_inventory WHERE id=?', [ctId], (getError, row) => getError ? reject(getError) : reject(row ? stockConflict(`SN ${row.serial_number} ไม่ได้อยู่ในสถานะเบิก`) : new Error('ไม่พบข้อมูล CT')));
+    db.get('SELECT id, serial_number, model, ratio, status, project_name, responsible, issued_at, created_at, updated_at FROM ct_inventory WHERE id=?', [ctId], (getError, ct) => getError ? reject(getError) : resolve({ success: true, ct }));
+  }));
+}
+
+async function setCTStatus(id, nextStatus) {
+  const ctId = Number(id);
+  if (!Number.isSafeInteger(ctId) || ctId <= 0) throw new Error('รหัส CT ไม่ถูกต้อง');
+  if (!['damaged', 'warehouse'].includes(nextStatus)) throw new Error('สถานะ CT ไม่ถูกต้อง');
+  const allowed = nextStatus === 'damaged' ? ['warehouse', 'issued'] : ['damaged'];
+  if (useJsonStore) {
+    memoryStore.cts ||= [];
+    const ct = memoryStore.cts.find(item => Number(item.id) === ctId);
+    if (!ct) throw new Error('ไม่พบข้อมูล CT');
+    if (!allowed.includes(ct.status)) throw stockConflict(`ไม่สามารถเปลี่ยนสถานะ SN ${ct.serial_number} จาก ${ct.status} เป็น ${nextStatus} ได้`);
+    ct.status = nextStatus; ct.updated_at = new Date().toISOString(); saveJsonStore();
+    return { success: true, ct };
+  }
+  const sourceCondition = nextStatus === 'damaged' ? "status IN ('warehouse','issued')" : "status='damaged'";
+  return new Promise((resolve, reject) => db.run(`UPDATE ct_inventory SET status=?, updated_at=CURRENT_TIMESTAMP WHERE id=? AND ${sourceCondition}`, [nextStatus, ctId], function (err) {
+    if (err) return reject(err);
+    if (!this.changes) return db.get('SELECT serial_number,status FROM ct_inventory WHERE id=?', [ctId], (getError, row) => getError ? reject(getError) : reject(row ? stockConflict(`ไม่สามารถเปลี่ยนสถานะ SN ${row.serial_number} จาก ${row.status} เป็น ${nextStatus} ได้`) : new Error('ไม่พบข้อมูล CT')));
+    db.get('SELECT id, serial_number, model, ratio, status, project_name, responsible, issued_at, created_at, updated_at FROM ct_inventory WHERE id=?', [ctId], (getError, ct) => getError ? reject(getError) : resolve({ success: true, ct }));
+  }));
+}
+
 function getDatabaseInfo() {
   const filePath = useJsonStore ? JSON_FILE : DB_FILE;
   let fileSizeBytes = 0;
@@ -2066,6 +2210,11 @@ module.exports = {
   issueDongle,
   returnDongleToStock,
   setDongleStatus,
+  getCTInventory,
+  addCTs,
+  issueCT,
+  returnCTToStock,
+  setCTStatus,
   getAppSettings,
   saveAppSettings,
   getDatabaseInfo,

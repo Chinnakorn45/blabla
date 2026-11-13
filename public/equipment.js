@@ -367,6 +367,110 @@ Object.assign(SolarTrackingApp.prototype, {
     new window.QRCode(qrRoot, { text: url, width: 180, height: 180 });
   },
 
+  async exportToolSummaryPdf() {
+    const tools = (this.toolAssets || []).slice().sort((a, b) => String(a.asset_code).localeCompare(String(b.asset_code)));
+    if (!tools.length) return this.showToast('ยังไม่มีเครื่องมือให้สรุป', 'warning');
+    this.showToast('กำลังสร้าง QR Code ทั้งหมด...', 'success');
+    const qrImages = await this.buildToolQrImages(tools);
+    const statusLabels = { available: 'พร้อมใช้งาน', pending_approval: 'รออนุมัติ', borrowed: 'อยู่หน้างาน', maintenance: 'กำลังซ่อม', damaged: 'ชำรุด', lost: 'สูญหาย' };
+    const escape = value => this.escapeHtml(value ?? '');
+    const summaryRows = tools.map((tool, index) => `
+      <tr>
+        <td class="num">${index + 1}</td>
+        <td><div class="code">${escape(tool.asset_code)}</div></td>
+        <td>
+          <div class="tname">${escape(tool.name)}</div>
+          <div class="sub2">${escape([tool.brand, tool.model].filter(Boolean).join(' / ') || 'ไม่ระบุรุ่น')}${tool.serial_number ? ` · S/N: ${escape(tool.serial_number)}` : ''}</div>
+          <div class="sub2">${escape(tool.status === 'borrowed' ? `หน้างาน: ${tool.current_project || '-'} · ${tool.current_holder || '-'}` : `จัดเก็บ: ${tool.location || '-'}`)}</div>
+        </td>
+        <td><span class="pill ${tool.status}">${escape(statusLabels[tool.status] || tool.status || '-')}</span></td>
+        <td class="qr-cell"><img src="${qrImages.get(Number(tool.id)) || ''}" alt="QR ${escape(tool.asset_code)}"></td>
+      </tr>`).join('');
+    const stats = {
+      total: tools.length,
+      available: tools.filter(tool => tool.status === 'available').length,
+      borrowed: tools.filter(tool => tool.status === 'borrowed').length,
+      other: tools.filter(tool => ['maintenance', 'damaged', 'lost', 'pending_approval'].includes(tool.status)).length
+    };
+    const exportDate = new Date().toLocaleString('th-TH', { dateStyle: 'long', timeStyle: 'short' });
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return this.showToast('เบราว์เซอร์บล็อกหน้าต่างพิมพ์ กรุณาอนุญาตป๊อปอัปสำหรับเว็บไซต์นี้', 'warning');
+    printWindow.document.write(`<!doctype html><html lang="th"><head><meta charset="utf-8"><title>สรุปทะเบียนเครื่องมือช่าง</title><style>
+      *{box-sizing:border-box}
+      body{font-family:'Segoe UI',Tahoma,'Leelawadee UI',Arial,sans-serif;color:#1e293b;margin:0;font-size:10pt}
+      .page{padding:12mm 10mm}
+      header.doc{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2.5px solid #7c3aed;padding-bottom:3mm;margin-bottom:4mm}
+      h1{font-size:16pt;margin:0;color:#4c1d95}
+      .doc-sub{font-size:8.5pt;color:#64748b;margin-top:1mm}
+      .chips{margin-bottom:4mm}.chips span{display:inline-block;border:1px solid #ddd6fe;background:#f5f3ff;border-radius:99px;padding:1mm 3.5mm;margin-right:2mm;font-size:8.5pt;font-weight:700;color:#5b21b6}
+      table{width:100%;border-collapse:collapse;font-size:9pt}
+      thead th{background:#7c3aed;color:#fff;text-align:left;padding:2.2mm 2.5mm;font-size:9pt;border:0.5pt solid #7c3aed}
+      td{border:0.5pt solid #cbd5e1;padding:2mm 2.5mm;vertical-align:middle}
+      tbody tr:nth-child(even){background:#f8fafc}
+      td.num{text-align:center;color:#64748b;font-size:8.5pt;width:8mm}
+      td.code{font-weight:800;font-size:9.5pt;white-space:nowrap;color:#312e81}
+      .tname{font-weight:700;font-size:9.5pt}
+      .sub2{font-size:7.5pt;color:#64748b;margin-top:0.6mm}
+      .pill{display:inline-block;border-radius:99px;padding:0.8mm 2.5mm;font-size:7.5pt;font-weight:700;white-space:nowrap}
+      .pill.available{background:#dcfce7;color:#15803d}.pill.pending_approval{background:#fef3c7;color:#b45309}
+      .pill.borrowed{background:#dbeafe;color:#1d4ed8}.pill.maintenance{background:#fef3c7;color:#b45309}
+      .pill.damaged{background:#ffe4e6;color:#be123c}.pill.lost{background:#e2e8f0;color:#475569}
+      td.qr-cell{width:20mm;text-align:center;padding:1.5mm}
+      td.qr-cell img{width:17mm;height:17mm;object-fit:contain;display:block;margin:0 auto}
+      thead th.qr-h{text-align:center;width:20mm}
+      tr{page-break-inside:avoid}
+      footer.doc{margin-top:5mm;font-size:8pt;color:#94a3b8;display:flex;justify-content:space-between}
+    </style></head><body>
+      <section class="page">
+        <header class="doc">
+          <div><h1>สรุปรายการเครื่องมือช่าง</h1><div class="doc-sub">ทะเบียนรวมทุกตัว · ออกรายงานเมื่อ ${escape(exportDate)}</div></div>
+        </header>
+        <div class="chips"><span>รวม ${stats.total} รายการ</span><span>พร้อมใช้งาน ${stats.available}</span><span>อยู่หน้างาน ${stats.borrowed}</span><span>ซ่อม / ชำรุด / สูญหาย ${stats.other}</span></div>
+        <table>
+          <thead><tr><th>#</th><th>รหัส</th><th>รายละเอียดเครื่องมือ</th><th>สถานะ</th><th class="qr-h">QR Code</th></tr></thead>
+          <tbody>${summaryRows}</tbody>
+        </table>
+        <footer class="doc"><span>สแกน QR หลังรายการเพื่อเปิดข้อมูลเครื่องมือชิ้นนั้นทันที</span><span>SolarTrack · ทะเบียนเครื่องมือช่าง</span></footer>
+      </section>
+      <script>window.addEventListener('load',()=>setTimeout(()=>window.print(),400))<\/script>
+    </body></html>`);
+    printWindow.document.close();
+    printWindow.focus();
+  },
+
+  buildToolQrImages(tools) {
+    return new Promise((resolve) => {
+      const results = new Map();
+      if (!window.QRCode) return resolve(results);
+      const holder = document.createElement('div');
+      holder.style.cssText = 'position:fixed;left:-9999px;top:0';
+      document.body.appendChild(holder);
+      let index = 0;
+      const next = () => {
+        if (index >= tools.length) {
+          holder.remove();
+          return resolve(results);
+        }
+        const tool = tools[index++];
+        holder.innerHTML = '';
+        const box = document.createElement('div');
+        holder.appendChild(box);
+        const url = `${window.location.origin}${window.location.pathname}?tool=${encodeURIComponent(tool.id)}&scan=1`;
+        try {
+          new window.QRCode(box, { text: url, width: 180, height: 180, correctLevel: window.QRCode.CorrectLevel ? window.QRCode.CorrectLevel.M : undefined });
+        } catch { results.set(Number(tool.id), ''); return setTimeout(next, 0); }
+        setTimeout(() => {
+          const canvas = box.querySelector('canvas');
+          const img = box.querySelector('img');
+          const data = canvas?.toDataURL('image/png') || img?.src || '';
+          results.set(Number(tool.id), data);
+          next();
+        }, 30);
+      };
+      next();
+    });
+  },
+
   printToolQr() {
     const tool = this.selectedTool;
     const qrRoot = document.getElementById('tool-qr-code');

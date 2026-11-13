@@ -51,6 +51,7 @@ class SolarTrackingApp {
     this.toolRegistry = null;
     this.dongles = [];
     this.dongleFilters = { search: '', status: 'all' };
+    this.cts = [];
     this.fieldStockModalPanels = [];
     this.pendingConfirmation = null;
     this.confirmationReturnFocus = null;
@@ -333,7 +334,7 @@ class SolarTrackingApp {
 
   showView(viewId) {
     this.closeMainNavigation();
-    const views = ['dashboard', 'warehouse', 'field', 'form', 'success', 'database', 'settings', 'dongle', 'equipment'];
+    const views = ['dashboard', 'warehouse', 'field', 'form', 'success', 'database', 'settings', 'dongle', 'ct', 'equipment'];
     views.forEach(v => {
       const el = document.getElementById(`view-${v}`);
       if (el) {
@@ -356,6 +357,8 @@ class SolarTrackingApp {
       this.loadDatabaseStudioData();
     } else if (viewId === 'dongle') {
       this.populateDbProjectDropdowns().then(() => this.loadDongleData());
+    } else if (viewId === 'ct') {
+      this.populateDbProjectDropdowns().then(() => this.loadCTData());
     } else if (viewId === 'equipment') {
       this.populateDbProjectDropdowns().then(() => this.loadEquipmentData());
     } else if (viewId === 'settings') {
@@ -2117,6 +2120,17 @@ class SolarTrackingApp {
     }
   }
 
+  formatThaiDate(dateValue) {
+    if (!dateValue) return '-';
+    const match = String(dateValue).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match) return String(dateValue);
+    const date = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
+    if (Number.isNaN(date.getTime())) return String(dateValue);
+    return new Intl.DateTimeFormat('th-TH-u-ca-buddhist', {
+      timeZone: 'UTC', day: '2-digit', month: '2-digit', year: 'numeric'
+    }).format(date);
+  }
+
   parsePanelDate(value) {
     if (!value) return new Date(NaN);
     const normalized = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(value)
@@ -2368,6 +2382,7 @@ class SolarTrackingApp {
     const editSelect = document.getElementById('edit-project');
     const equipmentProjectOptions = document.getElementById('equipment-project-options');
     const dongleProjectSelect = document.getElementById('dongle-issue-project');
+    const ctProjectSelect = document.getElementById('ct-issue-project');
 
     const optionsHtml = projects.map(p => `<option value="${this.escapeHtml(p)}">${this.escapeHtml(p)}</option>`).join('');
 
@@ -2381,9 +2396,168 @@ class SolarTrackingApp {
       editSelect.innerHTML = optionsHtml;
     }
     if (equipmentProjectOptions) equipmentProjectOptions.innerHTML = optionsHtml;
+    if (ctProjectSelect) ctProjectSelect.innerHTML = `<option value="">-- เลือกโครงการ --</option>` + optionsHtml;
     if (dongleProjectSelect) {
       dongleProjectSelect.innerHTML = `<option value="">-- เลือกโครงการ --</option>` + optionsHtml;
     }
+  }
+
+  async loadCTData() {
+    try {
+      if (this.isMockMode) this.cts = JSON.parse(localStorage.getItem('solartrack_cts') || '[]');
+      else this.cts = (await this.requestJson('/api/cts')).cts || [];
+      this.renderCTInventory();
+      const date = document.getElementById('ct-issue-date');
+      if (date && !date.value) date.value = this.getLocalDateInputValue();
+      const responsible = document.getElementById('ct-issue-by');
+      if (responsible && !responsible.value) responsible.value = appSettings.getDefaultTechnician() || '';
+    } catch (error) {
+      console.error('Unable to load CT inventory:', error);
+      this.showToast(`โหลดสต๊อก CT ไม่สำเร็จ: ${error.message}`, 'error');
+    }
+  }
+
+  renderCTInventory() {
+    const container = document.getElementById('ct-inventory-list');
+    const ctSelect = document.getElementById('ct-issue-item');
+    const summary = document.getElementById('ct-summary');
+    if (!container || !ctSelect || !summary) return;
+    const counts = {
+      total: this.cts.length,
+      warehouse: this.cts.filter(item => item.status === 'warehouse').length,
+      issued: this.cts.filter(item => item.status === 'issued').length,
+      damaged: this.cts.filter(item => item.status === 'damaged').length
+    };
+    summary.innerHTML = [
+      { label: 'CT ทั้งหมด', value: counts.total, classes: 'border-slate-200 bg-white text-slate-800' },
+      { label: 'ในสต๊อก', value: counts.warehouse, classes: 'border-emerald-200 bg-emerald-50 text-emerald-800' },
+      { label: 'เบิกแล้ว', value: counts.issued, classes: 'border-sky-200 bg-sky-50 text-sky-800' },
+      { label: 'ชำรุด', value: counts.damaged, classes: 'border-rose-200 bg-rose-50 text-rose-800' }
+    ].map(item => `<div class="rounded-xl border ${item.classes} px-3 py-2.5"><div class="text-[10px] font-semibold opacity-75">${item.label}</div><div class="mt-0.5 text-lg font-bold tabular-nums">${item.value.toLocaleString()}</div></div>`).join('');
+
+    const inStock = this.cts.filter(ct => ct.status === 'warehouse');
+    ctSelect.innerHTML = `<option value="">${inStock.length ? '-- เลือก CT --' : 'ไม่มี CT ในสต๊อก'}</option>` +
+      inStock.map(ct => `<option value="${Number(ct.id)}">${this.escapeHtml(ct.serial_number)} (${this.escapeHtml(ct.model)} · ${this.escapeHtml(ct.ratio)})</option>`).join('');
+    ctSelect.disabled = inStock.length === 0;
+
+    const search = (document.getElementById('ct-filter-search')?.value || '').trim().toLocaleLowerCase();
+    const statusFilter = document.getElementById('ct-filter-status')?.value || 'all';
+    const filtered = this.cts.filter(ct => {
+      if (statusFilter !== 'all' && ct.status !== statusFilter) return false;
+      return !search || [ct.serial_number, ct.model, ct.ratio, ct.project_name, ct.responsible]
+        .some(value => String(value || '').toLocaleLowerCase().includes(search));
+    });
+    if (!filtered.length) {
+      container.innerHTML = `<div class="p-8 text-center text-xs text-slate-500">${this.cts.length ? 'ไม่พบ CT ที่ตรงกับตัวกรอง' : 'ยังไม่มี CT ในระบบ รับเข้าได้จากแบบฟอร์มด้านบน'}</div>`;
+      return;
+    }
+    const labels = {
+      warehouse: { label: 'ในสต๊อก', classes: 'bg-emerald-100 text-emerald-700' },
+      issued: { label: 'เบิกแล้ว', classes: 'bg-sky-100 text-sky-700' },
+      damaged: { label: 'ชำรุด', classes: 'bg-rose-100 text-rose-700' }
+    };
+    const rows = filtered.map(ct => {
+      const status = labels[ct.status] || { label: 'ไม่ทราบสถานะ', classes: 'bg-slate-100 text-slate-600' };
+      const id = Number(ct.id);
+      const actions = ct.status === 'damaged'
+        ? `<button type="button" onclick="app.setCTStatus(${id}, 'warehouse')" class="rounded-lg border border-emerald-200 px-2.5 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50">คืนเข้าสต๊อก</button>`
+        : `<div class="flex justify-end gap-1.5">${ct.status === 'issued' ? `<button type="button" onclick="app.returnCTToStock(${id})" class="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50">คืนเข้าสต๊อก</button>` : ''}<button type="button" onclick="app.setCTStatus(${id}, 'damaged')" class="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-50">ทำเครื่องหมายชำรุด</button></div>`;
+      return `<tr class="border-b border-slate-100 last:border-0 hover:bg-slate-50/70">
+        <td class="px-4 py-3 text-xs font-mono font-semibold text-slate-800">${this.escapeHtml(ct.serial_number)}</td>
+        <td class="px-4 py-3 text-xs text-slate-700">${this.escapeHtml(ct.model)}</td>
+        <td class="px-4 py-3 text-xs text-slate-700">${this.escapeHtml(ct.ratio)}</td>
+        <td class="whitespace-nowrap px-4 py-3"><span class="inline-flex rounded-full px-2 py-1 text-[10px] font-bold ${status.classes}">${status.label}</span></td>
+        <td class="px-4 py-3 text-xs text-slate-700">${this.escapeHtml(ct.project_name || '-')}</td>
+        <td class="px-4 py-3 text-xs text-slate-700">${this.escapeHtml(ct.responsible || '-')}</td>
+        <td class="px-4 py-3 text-xs text-slate-600 whitespace-nowrap">${this.escapeHtml(this.formatThaiDate(ct.issued_at))}</td>
+        <td class="px-4 py-3 text-right whitespace-nowrap">${actions}</td>
+      </tr>`;
+    }).join('');
+    container.innerHTML = `<table class="w-full min-w-[900px] text-left"><thead class="bg-slate-50 text-[10px] font-bold uppercase tracking-wide text-slate-500"><tr>
+      <th class="px-4 py-3">Serial Number</th><th class="px-4 py-3">รุ่น</th><th class="px-4 py-3">อัตราส่วน</th><th class="px-4 py-3">สถานะ</th><th class="px-4 py-3">โครงการล่าสุด</th><th class="px-4 py-3">ผู้รับผิดชอบ</th><th class="px-4 py-3">วันที่เบิกล่าสุด</th><th class="px-4 py-3 text-right">จัดการ</th>
+    </tr></thead><tbody>${rows}</tbody></table>`;
+  }
+
+  async addCtsToStock(event) {
+    event.preventDefault();
+    const model = document.getElementById('ct-model').value.trim();
+    const ratio = document.getElementById('ct-ratio').value.trim();
+    const serials = document.getElementById('ct-serials').value.split(/\r?\n/).map(value => value.trim()).filter(Boolean);
+    if (!model || !ratio || !serials.length) return this.showToast('กรุณาระบุรุ่น อัตราส่วน และ Serial Number อย่างน้อย 1 รายการ', 'warning');
+    const seen = new Set();
+    for (const serial of serials) {
+      if (seen.has(serial.toLocaleLowerCase())) return this.showToast(`พบ SN ${serial} ซ้ำในรายการ`, 'error');
+      seen.add(serial.toLocaleLowerCase());
+    }
+    try {
+      if (this.isMockMode) {
+        const existing = new Set(this.cts.map(ct => ct.serial_number.toLocaleLowerCase()));
+        const duplicate = serials.find(serial => existing.has(serial.toLocaleLowerCase()));
+        if (duplicate) throw new Error(`SN ${duplicate} มีในสต๊อกแล้ว`);
+        const now = new Date().toISOString();
+        serials.forEach((serial_number, index) => this.cts.push({ id: Date.now() + index, serial_number, model, ratio, status: 'warehouse', project_name: '', responsible: '', issued_at: '', created_at: now, updated_at: now }));
+        localStorage.setItem('solartrack_cts', JSON.stringify(this.cts));
+      } else {
+        await this.requestJson('/api/cts/import', { method: 'POST', body: { cts: serials.map(serial_number => ({ serial_number, model, ratio })) } });
+      }
+      document.getElementById('ct-stock-form').reset();
+      await this.loadCTData();
+      this.showToast(`รับ CT เข้าสต๊อก ${serials.length} รายการแล้ว`, 'success');
+    } catch (error) { this.showToast(`บันทึกรับ CT ไม่สำเร็จ: ${error.message}`, 'error'); }
+  }
+
+  async issueCTFromStock(event) {
+    event.preventDefault();
+    const id = document.getElementById('ct-issue-item').value;
+    const payload = { project_name: document.getElementById('ct-issue-project').value, responsible: document.getElementById('ct-issue-by').value.trim(), issued_at: document.getElementById('ct-issue-date').value };
+    if (!id || !payload.project_name || !payload.responsible || !payload.issued_at) return this.showToast('กรุณาเลือก CT และกรอกโครงการ ผู้รับผิดชอบ และวันที่ให้ครบ', 'warning');
+    try {
+      if (this.isMockMode) {
+        const ct = this.cts.find(item => String(item.id) === id);
+        if (!ct || ct.status !== 'warehouse') throw new Error('ไม่พบ CT ในสต๊อก');
+        Object.assign(ct, payload, { status: 'issued', updated_at: new Date().toISOString() });
+        localStorage.setItem('solartrack_cts', JSON.stringify(this.cts));
+      } else await this.requestJson(`/api/cts/${encodeURIComponent(id)}/issue`, { method: 'PUT', body: payload });
+      document.getElementById('ct-issue-item').value = '';
+      await this.loadCTData();
+      this.showToast('บันทึกการเบิก CT แล้ว', 'success');
+    } catch (error) { this.showToast(`เบิก CT ไม่สำเร็จ: ${error.message}`, 'error'); }
+  }
+
+  async returnCTToStock(id) {
+    const ct = this.cts.find(item => Number(item.id) === Number(id));
+    if (!ct || !await this.confirmAction({ title: 'ยืนยันคืน CT เข้าสต๊อก', message: `คืน SN ${ct?.serial_number || ''} เข้าสต๊อกหรือไม่?`, confirmText: 'คืนเข้าสต๊อก' })) return;
+    try {
+      if (this.isMockMode) {
+        if (ct.status !== 'issued') throw new Error('CT รายการนี้ไม่ได้ถูกเบิก');
+        ct.status = 'warehouse'; ct.updated_at = new Date().toISOString();
+        localStorage.setItem('solartrack_cts', JSON.stringify(this.cts));
+      } else await this.requestJson(`/api/cts/${encodeURIComponent(id)}/return`, { method: 'PUT' });
+      await this.loadCTData();
+      this.showToast('คืน CT เข้าสต๊อกแล้ว', 'success');
+    } catch (error) { this.showToast(`คืน CT ไม่สำเร็จ: ${error.message}`, 'error'); }
+  }
+
+  async setCTStatus(id, nextStatus) {
+    const ct = this.cts.find(item => Number(item.id) === Number(id));
+    if (!ct || !['damaged', 'warehouse'].includes(nextStatus)) return;
+    const markingDamaged = nextStatus === 'damaged';
+    const confirmed = await this.confirmAction({
+      title: markingDamaged ? 'ทำเครื่องหมาย CT ชำรุด' : 'ยืนยันคืน CT เข้าสต๊อก',
+      message: markingDamaged ? `เปลี่ยนสถานะ SN ${ct.serial_number} เป็นชำรุดหรือไม่?` : `ยืนยันว่า SN ${ct.serial_number} ใช้งานได้และคืนเข้าสต๊อกหรือไม่?`,
+      confirmText: markingDamaged ? 'ยืนยันชำรุด' : 'คืนเข้าสต๊อก'
+    });
+    if (!confirmed) return;
+    try {
+      if (this.isMockMode) {
+        const allowed = markingDamaged ? ['warehouse', 'issued'].includes(ct.status) : ct.status === 'damaged';
+        if (!allowed) throw new Error('สถานะ CT เปลี่ยนไปแล้ว กรุณาโหลดรายการใหม่');
+        ct.status = nextStatus; ct.updated_at = new Date().toISOString();
+        localStorage.setItem('solartrack_cts', JSON.stringify(this.cts));
+      } else await this.requestJson(`/api/cts/${encodeURIComponent(id)}/status`, { method: 'PUT', body: { status: nextStatus } });
+      await this.loadCTData();
+      this.showToast(markingDamaged ? 'บันทึกสถานะชำรุดแล้ว' : 'คืน CT เข้าสต๊อกแล้ว', 'success');
+    } catch (error) { this.showToast(`เปลี่ยนสถานะ CT ไม่สำเร็จ: ${error.message}`, 'error'); }
   }
 
   async loadDongleData() {
@@ -2475,7 +2649,7 @@ class SolarTrackingApp {
           <td class="min-w-[88px] whitespace-nowrap px-4 py-3"><span class="inline-flex whitespace-nowrap rounded-full px-2 py-1 text-[10px] font-bold ${status.classes}">${status.label}</span></td>
           <td class="px-4 py-3 text-xs text-slate-700">${this.escapeHtml(dongle.project_name || '-')}</td>
           <td class="px-4 py-3 text-xs text-slate-700">${this.escapeHtml(dongle.responsible || '-')}</td>
-          <td class="px-4 py-3 text-xs text-slate-600 whitespace-nowrap">${this.escapeHtml(dongle.issued_at || '-')}</td>
+          <td class="px-4 py-3 text-xs text-slate-600 whitespace-nowrap">${this.escapeHtml(this.formatThaiDate(dongle.issued_at))}</td>
           <td class="px-4 py-3 text-right whitespace-nowrap">${actions}</td>
         </tr>`;
     }).join('');
@@ -3832,6 +4006,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   const viewFragments = [
     { mountId: 'database-view-mount', file: 'database-view.html', viewId: 'view-database', label: 'ตารางข้อมูล' },
     { mountId: 'dongle-view-mount', file: 'dongle-view.html', viewId: 'view-dongle', label: 'สต๊อกดองเกิ้ล' },
+    { mountId: 'ct-view-mount', file: 'ct-view.html', viewId: 'view-ct', label: 'จัดการ CT' },
     { mountId: 'equipment-view-mount', file: 'equipment-view.html', viewId: 'view-equipment', label: 'ทะเบียนเครื่องมือช่าง' }
   ];
   await Promise.all(viewFragments.map(async fragment => {

@@ -102,7 +102,7 @@
     <div id="view-dashboard" class="view-panel space-y-5 w-full block">
 
       <!-- Field Quick Actions (Big Thumb-friendly Buttons) -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 w-full">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 w-full">
         <button onclick="app.startManualEntryMode('warehouse')" class="dashboard-action-warehouse touch-press w-full bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white p-4 sm:p-5 rounded-2xl shadow-md flex items-center space-x-3.5 transition text-left">
           <div class="w-12 h-12 p-2.5 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center shrink-0">
             <i data-lucide="package-plus" class="w-6 h-6 text-white"></i>
@@ -152,6 +152,19 @@
               <span class="text-[10px] uppercase font-semibold bg-cyan-100 px-1.5 py-0.5 rounded tracking-wider">Dongle</span>
             </div>
             <p class="text-xs text-cyan-700 mt-0.5">รับเข้าและเบิกดองเกิ้ลด้วย Serial Number</p>
+          </div>
+        </button>
+
+        <button onclick="app.showView('ct')" class="dashboard-action-ct touch-press w-full bg-orange-50 hover:bg-orange-100 border border-orange-100 text-orange-900 p-4 sm:p-5 rounded-2xl shadow-sm flex items-center space-x-3.5 transition text-left">
+          <div class="w-12 h-12 p-2.5 rounded-xl bg-orange-100 text-orange-700 flex items-center justify-center shrink-0">
+            <i data-lucide="zap" class="w-6 h-6"></i>
+          </div>
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="font-bold text-base sm:text-lg">จัดการ CT</span>
+              <span class="text-[10px] uppercase font-semibold bg-orange-100 px-1.5 py-0.5 rounded tracking-wider">CT</span>
+            </div>
+            <p class="text-xs text-orange-700 mt-0.5">รับเข้าและเบิก CT ด้วย Serial Number</p>
           </div>
         </button>
       </div>
@@ -531,6 +544,8 @@
     </div>
 
     <div id="dongle-view-mount"></div>
+
+    <div id="ct-view-mount"></div>
 
     <div id="equipment-view-mount"></div>
 
