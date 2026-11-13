@@ -208,6 +208,7 @@ async function handleApi(request, env, url) {
   if (toolPath) {
     const [, toolId, eventsPath] = toolPath;
     if (!eventsPath && method === 'GET') return json({ success: true, ...(await store.getToolAsset(toolId)) });
+    if (!eventsPath && method === 'PUT') return json(await store.saveToolAsset(await request.json(), toolId));
     if (eventsPath && method === 'POST') return json(await store.createToolEvent(toolId, await request.json()), 201);
   }
 
@@ -933,10 +934,17 @@ class DataStore {
       serial_number: readText('serial_number'),
       location: readText('location'),
       condition_note: readText('condition_note'),
-      purchase_date: readText('purchase_date')
+      purchase_date: readText('purchase_date'),
+      photo: readText('photo')
     };
     if (!asset.name) throw equipmentError('กรุณาระบุชื่อเครื่องมือ');
     if (asset.purchase_date && !/^\d{4}-\d{2}-\d{2}$/.test(asset.purchase_date)) throw equipmentError('วันที่ซื้อไม่ถูกต้อง');
+    if (asset.photo && !/^data:image\/(png|jpe?g|webp);base64,/.test(asset.photo)) {
+      throw equipmentError('รูปเครื่องมือไม่ถูกต้อง');
+    }
+    if (asset.photo && asset.photo.length > 3000000) {
+      throw equipmentError('ไฟล์รูปใหญ่เกินไป (สูงสุดประมาณ 2MB)');
+    }
     const memory = await this.load();
     const toolId = id === null ? null : Number(id);
     if (toolId !== null && (!Number.isSafeInteger(toolId) || toolId <= 0)) throw equipmentError('รหัสเครื่องมือไม่ถูกต้อง');
@@ -946,6 +954,9 @@ class DataStore {
     if (toolId !== null && !asset.asset_code) asset.asset_code = memory.toolAssets.find(item => Number(item.id) === toolId)?.asset_code || '';
     const duplicate = memory.toolAssets.find(item => item.asset_code.toLowerCase() === asset.asset_code.toLowerCase() && Number(item.id) !== toolId);
     if (duplicate) throw equipmentError(`รหัสเครื่องมือ ${asset.asset_code} มีอยู่แล้ว`);
+    if (toolId !== null && !asset.photo) {
+      asset.photo = readText('existing_photo');
+    }
     let tool = toolId === null ? null : memory.toolAssets.find(item => Number(item.id) === toolId);
     if (toolId !== null && !tool) throw equipmentError('ไม่พบเครื่องมือ');
     const now = new Date().toISOString();
