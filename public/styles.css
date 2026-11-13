@@ -967,6 +967,25 @@ textarea:focus-visible {
   }
 }
 /* QR scans open a focused tool card with only borrow and return actions. */
+body.loading-deep-link > header,
+body.loading-deep-link > footer {
+  display: none !important;
+}
+
+body.loading-deep-link::after {
+  content: 'กำลังโหลดข้อมูลเครื่องมือ...';
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 14px;
+  font-weight: 600;
+  z-index: 40;
+}
+
 body.qr-tool-mode > header {
   display: none !important;
 }

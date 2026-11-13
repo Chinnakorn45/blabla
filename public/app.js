@@ -63,14 +63,25 @@ class SolarTrackingApp {
 
   async init() {
     this.bindEvents();
+    const deepLinkToolId = new URLSearchParams(window.location.search).get('tool');
+    if (deepLinkToolId) {
+      // QR scan deep link: jump straight to the tool detail, skip the dashboard.
+      this.showView('equipment');
+      document.body.classList.add('loading-deep-link');
+    }
     await appSettings.syncWithServer();
     appSettings.updateBrandDatalist();
     window.addEventListener('focus', () => appSettings.refreshFromServer());
     await this.checkBackendConnectivity();
+    if (deepLinkToolId) {
+      this.refreshIcons();
+      await this.loadEquipmentData();
+      document.body.classList.remove('loading-deep-link');
+      return;
+    }
     await this.loadProjects();
     await this.loadDashboardData();
     this.refreshIcons();
-    if (new URLSearchParams(window.location.search).has('tool')) this.showView('equipment');
   }
 
   bindEvents() {
