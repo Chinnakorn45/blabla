@@ -169,6 +169,7 @@ function setupTables() {
           expected_return_at TEXT,
           condition_note TEXT,
           purchase_date TEXT,
+          photo TEXT,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
@@ -222,10 +223,15 @@ function setupTables() {
           resolve();
           return;
         }
+        const ensureToolAssetPhoto = () => db.all('PRAGMA table_info(tool_assets)', (assetPragmaErr, assetColumns) => {
+          if (assetPragmaErr) return reject(assetPragmaErr);
+          if (assetColumns.some(column => column.name === 'photo')) return resolve();
+          db.run('ALTER TABLE tool_assets ADD COLUMN photo TEXT', alterErr => alterErr ? reject(alterErr) : resolve());
+        });
         const ensureToolEventRequester = () => db.all('PRAGMA table_info(tool_events)', (eventPragmaErr, eventColumns) => {
           if (eventPragmaErr) return reject(eventPragmaErr);
-          if (eventColumns.some(column => column.name === 'requested_by')) return resolve();
-          db.run('ALTER TABLE tool_events ADD COLUMN requested_by TEXT', alterErr => alterErr ? reject(alterErr) : resolve());
+          if (eventColumns.some(column => column.name === 'requested_by')) return ensureToolAssetPhoto();
+          db.run('ALTER TABLE tool_events ADD COLUMN requested_by TEXT', alterErr => alterErr ? reject(alterErr) : ensureToolAssetPhoto());
         });
         db.all('PRAGMA table_info(panels)', (pragmaErr, columns) => {
           if (pragmaErr) return reject(pragmaErr);
@@ -1392,9 +1398,16 @@ function normalizeToolAsset(payload = {}) {
     serial_number: text('serial_number'),
     location: text('location'),
     condition_note: text('condition_note'),
-    purchase_date: text('purchase_date')
+    purchase_date: text('purchase_date'),
+    photo: text('photo')
   };
   if (!asset.name) throw equipmentError('กรุณาระบุชื่อเครื่องมือ');
+  if (asset.photo && !/^data:image\/(png|jpe?g|webp);base64,/.test(asset.photo)) {
+    throw equipmentError('รูปเครื่องมือไม่ถูกต้อง');
+  }
+  if (asset.photo && asset.photo.length > 3000000) {
+    throw equipmentError('ไฟล์รูปใหญ่เกินไป (สูงสุดประมาณ 2MB)');
+  }
   if (asset.purchase_date && !/^\d{4}-\d{2}-\d{2}$/.test(asset.purchase_date)) {
     throw equipmentError('วันที่ซื้อไม่ถูกต้อง');
   }
@@ -1483,6 +1496,9 @@ async function saveToolAsset(payload, id = null) {
   const asset = normalizeToolAsset(payload || {});
   const toolId = id === null ? null : Number(id);
   if (toolId !== null && (!Number.isSafeInteger(toolId) || toolId <= 0)) throw equipmentError('รหัสเครื่องมือไม่ถูกต้อง');
+  if (toolId !== null && !asset.photo) {
+    asset.photo = typeof payload.existing_photo === 'string' ? payload.existing_photo.trim() : '';
+  }
   if (useJsonStore) {
     memoryStore.toolAssets ||= [];
     memoryStore.toolEvents ||= [];
@@ -1530,15 +1546,15 @@ async function saveToolAsset(payload, id = null) {
       } else loadTool();
     };
     const values = [asset.asset_code || `AUTO-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, asset.name, asset.category, asset.brand, asset.model, asset.serial_number,
-      asset.location, asset.condition_note, asset.purchase_date];
+      asset.location, asset.condition_note, asset.purchase_date, asset.photo];
     if (toolId === null) {
-      db.run(`INSERT INTO tool_assets (asset_code, name, category, brand, model, serial_number, location, condition_note, purchase_date)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, values, function (error) {
+      db.run(`INSERT INTO tool_assets (asset_code, name, category, brand, model, serial_number, location, condition_note, purchase_date, photo)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, values, function (error) {
         if (error) return reject(error.code === 'SQLITE_CONSTRAINT' ? equipmentError(`รหัสเครื่องมือ ${asset.asset_code} มีอยู่แล้ว`) : error);
         finish(null, this.lastID, true, !asset.asset_code);
       });
     } else {
-      db.run(`UPDATE tool_assets SET asset_code=?, name=?, category=?, brand=?, model=?, serial_number=?, location=?, condition_note=?, purchase_date=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`,
+      db.run(`UPDATE tool_assets SET asset_code=?, name=?, category=?, brand=?, model=?, serial_number=?, location=?, condition_note=?, purchase_date=?, photo=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`,
         [...values, toolId], function (error) {
           if (error) return reject(error.code === 'SQLITE_CONSTRAINT' ? equipmentError(`รหัสเครื่องมือ ${asset.asset_code} มีอยู่แล้ว`) : error);
           if (!this.changes) return reject(equipmentError('ไม่พบเครื่องมือ'));

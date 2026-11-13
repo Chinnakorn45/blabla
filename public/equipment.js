@@ -60,7 +60,7 @@ Object.assign(SolarTrackingApp.prototype, {
         <td class="px-4 py-3 text-xs text-slate-600">${this.escapeHtml(tool.category || '-')}</td>
         <td class="px-4 py-3 text-xs text-slate-600">${this.escapeHtml(tool.status === 'borrowed' ? tool.current_project || '-' : tool.location || '-')}<div class="mt-0.5 text-[11px] text-slate-400">${tool.status === 'borrowed' ? `ผู้ถือครอง: ${this.escapeHtml(tool.current_holder || '-')}` : 'สถานที่จัดเก็บ'}</div></td>
         <td class="px-4 py-3">${this.toolStatusPill(tool.status)}</td>
-        <td class="px-4 py-3 text-right"><button type="button" onclick="app.openToolDetail(${Number(tool.id)})" class="rounded-lg bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-violet-50 hover:text-violet-700">รายละเอียด</button></td>
+        <td class="px-4 py-3 text-right"><div class="flex justify-end gap-2"><button type="button" onclick="app.editToolAsset(${Number(tool.id)})" class="rounded-lg bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-amber-50 hover:text-amber-700">แก้ไข</button><button type="button" onclick="app.openToolDetail(${Number(tool.id)})" class="rounded-lg bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-violet-50 hover:text-violet-700">รายละเอียด</button></div></td>
       </tr>`).join('') : `<tr><td colspan="5" class="p-8 text-center text-xs text-slate-400">${this.toolAssets?.length ? 'ไม่พบเครื่องมือตามตัวกรอง' : 'ยังไม่มีเครื่องมือในทะเบียน กด “ลงทะเบียนเครื่องมือ” เพื่อเริ่มต้น'}</td></tr>`;
     const recentContainer = document.getElementById('tool-recent-activity');
     if (recentContainer) {
@@ -109,32 +109,181 @@ Object.assign(SolarTrackingApp.prototype, {
     }
   },
 
+  async editToolAsset(id) {
+    const panel = document.getElementById('tool-registration-panel');
+    if (!panel) return;
+    try {
+      let tool;
+      if (this.isMockMode) {
+        tool = (this.toolAssets || []).find(item => Number(item.id) === Number(id));
+        if (!tool) throw new Error('ไม่พบเครื่องมือ');
+      } else {
+        const result = await this.requestJson(`/api/tools/${encodeURIComponent(id)}`);
+        tool = result.tool;
+      }
+      this.editingToolId = Number(tool.id);
+      const form = document.getElementById('tool-asset-form');
+      const set = (name, value) => { const field = form?.elements?.[name]; if (field) field.value = value ?? ''; };
+      set('name', tool.name);
+      set('category', tool.category);
+      set('location', tool.location);
+      set('brand', tool.brand);
+      set('model', tool.model);
+      set('serial_number', tool.serial_number);
+      set('purchase_date', tool.purchase_date);
+      set('condition_note', tool.condition_note);
+      set('actor', '');
+      const autoCodeField = document.getElementById('tool-auto-code');
+      if (autoCodeField) autoCodeField.value = tool.asset_code || '';
+      const photoInput = form?.querySelector('input[name="photo"]');
+      if (photoInput) photoInput.value = '';
+      this.editingToolExistingPhoto = tool.photo || '';
+      const wrap = document.getElementById('tool-photo-preview-wrap');
+      const img = document.getElementById('tool-photo-preview');
+      if (img && wrap) {
+        if (tool.photo) {
+          img.src = tool.photo;
+          wrap.classList.remove('hidden');
+        } else wrap.classList.add('hidden');
+      }
+      const header = panel.querySelector('h3');
+      const submit = form?.querySelector('button[type="submit"]');
+      if (header) header.textContent = `แก้ไขเครื่องมือ · ${tool.asset_code || tool.name}`;
+      if (submit) submit.textContent = 'บันทึกการแก้ไข';
+      const cancel = form?.querySelector('button[type="button"]');
+      if (cancel) cancel.setAttribute('onclick', 'app.cancelToolEdit()');
+      panel.classList.remove('hidden');
+      panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch (error) {
+      this.showToast(`เปิดหน้าแก้ไขไม่สำเร็จ: ${error.message}`, 'error');
+    }
+  },
+
+  cancelToolEdit() {
+    this.editingToolId = null;
+    this.editingToolExistingPhoto = '';
+    const form = document.getElementById('tool-asset-form');
+    form?.reset();
+    document.getElementById('tool-photo-preview-wrap')?.classList.add('hidden');
+    const panel = document.getElementById('tool-registration-panel');
+    const header = panel?.querySelector('h3');
+    const submit = form?.querySelector('button[type="submit"]');
+    if (header) header.textContent = 'ลงทะเบียนเครื่องมือใหม่';
+    if (submit) submit.textContent = 'บันทึกทะเบียน';
+    const cancel = form?.querySelector('button[type="button"]');
+    if (cancel) cancel.setAttribute('onclick', 'app.toggleToolRegistration(false)');
+    this.toggleToolRegistration(false);
+  },
+
   async saveToolAsset(event) {
     event.preventDefault();
     const form = event.currentTarget;
     const payload = Object.fromEntries(new FormData(form));
+    const editingId = this.editingToolId || null;
     try {
+      const photo = await this.readToolPhotoFile(form);
+      if (photo) payload.photo = photo;
+      else delete payload.photo;
+      if (editingId && this.editingToolExistingPhoto) payload.existing_photo = this.editingToolExistingPhoto;
       if (this.isMockMode) {
         this.toolAssets ||= [];
         this.toolEvents ||= [];
-        const nextId = Math.max(0, ...this.toolAssets.map(tool => Number(tool.id) || 0)) + 1;
-        const assetCode = this.nextToolAssetCode();
         const now = new Date().toISOString();
-        const tool = { id: nextId, ...payload, asset_code: assetCode, name: payload.name.trim(), status: 'available', current_holder: '', current_project: '', expected_return_at: '', created_at: now, updated_at: now };
-        this.toolAssets.push(tool);
-        this.toolEvents.push({ id: Date.now() + 1, tool_id: tool.id, event_type: 'registered', title: 'ลงทะเบียนเครื่องมือ', actor: payload.actor || '', detail: payload.condition_note || '', created_at: now });
+        if (editingId) {
+          const tool = this.toolAssets.find(item => Number(item.id) === Number(editingId));
+          if (!tool) throw new Error('ไม่พบเครื่องมือที่ต้องการแก้ไข');
+          Object.assign(tool, {
+            name: payload.name.trim(),
+            category: payload.category || '',
+            brand: payload.brand || '',
+            model: payload.model || '',
+            serial_number: payload.serial_number || '',
+            location: payload.location || '',
+            condition_note: payload.condition_note || '',
+            purchase_date: payload.purchase_date || '',
+            photo: photo || this.editingToolExistingPhoto || '',
+            updated_at: now
+          });
+        } else {
+          const nextId = Math.max(0, ...this.toolAssets.map(tool => Number(tool.id) || 0)) + 1;
+          const assetCode = this.nextToolAssetCode();
+          const tool = { id: nextId, ...payload, asset_code: assetCode, name: payload.name.trim(), status: 'available', current_holder: '', current_project: '', expected_return_at: '', created_at: now, updated_at: now };
+          this.toolAssets.push(tool);
+          this.toolEvents.push({ id: Date.now() + 1, tool_id: tool.id, event_type: 'registered', title: 'ลงทะเบียนเครื่องมือ', actor: payload.actor || '', detail: payload.condition_note || '', created_at: now });
+        }
         localStorage.setItem('solartrack_tool_assets', JSON.stringify(this.toolAssets));
         localStorage.setItem('solartrack_tool_events', JSON.stringify(this.toolEvents));
       } else {
-        await this.requestJson('/api/tools', { method: 'POST', body: payload });
+        await this.requestJson(editingId ? `/api/tools/${encodeURIComponent(editingId)}` : '/api/tools', {
+          method: editingId ? 'PUT' : 'POST',
+          body: payload
+        });
       }
+      const wasEditing = Boolean(editingId);
+      this.editingToolId = null;
+      this.editingToolExistingPhoto = '';
       form.reset();
+      document.getElementById('tool-photo-preview-wrap')?.classList.add('hidden');
+      const header = document.getElementById('tool-registration-panel')?.querySelector('h3');
+      const submit = form.querySelector('button[type="submit"]');
+      if (header) header.textContent = 'ลงทะเบียนเครื่องมือใหม่';
+      if (submit) submit.textContent = 'บันทึกทะเบียน';
+      const cancel = form.querySelector('button[type="button"]');
+      if (cancel) cancel.setAttribute('onclick', 'app.toggleToolRegistration(false)');
       this.toggleToolRegistration(false);
       await this.loadEquipmentData();
-      this.showToast('ลงทะเบียนเครื่องมือแล้ว', 'success');
+      this.showToast(wasEditing ? 'บันทึกการแก้ไขเครื่องมือแล้ว' : 'ลงทะเบียนเครื่องมือแล้ว', 'success');
     } catch (error) {
       this.showToast(`บันทึกทะเบียนไม่สำเร็จ: ${error.message}`, 'error');
     }
+  },
+
+  previewToolPhoto(input) {
+    const wrap = document.getElementById('tool-photo-preview-wrap');
+    const img = document.getElementById('tool-photo-preview');
+    if (!input || !input.files?.[0]) {
+      wrap?.classList.add('hidden');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (img && wrap) {
+        img.src = reader.result;
+        wrap.classList.remove('hidden');
+      }
+    };
+    reader.readAsDataURL(input.files[0]);
+  },
+
+  readToolPhotoFile(form) {
+    return new Promise((resolve) => {
+      const input = form.querySelector('input[name="photo"]');
+      const file = input?.files?.[0];
+      input.value = '';
+      document.getElementById('tool-photo-preview-wrap')?.classList.add('hidden');
+      if (!file) return resolve(null);
+      const reader = new FileReader();
+      reader.onerror = () => resolve(null);
+      reader.onload = () => {
+        const img = new Image();
+        img.onerror = () => resolve(null);
+        img.onload = () => {
+          try {
+            const maxSide = 1024;
+            const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.round(img.width * scale);
+            canvas.height = Math.round(img.height * scale);
+            canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+            resolve(canvas.toDataURL('image/jpeg', 0.82));
+          } catch {
+            resolve(String(reader.result || '') || null);
+          }
+        };
+        img.src = String(reader.result);
+      };
+      reader.readAsDataURL(file);
+    });
   },
 
   async openToolDetail(id) {
@@ -183,10 +332,14 @@ Object.assign(SolarTrackingApp.prototype, {
       ['Serial Number', tool.serial_number], ['สถานที่จัดเก็บ', tool.location], ['วันที่ซื้อ', tool.purchase_date],
       ['สภาพ / หมายเหตุ', tool.condition_note]
     ];
+    const photoBlock = tool.photo
+      ? `<div class="mt-4"><div class="text-[10px] font-semibold text-slate-400">รูปเครื่องมือ</div><a href="${tool.photo}" target="_blank" rel="noopener" class="mt-2 block"><img src="${tool.photo}" alt="รูป ${this.escapeHtml(tool.asset_code)}" class="max-h-64 w-auto cursor-zoom-in rounded-xl border border-slate-200 bg-white object-contain shadow-sm"></a></div>`
+      : '';
     content.innerHTML = `
-      <div class="flex flex-wrap items-center justify-between gap-3">${this.toolStatusPill(tool.status)}<div class="flex flex-wrap gap-2">${this.qrToolMode ? '' : `<button type="button" onclick="app.toggleToolQr()" class="flex items-center gap-1.5 rounded-lg bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-violet-50"><i data-lucide="qr-code" class="h-3.5 w-3.5"></i>QR Code</button>`}${actions.map(([type, label, icon]) => `<button type="button" onclick="app.openToolEventForm('${type}', ${Number(tool.id)})" class="flex items-center gap-1.5 rounded-lg bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-violet-50 hover:text-violet-700"><i data-lucide="${icon}" class="h-3.5 w-3.5"></i>${label}</button>`).join('')}</div></div>
+      <div class="flex flex-wrap items-center justify-between gap-3">${this.toolStatusPill(tool.status)}<div class="flex flex-wrap gap-2">${this.qrToolMode ? '' : `<button type="button" onclick="app.editToolAsset(${Number(tool.id)}); app.closeToolDetail()" class="flex items-center gap-1.5 rounded-lg bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-100"><i data-lucide="pencil" class="h-3.5 w-3.5"></i>แก้ไข / เปลี่ยนรูป</button><button type="button" onclick="app.toggleToolQr()" class="flex items-center gap-1.5 rounded-lg bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-violet-50"><i data-lucide="qr-code" class="h-3.5 w-3.5"></i>QR Code</button>`}${actions.map(([type, label, icon]) => `<button type="button" onclick="app.openToolEventForm('${type}', ${Number(tool.id)})" class="flex items-center gap-1.5 rounded-lg bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-violet-50 hover:text-violet-700"><i data-lucide="${icon}" class="h-3.5 w-3.5"></i>${label}</button>`).join('')}</div></div>
       <div id="tool-qr-content" class="mt-3 hidden rounded-xl border border-slate-200 bg-slate-50 p-4 text-center"><div id="tool-qr-code" class="mx-auto flex min-h-40 justify-center"></div><div class="mt-2 text-[11px] text-slate-500">สแกนเพื่อเปิดทะเบียนเครื่องมือนี้</div><button type="button" onclick="app.printToolQr()" class="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-violet-600 px-3 py-2 text-xs font-bold text-white hover:bg-violet-700"><i data-lucide="printer" class="h-3.5 w-3.5"></i>พิมพ์สติกเกอร์ QR</button></div>
       ${['borrowed', 'pending_approval'].includes(tool.status) ? `<div class="mt-3 rounded-xl border border-blue-100 bg-blue-50 p-3 text-xs text-blue-900">${tool.status === 'pending_approval' ? 'ผู้ขอเบิก' : 'ผู้ถือครอง'}: <b>${this.escapeHtml(tool.current_holder || '-')}</b> · ${this.escapeHtml(tool.current_project || '-')} ${tool.expected_return_at ? `· กำหนดคืน ${this.escapeHtml(tool.expected_return_at)}` : ''}</div>` : ''}
+      ${photoBlock}
       <div class="mt-4 grid grid-cols-2 gap-3">${detailCards.map(([label, value]) => `<div class="rounded-xl border border-slate-100 bg-slate-50 p-3"><div class="text-[10px] font-semibold text-slate-400">${label}</div><div class="mt-1 break-words text-xs font-medium text-slate-700">${this.escapeHtml(value || '-')}</div></div>`).join('')}</div>
       <div class="mt-5 border-t border-slate-100 pt-4"><h4 class="text-sm font-bold text-slate-800">ไทม์ไลน์เครื่องมือ</h4><div class="mt-3 ml-2 border-l-2 border-violet-100 pl-5">${this.selectedToolEvents.length ? this.selectedToolEvents.map(event => `<article class="relative pb-5 last:pb-0"><span class="absolute -left-[26px] top-1 h-3 w-3 rounded-full border-2 border-violet-300 bg-white"></span><div class="flex flex-wrap items-center justify-between gap-2"><b class="text-xs text-slate-800">${this.escapeHtml(event.title)}</b><time class="text-[10px] text-slate-400">${this.formatToolDate(event.created_at)}</time></div>${event.project_name ? `<div class="mt-1 text-xs text-violet-700">${this.escapeHtml(event.project_name)}</div>` : ''}${event.detail ? `<div class="mt-1 whitespace-pre-wrap text-xs text-slate-600">${this.escapeHtml(event.detail)}</div>` : ''}${event.requested_by ? `<div class="mt-1 text-[10px] text-slate-500">ผู้ขอเบิก ${this.escapeHtml(event.requested_by)}</div>` : ''}<div class="mt-1 text-[10px] text-slate-400">บันทึกโดย ${this.escapeHtml(event.actor || '-')}</div></article>`).join('') : '<div class="py-4 text-xs text-slate-400">ยังไม่มีประวัติ</div>'}</div></div>`;
     this.refreshIcons();
