@@ -966,3 +966,48 @@ textarea:focus-visible {
     background: #fcd34d !important;
   }
 }
+/* QR scans open a focused tool card with only borrow and return actions. */
+body.qr-tool-mode > header {
+  display: none !important;
+}
+
+body.qr-tool-mode > main {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  flex: 1;
+}
+
+body.qr-tool-mode #view-equipment {
+  min-height: 100dvh;
+  margin: 0;
+}
+
+body.qr-tool-mode #view-equipment > :not(#tool-detail-modal):not(#tool-event-modal) {
+  display: none !important;
+}
+
+body.qr-tool-mode #tool-detail-modal:not(.hidden) {
+  position: fixed;
+  inset: 0;
+  display: flex !important;
+  align-items: stretch;
+  justify-content: center;
+  padding: 0;
+  background: #f8fafc;
+  backdrop-filter: none;
+}
+
+body.qr-tool-mode #tool-detail-modal > section {
+  width: 100%;
+  max-width: 48rem;
+  max-height: 100dvh;
+  min-height: 100dvh;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+body.qr-tool-mode #tool-detail-modal > section > div:first-child > button {
+  display: none;
+}

@@ -20,6 +20,12 @@ function stockConflict(message) {
   return error;
 }
 
+function equipmentError(message) {
+  const error = new Error(message);
+  error.status = 400;
+  return error;
+}
+
 let db = null;
 let useJsonStore = false;
 let memoryStore = {
@@ -27,6 +33,8 @@ let memoryStore = {
   projects: [],
   equipmentCatalog: [],
   equipmentIssues: [],
+  toolAssets: [],
+  toolEvents: [],
   dongles: [],
   settings: null
 };
@@ -61,16 +69,18 @@ function useJsonFallback() {
       memoryStore = data;
       memoryStore.equipmentCatalog ||= [];
       memoryStore.equipmentIssues ||= [];
+      memoryStore.toolAssets ||= [];
+      memoryStore.toolEvents ||= [];
       memoryStore.dongles ||= [];
       memoryStore.settings ??= null;
       saveJsonStore();
     } catch (err) {
       console.error('Failed reading existing JSON file, initializing new store:', err);
-      memoryStore = { panels: [], projects: [], equipmentCatalog: [], equipmentIssues: [], dongles: [], settings: null };
+      memoryStore = { panels: [], projects: [], equipmentCatalog: [], equipmentIssues: [], toolAssets: [], toolEvents: [], dongles: [], settings: null };
       saveJsonStore();
     }
   } else {
-    memoryStore = { panels: [], projects: [], equipmentCatalog: [], equipmentIssues: [], dongles: [], settings: null };
+    memoryStore = { panels: [], projects: [], equipmentCatalog: [], equipmentIssues: [], toolAssets: [], toolEvents: [], dongles: [], settings: null };
     saveJsonStore();
   }
 }
@@ -144,6 +154,41 @@ function setupTables() {
       `);
 
       db.run(`
+        CREATE TABLE IF NOT EXISTS tool_assets (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          asset_code TEXT NOT NULL COLLATE NOCASE UNIQUE,
+          name TEXT NOT NULL,
+          category TEXT,
+          brand TEXT,
+          model TEXT,
+          serial_number TEXT,
+          location TEXT,
+          status TEXT NOT NULL DEFAULT 'available',
+          current_holder TEXT,
+          current_project TEXT,
+          expected_return_at TEXT,
+          condition_note TEXT,
+          purchase_date TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      db.run(`
+        CREATE TABLE IF NOT EXISTS tool_events (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          tool_id INTEGER NOT NULL REFERENCES tool_assets(id) ON DELETE CASCADE,
+          event_type TEXT NOT NULL,
+          title TEXT NOT NULL,
+          actor TEXT,
+          requested_by TEXT,
+          project_name TEXT,
+          detail TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      db.run(`
         CREATE TABLE IF NOT EXISTS dongle_inventory (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           serial_number TEXT NOT NULL COLLATE NOCASE UNIQUE,
@@ -170,17 +215,24 @@ function setupTables() {
         if (useJsonStore) {
           memoryStore.equipmentCatalog ||= [];
           memoryStore.equipmentIssues ||= [];
+          memoryStore.toolAssets ||= [];
+          memoryStore.toolEvents ||= [];
           memoryStore.dongles ||= [];
           saveJsonStore();
           resolve();
           return;
         }
+        const ensureToolEventRequester = () => db.all('PRAGMA table_info(tool_events)', (eventPragmaErr, eventColumns) => {
+          if (eventPragmaErr) return reject(eventPragmaErr);
+          if (eventColumns.some(column => column.name === 'requested_by')) return resolve();
+          db.run('ALTER TABLE tool_events ADD COLUMN requested_by TEXT', alterErr => alterErr ? reject(alterErr) : resolve());
+        });
         db.all('PRAGMA table_info(panels)', (pragmaErr, columns) => {
           if (pragmaErr) return reject(pragmaErr);
-          if (columns.some(column => column.name === 'moved_at')) return resolve();
+          if (columns.some(column => column.name === 'moved_at')) return ensureToolEventRequester();
           db.run('ALTER TABLE panels ADD COLUMN moved_at DATETIME', alterErr => {
             if (alterErr) return reject(alterErr);
-            resolve();
+            ensureToolEventRequester();
           });
         });
       });
@@ -1329,6 +1381,247 @@ function deleteEquipmentIssue(id) {
   });
 }
 
+function normalizeToolAsset(payload = {}) {
+  const text = (key) => typeof payload[key] === 'string' ? payload[key].trim() : '';
+  const asset = {
+    asset_code: text('asset_code').toUpperCase(),
+    name: text('name'),
+    category: text('category'),
+    brand: text('brand'),
+    model: text('model'),
+    serial_number: text('serial_number'),
+    location: text('location'),
+    condition_note: text('condition_note'),
+    purchase_date: text('purchase_date')
+  };
+  if (!asset.name) throw equipmentError('กรุณาระบุชื่อเครื่องมือ');
+  if (asset.purchase_date && !/^\d{4}-\d{2}-\d{2}$/.test(asset.purchase_date)) {
+    throw equipmentError('วันที่ซื้อไม่ถูกต้อง');
+  }
+  return asset;
+}
+
+function formatToolAssetCode(id) {
+  return `TL-${String(id).padStart(4, '0')}`;
+}
+
+function nextToolAssetSequence(tools) {
+  return Math.max(0, ...(tools || []).map(tool => Number(/^TL-(\d+)$/i.exec(String(tool.asset_code || ''))?.[1]) || 0)) + 1;
+}
+
+function getToolRegistry() {
+  if (useJsonStore) {
+    memoryStore.toolAssets ||= [];
+    memoryStore.toolEvents ||= [];
+    const tools = [...memoryStore.toolAssets].sort((a, b) => String(a.asset_code).localeCompare(String(b.asset_code)));
+    const events = [...memoryStore.toolEvents].sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))).slice(0, 12);
+    return Promise.resolve({
+      tools,
+      recent: events.map(event => ({
+        ...event,
+        asset_code: memoryStore.toolAssets.find(tool => Number(tool.id) === Number(event.tool_id))?.asset_code || '',
+        tool_name: memoryStore.toolAssets.find(tool => Number(tool.id) === Number(event.tool_id))?.name || ''
+      })),
+      stats: {
+        total: tools.length,
+        available: tools.filter(tool => tool.status === 'available').length,
+        pending: tools.filter(tool => tool.status === 'pending_approval').length,
+        borrowed: tools.filter(tool => tool.status === 'borrowed').length,
+        repair: tools.filter(tool => ['maintenance', 'damaged', 'lost'].includes(tool.status)).length
+      }
+    });
+  }
+  return new Promise((resolve, reject) => {
+    db.all('SELECT * FROM tool_assets ORDER BY asset_code COLLATE NOCASE', (toolsError, tools) => {
+      if (toolsError) return reject(toolsError);
+      db.all(`SELECT e.*, t.asset_code, t.name AS tool_name
+        FROM tool_events e JOIN tool_assets t ON t.id = e.tool_id
+        ORDER BY e.created_at DESC, e.id DESC LIMIT 12`, (eventsError, recent) => {
+        if (eventsError) return reject(eventsError);
+        const rows = tools || [];
+        resolve({
+          tools: rows,
+          recent: recent || [],
+          stats: {
+            total: rows.length,
+            available: rows.filter(tool => tool.status === 'available').length,
+            pending: rows.filter(tool => tool.status === 'pending_approval').length,
+            borrowed: rows.filter(tool => tool.status === 'borrowed').length,
+            repair: rows.filter(tool => ['maintenance', 'damaged', 'lost'].includes(tool.status)).length
+          }
+        });
+      });
+    });
+  });
+}
+
+async function getToolAsset(id) {
+  const toolId = Number(id);
+  if (!Number.isSafeInteger(toolId) || toolId <= 0) throw equipmentError('รหัสเครื่องมือไม่ถูกต้อง');
+  if (useJsonStore) {
+    memoryStore.toolAssets ||= [];
+    memoryStore.toolEvents ||= [];
+    const tool = memoryStore.toolAssets.find(item => Number(item.id) === toolId);
+    if (!tool) throw equipmentError('ไม่พบเครื่องมือ');
+    const events = memoryStore.toolEvents.filter(event => Number(event.tool_id) === toolId)
+      .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)) || Number(b.id) - Number(a.id));
+    return { tool, events };
+  }
+  return new Promise((resolve, reject) => {
+    db.get('SELECT * FROM tool_assets WHERE id = ?', [toolId], (toolError, tool) => {
+      if (toolError) return reject(toolError);
+      if (!tool) return reject(equipmentError('ไม่พบเครื่องมือ'));
+      db.all('SELECT * FROM tool_events WHERE tool_id = ? ORDER BY created_at DESC, id DESC', [toolId], (eventError, events) => {
+        if (eventError) return reject(eventError);
+        resolve({ tool, events: events || [] });
+      });
+    });
+  });
+}
+
+async function saveToolAsset(payload, id = null) {
+  const asset = normalizeToolAsset(payload || {});
+  const toolId = id === null ? null : Number(id);
+  if (toolId !== null && (!Number.isSafeInteger(toolId) || toolId <= 0)) throw equipmentError('รหัสเครื่องมือไม่ถูกต้อง');
+  if (useJsonStore) {
+    memoryStore.toolAssets ||= [];
+    memoryStore.toolEvents ||= [];
+    const nextId = Math.max(0, ...memoryStore.toolAssets.map(item => Number(item.id) || 0)) + 1;
+    if (toolId === null && !asset.asset_code) asset.asset_code = formatToolAssetCode(nextToolAssetSequence(memoryStore.toolAssets));
+    if (toolId !== null && !asset.asset_code) {
+      asset.asset_code = memoryStore.toolAssets.find(item => Number(item.id) === toolId)?.asset_code || '';
+    }
+    const duplicate = memoryStore.toolAssets.find(item => item.asset_code.toLowerCase() === asset.asset_code.toLowerCase() && Number(item.id) !== toolId);
+    if (duplicate) throw equipmentError(`รหัสเครื่องมือ ${asset.asset_code} มีอยู่แล้ว`);
+    const now = new Date().toISOString();
+    let tool = toolId === null ? null : memoryStore.toolAssets.find(item => Number(item.id) === toolId);
+    if (toolId !== null && !tool) throw equipmentError('ไม่พบเครื่องมือ');
+    if (tool) Object.assign(tool, asset, { updated_at: now });
+    else {
+      tool = { id: nextId, ...asset, status: 'available', current_holder: '', current_project: '', expected_return_at: '', created_at: now, updated_at: now };
+      memoryStore.toolAssets.push(tool);
+      memoryStore.toolEvents.push({ id: Date.now() + 1, tool_id: tool.id, event_type: 'registered', title: 'ลงทะเบียนเครื่องมือ', actor: typeof payload.actor === 'string' ? payload.actor.trim() : '', project_name: '', detail: asset.condition_note, created_at: now });
+    }
+    saveJsonStore();
+    return { success: true, tool };
+  }
+  return new Promise((resolve, reject) => {
+    const finish = (err, savedId, isNew, autoCode = false) => {
+      if (err) return reject(err);
+      const loadTool = () => db.get('SELECT * FROM tool_assets WHERE id = ?', [savedId], (getError, tool) => {
+        if (getError) return reject(getError);
+        if (!tool) return reject(equipmentError('ไม่พบเครื่องมือที่บันทึก'));
+        if (!isNew) return resolve({ success: true, tool });
+        db.run('INSERT INTO tool_events (tool_id, event_type, title, actor, detail) VALUES (?, ?, ?, ?, ?)',
+          [savedId, 'registered', 'ลงทะเบียนเครื่องมือ', typeof payload.actor === 'string' ? payload.actor.trim() : '', asset.condition_note],
+          eventError => eventError ? reject(eventError) : resolve({ success: true, tool }));
+      });
+      if (autoCode) {
+        const assignNextCode = () => db.all('SELECT asset_code FROM tool_assets WHERE id != ?', [savedId], (codeError, rows) => {
+          if (codeError) return reject(codeError);
+          const code = formatToolAssetCode(nextToolAssetSequence(rows || []));
+          db.run('UPDATE tool_assets SET asset_code = ? WHERE id = ?', [code, savedId], updateError => {
+            if (updateError?.code === 'SQLITE_CONSTRAINT') return assignNextCode();
+            if (updateError) reject(updateError);
+            else loadTool();
+          });
+        });
+        assignNextCode();
+      } else loadTool();
+    };
+    const values = [asset.asset_code || `AUTO-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, asset.name, asset.category, asset.brand, asset.model, asset.serial_number,
+      asset.location, asset.condition_note, asset.purchase_date];
+    if (toolId === null) {
+      db.run(`INSERT INTO tool_assets (asset_code, name, category, brand, model, serial_number, location, condition_note, purchase_date)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, values, function (error) {
+        if (error) return reject(error.code === 'SQLITE_CONSTRAINT' ? equipmentError(`รหัสเครื่องมือ ${asset.asset_code} มีอยู่แล้ว`) : error);
+        finish(null, this.lastID, true, !asset.asset_code);
+      });
+    } else {
+      db.run(`UPDATE tool_assets SET asset_code=?, name=?, category=?, brand=?, model=?, serial_number=?, location=?, condition_note=?, purchase_date=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`,
+        [...values, toolId], function (error) {
+          if (error) return reject(error.code === 'SQLITE_CONSTRAINT' ? equipmentError(`รหัสเครื่องมือ ${asset.asset_code} มีอยู่แล้ว`) : error);
+          if (!this.changes) return reject(equipmentError('ไม่พบเครื่องมือ'));
+          finish(null, toolId, false);
+        });
+    }
+  });
+}
+
+async function createToolEvent(id, payload = {}) {
+  const toolId = Number(id);
+  const type = typeof payload.type === 'string' ? payload.type.trim() : '';
+  const actor = typeof payload.actor === 'string' ? payload.actor.trim() : '';
+  const requestedBy = typeof payload.requested_by === 'string' ? payload.requested_by.trim() : '';
+  const projectName = typeof payload.project_name === 'string' ? payload.project_name.trim() : '';
+  const detail = typeof payload.detail === 'string' ? payload.detail.trim() : '';
+  if (!Number.isSafeInteger(toolId) || toolId <= 0) throw equipmentError('รหัสเครื่องมือไม่ถูกต้อง');
+  if (!actor) throw equipmentError('กรุณาระบุผู้รับผิดชอบ');
+  const definitions = {
+    checkout_request: { title: 'ส่งคำขอเบิก', from: ['available'], to: 'pending_approval' },
+    approve: { title: 'อนุมัติการเบิก', from: ['pending_approval'], to: 'borrowed' },
+    reject: { title: 'ปฏิเสธคำขอเบิก', from: ['pending_approval'], to: 'available' },
+    return: { title: 'รับคืนเข้าคลัง', from: ['borrowed'], to: 'available' },
+    maintenance: { title: 'ส่งซ่อมบำรุง', from: ['available', 'damaged'], to: 'maintenance' },
+    repair_complete: { title: 'ปิดงานซ่อม', from: ['maintenance'], to: payload.mark_damaged ? 'damaged' : 'available' },
+    damaged: { title: 'บันทึกชำรุด', from: ['available', 'borrowed'], to: 'damaged' },
+    lost: { title: 'บันทึกสูญหาย', from: ['available', 'borrowed'], to: 'lost' },
+    stocktake: { title: 'ตรวจนับสต็อก', from: ['available', 'pending_approval', 'borrowed', 'maintenance', 'damaged', 'lost'], to: null }
+  };
+  const definition = definitions[type];
+  if (!definition) throw equipmentError('กิจกรรมเครื่องมือไม่ถูกต้อง');
+  if (['maintenance', 'repair_complete', 'damaged', 'lost', 'reject', 'stocktake'].includes(type) && !detail) {
+    throw equipmentError('กรุณาระบุรายละเอียดกิจกรรม');
+  }
+  if (type === 'checkout_request' && !requestedBy) throw equipmentError('กรุณาระบุชื่อผู้ขอเบิก');
+  if (type === 'checkout_request' && requestedBy.toLocaleLowerCase() === actor.toLocaleLowerCase()) throw equipmentError('ผู้ขอเบิกและผู้บันทึกคำขอต้องเป็นคนละคน');
+  if (type === 'checkout_request' && !projectName) throw equipmentError('กรุณาระบุโครงการหรือสถานที่ใช้งาน');
+
+  if (useJsonStore) {
+    memoryStore.toolAssets ||= [];
+    memoryStore.toolEvents ||= [];
+    const tool = memoryStore.toolAssets.find(item => Number(item.id) === toolId);
+    if (!tool) throw equipmentError('ไม่พบเครื่องมือ');
+    if (!definition.from.includes(tool.status)) throw equipmentError(`เปลี่ยนสถานะจาก ${tool.status} ไม่ได้`);
+    const now = new Date().toISOString();
+    tool.status = type === 'stocktake' ? tool.status : definition.to;
+    const previousProject = tool.current_project;
+    tool.current_holder = type === 'checkout_request' ? requestedBy : (type === 'return' || ['repair_complete', 'damaged', 'lost', 'reject'].includes(type) ? '' : tool.current_holder);
+    tool.current_project = type === 'checkout_request' ? projectName : (type === 'return' || ['repair_complete', 'damaged', 'lost', 'reject'].includes(type) ? '' : tool.current_project);
+    tool.expected_return_at = type === 'checkout_request' ? (payload.expected_return_at || '') : (['return', 'damaged', 'lost', 'reject'].includes(type) ? '' : tool.expected_return_at);
+    if (type === 'return') tool.location = payload.location?.trim() || tool.location;
+    if (type === 'return' || type === 'repair_complete') tool.condition_note = detail || tool.condition_note;
+    tool.updated_at = now;
+    const event = { id: Date.now(), tool_id: toolId, event_type: type, title: definition.title, actor, requested_by: requestedBy, project_name: projectName || previousProject || '', detail, created_at: now };
+    memoryStore.toolEvents.push(event);
+    saveJsonStore();
+    return { success: true, tool, event };
+  }
+
+  const current = await getToolAsset(toolId);
+  if (!definition.from.includes(current.tool.status)) throw equipmentError(`เปลี่ยนสถานะจาก ${current.tool.status} ไม่ได้`);
+  const nextStatus = type === 'stocktake' ? current.tool.status : definition.to;
+  const nextHolder = type === 'checkout_request' ? requestedBy : (type === 'return' || ['repair_complete', 'damaged', 'lost', 'reject'].includes(type) ? null : current.tool.current_holder);
+  const nextProject = type === 'checkout_request' ? projectName : (type === 'return' || ['repair_complete', 'damaged', 'lost', 'reject'].includes(type) ? null : current.tool.current_project);
+  const expected = type === 'checkout_request' ? (payload.expected_return_at || null) : (['return', 'damaged', 'lost', 'reject'].includes(type) ? null : current.tool.expected_return_at);
+  const location = type === 'return' ? (payload.location?.trim() || current.tool.location) : current.tool.location;
+  const condition = ['return', 'repair_complete'].includes(type) && detail ? detail : current.tool.condition_note;
+  return new Promise((resolve, reject) => {
+    db.run(`UPDATE tool_assets SET status=?, current_holder=?, current_project=?, expected_return_at=?, location=?, condition_note=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`,
+      [nextStatus, nextHolder, nextProject, expected, location, condition, toolId], updateError => {
+        if (updateError) return reject(updateError);
+        db.run('INSERT INTO tool_events (tool_id, event_type, title, actor, requested_by, project_name, detail) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [toolId, type, definition.title, actor, requestedBy, projectName || current.tool.current_project || '', detail], async eventError => {
+            if (eventError) return reject(eventError);
+            try {
+              const fresh = await getToolAsset(toolId);
+              resolve({ success: true, ...fresh, event: fresh.events[0] });
+            } catch (error) { reject(error); }
+          });
+      });
+  });
+}
+
 function getDongleInventory() {
   if (useJsonStore) {
     memoryStore.dongles ||= [];
@@ -1748,6 +2041,10 @@ module.exports = {
   getEquipmentIssues,
   saveEquipmentIssue,
   deleteEquipmentIssue,
+  getToolRegistry,
+  getToolAsset,
+  saveToolAsset,
+  createToolEvent,
   getDongleInventory,
   addDongles,
   issueDongle,

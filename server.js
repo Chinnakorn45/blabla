@@ -210,6 +210,39 @@ app.delete('/api/projects/:name', async (req, res) => {
 });
 
 // Equipment catalog and issue history
+app.get('/api/tools', async (req, res) => {
+  try {
+    res.json({ success: true, ...(await db.getToolRegistry()) });
+  } catch (err) {
+    console.error('Error fetching tool register:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/tools', async (req, res) => {
+  try {
+    res.status(201).json(await db.saveToolAsset(req.body || {}));
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+app.get('/api/tools/:id', async (req, res) => {
+  try {
+    res.json({ success: true, ...(await db.getToolAsset(req.params.id)) });
+  } catch (err) {
+    res.status(err.status || 404).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/tools/:id/events', async (req, res) => {
+  try {
+    res.status(201).json(await db.createToolEvent(req.params.id, req.body || {}));
+  } catch (err) {
+    res.status(err.status || 400).json({ success: false, error: err.message });
+  }
+});
+
 app.get('/api/equipment', async (req, res) => {
   try {
     const equipment = await db.getEquipmentCatalog();

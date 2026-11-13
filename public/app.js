@@ -7,6 +7,8 @@ const WAREHOUSE_PROJECT_NAME = 'คลังสินค้ากลาง (Cent
 
 class SolarTrackingApp {
   constructor() {
+    this.qrToolMode = new URLSearchParams(window.location.search).get('scan') === '1';
+    if (this.qrToolMode) document.body.classList.add('qr-tool-mode');
     this.currentView = 'dashboard';
     this.currentMode = 'field'; // 'warehouse' | 'field'
     this.isMockMode = false;
@@ -44,10 +46,12 @@ class SolarTrackingApp {
     this.cachedDbPanels = [];
     this.equipmentCatalog = [];
     this.equipmentIssues = [];
+    this.toolAssets = [];
+    this.toolEvents = [];
+    this.toolRegistry = null;
     this.dongles = [];
     this.dongleFilters = { search: '', status: 'all' };
     this.fieldStockModalPanels = [];
-    this.expandedEquipmentIssueIds = new Set();
     this.pendingConfirmation = null;
     this.confirmationReturnFocus = null;
     this.pendingFieldBulkSerials = [];
@@ -66,6 +70,7 @@ class SolarTrackingApp {
     await this.loadProjects();
     await this.loadDashboardData();
     this.refreshIcons();
+    if (new URLSearchParams(window.location.search).has('tool')) this.showView('equipment');
   }
 
   bindEvents() {
@@ -2370,40 +2375,6 @@ class SolarTrackingApp {
     }
   }
 
-  async loadEquipmentData() {
-    try {
-      if (this.isMockMode) {
-        this.equipmentCatalog = JSON.parse(localStorage.getItem('solartrack_equipment_catalog') || '[]');
-        this.equipmentIssues = JSON.parse(localStorage.getItem('solartrack_equipment_issues') || '[]');
-      } else {
-        const [catalogResult, issueResult] = await Promise.all([
-          this.requestJson('/api/equipment'),
-          this.requestJson('/api/equipment/issues')
-        ]);
-        this.equipmentCatalog = catalogResult.equipment || [];
-        this.equipmentIssues = issueResult.issues || [];
-      }
-
-      this.renderEquipmentCatalog();
-      this.renderEquipmentIssues();
-      const lineContainer = document.getElementById('equipment-issue-lines');
-      if (!document.getElementById('equipment-issue-id')?.value && lineContainer && !lineContainer.children.length) {
-        this.renderEquipmentIssueLines([{}]);
-      }
-      const dateInput = document.getElementById('equipment-issue-date');
-      if (dateInput && !dateInput.value) dateInput.value = this.getLocalDateInputValue();
-      const issuedByInput = document.getElementById('equipment-issue-by');
-      if (issuedByInput && !issuedByInput.value) issuedByInput.value = appSettings.getDefaultTechnician() || '';
-      const dongleIssueDate = document.getElementById('dongle-issue-date');
-      if (dongleIssueDate && !dongleIssueDate.value) dongleIssueDate.value = this.getLocalDateInputValue();
-      const dongleIssueBy = document.getElementById('dongle-issue-by');
-      if (dongleIssueBy && !dongleIssueBy.value) dongleIssueBy.value = appSettings.getDefaultTechnician() || '';
-    } catch (error) {
-      console.error('Unable to load equipment data:', error);
-      this.showToast(`โหลดข้อมูลอุปกรณ์ไม่สำเร็จ: ${error.message}`, 'error');
-    }
-  }
-
   async loadDongleData() {
     try {
       if (this.isMockMode) {
@@ -2425,8 +2396,9 @@ class SolarTrackingApp {
   }
 
   getLocalDateInputValue() {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      return new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Bangkok', year: 'numeric', month: '2-digit', day: '2-digit'
+      }).format(new Date());
   }
 
   renderDongleInventory() {
@@ -2660,411 +2632,6 @@ class SolarTrackingApp {
       this.showToast(isMarkingDamaged ? 'บันทึกสถานะชำรุดแล้ว' : 'คืนดองเกิ้ลเข้าสต๊อกแล้ว', 'success');
     } catch (error) {
       this.showToast(`เปลี่ยนสถานะดองเกิ้ลไม่สำเร็จ: ${error.message}`, 'error');
-    }
-  }
-
-  renderEquipmentCatalog() {
-    const container = document.getElementById('equipment-catalog-list');
-    if (!container) return;
-    if (!this.equipmentCatalog.length) {
-      container.innerHTML = '<div class="p-5 text-center text-xs text-slate-400">ยังไม่มีอุปกรณ์ในทะเบียน เพิ่มรายการได้จากช่องด้านบน</div>';
-      this.refreshIcons();
-      return;
-    }
-    container.innerHTML = this.equipmentCatalog.map(item => `
-      <div class="px-4 py-3 flex items-center justify-between gap-3">
-        <div class="min-w-0">
-          <div class="text-sm font-semibold text-slate-800 truncate">${this.escapeHtml(item.name)}</div>
-          <div class="text-[11px] text-slate-500">หน่วยนับ: ${this.escapeHtml(item.unit || 'ชิ้น')}</div>
-        </div>
-        <div class="flex items-center gap-1 shrink-0">
-          <button type="button" onclick="app.editEquipmentCatalogItem(${Number(item.id)})" class="p-2 text-sky-700 hover:bg-sky-50 rounded-lg" aria-label="แก้ไข ${this.escapeHtml(item.name)}">
-            <i data-lucide="pencil" class="w-4 h-4"></i>
-          </button>
-          <button type="button" onclick="app.deleteEquipmentCatalogItem(${Number(item.id)})" class="p-2 text-rose-600 hover:bg-rose-50 rounded-lg" aria-label="ลบ ${this.escapeHtml(item.name)}">
-            <i data-lucide="trash-2" class="w-4 h-4"></i>
-          </button>
-        </div>
-      </div>
-    `).join('');
-    this.refreshIcons();
-  }
-
-  renderEquipmentIssues() {
-    const container = document.getElementById('equipment-issue-history');
-    if (!container) return;
-    const toggleAllButton = document.getElementById('equipment-toggle-details');
-    if (!this.equipmentIssues.length) {
-      if (toggleAllButton) toggleAllButton.classList.add('hidden');
-      container.innerHTML = `
-        <div class="p-8 text-center text-xs text-slate-400">
-          <i data-lucide="clipboard-list" class="w-8 h-8 mx-auto mb-2 text-slate-300"></i>
-          ยังไม่มีประวัติการเบิกอุปกรณ์
-        </div>`;
-      this.refreshIcons();
-      return;
-    }
-    const issueIds = this.equipmentIssues.map(issue => Number(issue.id));
-    const allExpanded = issueIds.every(id => this.expandedEquipmentIssueIds.has(id));
-    for (const id of this.expandedEquipmentIssueIds) {
-      if (!issueIds.includes(id)) this.expandedEquipmentIssueIds.delete(id);
-    }
-    if (toggleAllButton) {
-      toggleAllButton.classList.remove('hidden');
-      toggleAllButton.innerHTML = allExpanded
-        ? '<i data-lucide="chevrons-down-up" class="w-3.5 h-3.5"></i><span>ซ่อนรายละเอียดทั้งหมด</span>'
-        : '<i data-lucide="chevrons-down-up" class="w-3.5 h-3.5"></i><span>แสดงรายละเอียดทั้งหมด</span>';
-    }
-    const rows = this.equipmentIssues.map(issue => {
-      const id = Number(issue.id);
-      const expanded = this.expandedEquipmentIssueIds.has(id);
-      const items = Array.isArray(issue.items) ? issue.items : [];
-      const itemDetails = items.length
-        ? `<div class="flex flex-wrap gap-2">${items.map(item => `
-            <span class="inline-flex items-center gap-1.5 rounded-lg border border-sky-100 bg-sky-50 px-2.5 py-1.5 text-xs text-sky-900">
-              <span class="font-semibold">${this.escapeHtml(item.name)}</span>
-              <span class="text-sky-700">${this.escapeHtml(item.quantity)} ${this.escapeHtml(item.unit || 'ชิ้น')}</span>
-            </span>`).join('')}</div>`
-        : '<span class="text-xs text-slate-400">ไม่มีรายการอุปกรณ์</span>';
-      return `
-        <tr class="equipment-history-row">
-          <td class="px-4 py-3 text-sm font-semibold text-slate-800">${this.escapeHtml(issue.project_name)}</td>
-          <td class="px-4 py-3 whitespace-nowrap text-xs text-slate-600">${this.escapeHtml(issue.issued_at)}</td>
-          <td class="px-4 py-3 text-sm text-slate-700">${this.escapeHtml(issue.issued_by)}</td>
-          <td class="px-4 py-3 text-center">
-            <span class="inline-flex min-w-8 justify-center rounded-full bg-violet-50 px-2 py-1 text-xs font-bold text-violet-700">${items.length}</span>
-            <span class="ml-1 text-[11px] text-slate-500">รายการ</span>
-          </td>
-          <td class="px-4 py-3">
-            <div class="flex items-center justify-end gap-1 whitespace-nowrap">
-              <button type="button" onclick="app.toggleEquipmentIssueDetails(${id})" class="equipment-history-action text-xs px-2.5 py-1.5 rounded-lg text-slate-700 hover:bg-slate-100 flex items-center gap-1" aria-expanded="${expanded}" aria-controls="equipment-issue-details-${id}">
-                <i data-lucide="${expanded ? 'chevron-up' : 'chevron-down'}" class="w-3.5 h-3.5"></i>${expanded ? 'ซ่อน' : 'แสดง'}
-              </button>
-              <button type="button" onclick="app.editEquipmentIssue(${id})" class="equipment-history-action text-xs px-2.5 py-1.5 rounded-lg text-sky-700 hover:bg-sky-50 flex items-center gap-1">
-                <i data-lucide="pencil" class="w-3.5 h-3.5"></i>แก้ไข
-              </button>
-              <button type="button" onclick="app.deleteEquipmentIssue(${id})" class="equipment-history-action text-xs px-2.5 py-1.5 rounded-lg text-rose-600 hover:bg-rose-50 flex items-center gap-1">
-                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>ลบ
-              </button>
-            </div>
-          </td>
-        </tr>
-        <tr id="equipment-issue-details-${id}" class="equipment-history-details ${expanded ? '' : 'hidden'}">
-          <td colspan="5" class="px-4 pb-4 pt-1">
-            <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 sm:p-4 space-y-2.5">
-              <h4 class="text-xs font-bold text-slate-700">รายการอุปกรณ์ที่เบิก</h4>
-              ${itemDetails}
-              ${issue.notes ? `<p class="border-t border-slate-200 pt-2 text-xs text-slate-600"><span class="font-semibold">หมายเหตุ:</span> ${this.escapeHtml(issue.notes)}</p>` : ''}
-            </div>
-          </td>
-        </tr>`;
-    }).join('');
-    container.innerHTML = `
-      <div class="equipment-history-table-scroll">
-        <table class="equipment-history-table min-w-[760px] w-full text-left">
-          <thead>
-            <tr class="bg-slate-50 text-[11px] font-bold uppercase tracking-wide text-slate-500">
-              <th class="px-4 py-3">โครงการ</th>
-              <th class="px-4 py-3">วันที่เบิก</th>
-              <th class="px-4 py-3">ผู้เบิก</th>
-              <th class="px-4 py-3 text-center">อุปกรณ์</th>
-              <th class="px-4 py-3 text-right">จัดการ</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-slate-100">${rows}</tbody>
-        </table>
-      </div>`;
-    this.refreshIcons();
-  }
-
-  toggleEquipmentIssueDetails(id) {
-    const issueId = Number(id);
-    if (this.expandedEquipmentIssueIds.has(issueId)) this.expandedEquipmentIssueIds.delete(issueId);
-    else this.expandedEquipmentIssueIds.add(issueId);
-    this.renderEquipmentIssues();
-  }
-
-  toggleAllEquipmentIssueDetails() {
-    const allExpanded = this.equipmentIssues.length > 0 &&
-      this.equipmentIssues.every(issue => this.expandedEquipmentIssueIds.has(Number(issue.id)));
-    if (allExpanded) this.expandedEquipmentIssueIds.clear();
-    else this.equipmentIssues.forEach(issue => this.expandedEquipmentIssueIds.add(Number(issue.id)));
-    this.renderEquipmentIssues();
-  }
-
-  renderEquipmentIssueLines(items) {
-    const container = document.getElementById('equipment-issue-lines');
-    if (!container) return;
-    const lines = Array.isArray(items) && items.length ? items : [{}];
-    container.innerHTML = lines.map((line, index) => {
-      const selectedId = line.equipment_id === undefined || line.equipment_id === null ? '' : String(line.equipment_id);
-      const hasCatalogItem = this.equipmentCatalog.some(item => String(item.id) === selectedId);
-      const selectedCatalogItem = this.equipmentCatalog.find(item => String(item.id) === selectedId);
-      const needsSnapshotOption = selectedId && (!hasCatalogItem ||
-        (line.name && line.name !== selectedCatalogItem.name) ||
-        (line.unit && line.unit !== (selectedCatalogItem?.unit || 'ชิ้น')));
-      const oldItemOption = needsSnapshotOption
-        ? `<option value="${this.escapeHtml(selectedId)}" data-name="${this.escapeHtml(line.name || 'อุปกรณ์ที่ไม่มีในทะเบียน')}" data-unit="${this.escapeHtml(line.unit || 'ชิ้น')}" selected>${this.escapeHtml(line.name || 'อุปกรณ์ที่ไม่มีในทะเบียน')}${hasCatalogItem ? ' (ชื่อเดิมในประวัติ)' : ' (ไม่มีในทะเบียน)'}</option>`
-        : '';
-      const options = this.equipmentCatalog.filter(item => !(needsSnapshotOption && String(item.id) === selectedId)).map(item => `
-        <option value="${Number(item.id)}" data-name="${this.escapeHtml(item.name)}" data-unit="${this.escapeHtml(item.unit || 'ชิ้น')}" ${String(item.id) === selectedId ? 'selected' : ''}>
-          ${this.escapeHtml(item.name)} (${this.escapeHtml(item.unit || 'ชิ้น')})
-        </option>`).join('');
-      return `
-        <div class="equipment-issue-line grid grid-cols-[minmax(0,1fr)_72px_72px_36px] sm:grid-cols-[minmax(0,1fr)_100px_110px_40px] gap-2 items-center">
-          <select required aria-label="อุปกรณ์รายการ ${index + 1}" class="equipment-line-select w-full text-sm px-3 py-2.5 bg-white border border-slate-300 rounded-xl">
-            <option value="">-- เลือกอุปกรณ์ --</option>${oldItemOption}${options}
-          </select>
-          <input type="number" min="0.01" step="any" required value="${this.escapeHtml(line.quantity ?? 1)}" aria-label="จำนวนรายการ ${index + 1}" placeholder="จำนวน" class="equipment-line-quantity w-full text-sm px-2 py-2.5 bg-white border border-slate-300 rounded-xl">
-          <button type="button" onclick="app.removeEquipmentIssueLine(this)" class="w-10 h-10 rounded-xl text-rose-600 hover:bg-rose-50 flex items-center justify-center" aria-label="ลบรายการอุปกรณ์">
-            <i data-lucide="x" class="w-4 h-4"></i>
-          </button>
-        </div>`;
-    }).join('');
-    Array.from(container.querySelectorAll('.equipment-issue-line')).forEach((row, index) => {
-      const select = row.querySelector('.equipment-line-select');
-      const quantity = row.querySelector('.equipment-line-quantity');
-      const line = lines[index] || {};
-      const selectedOption = select?.options[select.selectedIndex];
-      if (select) {
-        select.required = false;
-        select.classList.add('col-span-full');
-        select.addEventListener('change', () => this.fillEquipmentIssueLine(select));
-      }
-
-      const nameInput = document.createElement('input');
-      nameInput.type = 'text';
-      nameInput.value = line.name || selectedOption?.dataset.name || '';
-      nameInput.placeholder = 'ชื่ออุปกรณ์';
-      nameInput.setAttribute('aria-label', `ชื่ออุปกรณ์รายการ ${index + 1}`);
-      nameInput.className = 'equipment-line-name min-w-0 w-full text-sm px-3 py-2.5 bg-white border border-slate-300 rounded-xl';
-      if (select) select.insertAdjacentElement('afterend', nameInput);
-
-      const unitInput = document.createElement('input');
-      unitInput.type = 'text';
-      unitInput.value = line.unit || selectedOption?.dataset.unit || 'ชิ้น';
-      unitInput.placeholder = 'หน่วย';
-      unitInput.setAttribute('aria-label', `หน่วยรายการ ${index + 1}`);
-      unitInput.className = 'equipment-line-unit min-w-0 w-full text-sm px-2 py-2.5 bg-white border border-slate-300 rounded-xl';
-      if (quantity) quantity.insertAdjacentElement('afterend', unitInput);
-    });
-    this.refreshIcons();
-  }
-
-  fillEquipmentIssueLine(select) {
-    const option = select?.options[select.selectedIndex];
-    const row = select?.closest('.equipment-issue-line');
-    if (!row || !option?.value) return;
-    row.querySelector('.equipment-line-name').value = option.dataset.name || '';
-    row.querySelector('.equipment-line-unit').value = option.dataset.unit || 'ชิ้น';
-  }
-
-  addEquipmentIssueLine(item = {}) {
-    const currentItems = Array.from(document.querySelectorAll('#equipment-issue-lines .equipment-issue-line')).map(row => {
-      const select = row.querySelector('.equipment-line-select');
-      return {
-        equipment_id: select.value || null,
-        name: row.querySelector('.equipment-line-name').value.trim(),
-        unit: row.querySelector('.equipment-line-unit').value.trim(),
-        quantity: row.querySelector('.equipment-line-quantity').value
-      };
-    });
-    currentItems.push(item);
-    this.renderEquipmentIssueLines(currentItems);
-  }
-
-  removeEquipmentIssueLine(button) {
-    const rows = document.querySelectorAll('#equipment-issue-lines .equipment-issue-line');
-    if (rows.length === 1) {
-      this.showToast('ต้องมีรายการอุปกรณ์อย่างน้อย 1 รายการ', 'warning');
-      return;
-    }
-    button.closest('.equipment-issue-line')?.remove();
-  }
-
-  async saveEquipmentCatalogItem(event) {
-    event.preventDefault();
-    const id = document.getElementById('equipment-catalog-id').value;
-    const payload = {
-      name: document.getElementById('equipment-catalog-name').value.trim(),
-      unit: document.getElementById('equipment-catalog-unit').value.trim()
-    };
-    try {
-      if (this.isMockMode) {
-        const duplicate = this.equipmentCatalog.find(item =>
-          item.name.toLowerCase() === payload.name.toLowerCase() && String(item.id) !== id
-        );
-        if (duplicate) throw new Error(`มีอุปกรณ์ "${payload.name}" อยู่แล้ว`);
-        const now = new Date().toISOString();
-        if (id) {
-          const item = this.equipmentCatalog.find(entry => String(entry.id) === id);
-          if (!item) throw new Error('ไม่พบข้อมูลอุปกรณ์ที่ต้องการแก้ไข');
-          Object.assign(item, payload, { updated_at: now });
-        } else {
-          this.equipmentCatalog.push({ id: Date.now(), ...payload, created_at: now, updated_at: now });
-        }
-        localStorage.setItem('solartrack_equipment_catalog', JSON.stringify(this.equipmentCatalog));
-      } else {
-        await this.requestJson(id ? `/api/equipment/${encodeURIComponent(id)}` : '/api/equipment', {
-          method: id ? 'PUT' : 'POST',
-          body: { ...payload, ...(id ? { id } : {}) }
-        });
-      }
-      document.getElementById('equipment-catalog-id').value = '';
-      document.getElementById('equipment-catalog-name').value = '';
-      document.getElementById('equipment-catalog-unit').value = 'ชิ้น';
-      document.getElementById('equipment-catalog-submit-label').textContent = 'เพิ่มอุปกรณ์';
-      await this.loadEquipmentData();
-      this.showToast(id ? 'แก้ไขข้อมูลอุปกรณ์แล้ว' : 'เพิ่มอุปกรณ์แล้ว', 'success');
-    } catch (error) {
-      this.showToast(`บันทึกข้อมูลอุปกรณ์ไม่สำเร็จ: ${error.message}`, 'error');
-    }
-  }
-
-  editEquipmentCatalogItem(id) {
-    const item = this.equipmentCatalog.find(entry => Number(entry.id) === Number(id));
-    if (!item) {
-      this.showToast('ไม่พบข้อมูลอุปกรณ์ที่ต้องการแก้ไข', 'error');
-      return;
-    }
-    document.getElementById('equipment-catalog-id').value = item.id;
-    document.getElementById('equipment-catalog-name').value = item.name;
-    document.getElementById('equipment-catalog-unit').value = item.unit || 'ชิ้น';
-    document.getElementById('equipment-catalog-submit-label').textContent = 'บันทึกการแก้ไข';
-    document.getElementById('equipment-catalog-name').focus();
-  }
-
-  async deleteEquipmentCatalogItem(id) {
-    const item = this.equipmentCatalog.find(entry => Number(entry.id) === Number(id));
-    if (!item || !await this.confirmAction({
-      title: 'ยืนยันการลบอุปกรณ์',
-      message: `ลบ "${item.name}" ออกจากทะเบียนหรือไม่? ประวัติการเบิกเดิมจะยังคงอยู่`,
-      confirmText: 'ลบอุปกรณ์'
-    })) return;
-    try {
-      if (this.isMockMode) {
-        this.equipmentCatalog = this.equipmentCatalog.filter(entry => Number(entry.id) !== Number(id));
-        localStorage.setItem('solartrack_equipment_catalog', JSON.stringify(this.equipmentCatalog));
-      } else {
-        await this.requestJson(`/api/equipment/${encodeURIComponent(id)}`, { method: 'DELETE' });
-      }
-      await this.loadEquipmentData();
-      this.showToast('ลบอุปกรณ์จากทะเบียนแล้ว ประวัติเดิมยังคงอยู่', 'success');
-    } catch (error) {
-      this.showToast(`ลบอุปกรณ์ไม่สำเร็จ: ${error.message}`, 'error');
-    }
-  }
-
-  async saveEquipmentIssue(event) {
-    event.preventDefault();
-    const issueId = document.getElementById('equipment-issue-id').value;
-    const rows = Array.from(document.querySelectorAll('#equipment-issue-lines .equipment-issue-line'));
-    const items = rows.map(row => {
-      const select = row.querySelector('.equipment-line-select');
-      return {
-        equipment_id: select.value || null,
-        name: row.querySelector('.equipment-line-name').value.trim(),
-        unit: row.querySelector('.equipment-line-unit').value.trim(),
-        quantity: Number(row.querySelector('.equipment-line-quantity').value)
-      };
-    }).filter(item => item.name);
-    if (!items.length || items.some(item => !item.unit || !Number.isFinite(item.quantity) || item.quantity <= 0)) {
-      this.showToast('กรุณาเลือกอุปกรณ์และระบุจำนวนให้ครบทุกบรรทัด', 'warning');
-      return;
-    }
-    const payload = {
-      project_name: document.getElementById('equipment-issue-project').value,
-      issued_at: document.getElementById('equipment-issue-date').value,
-      issued_by: document.getElementById('equipment-issue-by').value.trim(),
-      notes: document.getElementById('equipment-issue-notes').value.trim(),
-      items
-    };
-    if (!payload.project_name || !payload.issued_at || !payload.issued_by) {
-      this.showToast('กรุณากรอกโครงการ วันที่ และชื่อผู้เบิกให้ครบ', 'warning');
-      return;
-    }
-
-    try {
-      if (this.isMockMode) {
-        const normalizedItems = items.map(line => {
-          const catalogItem = line.equipment_id
-            ? this.equipmentCatalog.find(item => String(item.id) === String(line.equipment_id))
-            : null;
-          const previousItem = issueId
-            ? this.equipmentIssues.find(issue => String(issue.id) === issueId)?.items?.find(item =>
-              String(item.equipment_id || '') === String(line.equipment_id || '') && item.name === line.name)
-            : null;
-          const name = line.name || previousItem?.name || catalogItem?.name || '';
-          const unit = line.unit || previousItem?.unit || catalogItem?.unit || 'ชิ้น';
-          if (!name) throw new Error('กรุณาระบุชื่ออุปกรณ์');
-          return { equipment_id: line.equipment_id ? Number(line.equipment_id) : null, name, unit, quantity: line.quantity };
-        });
-        const now = new Date().toISOString();
-        const existing = this.equipmentIssues.find(issue => String(issue.id) === issueId);
-        const issue = { ...payload, items: normalizedItems, updated_at: now };
-        if (existing) Object.assign(existing, issue);
-        else this.equipmentIssues.unshift({ id: Date.now(), ...issue, created_at: now });
-        localStorage.setItem('solartrack_equipment_issues', JSON.stringify(this.equipmentIssues));
-      } else {
-        await this.requestJson(issueId ? `/api/equipment/issues/${encodeURIComponent(issueId)}` : '/api/equipment/issues', {
-          method: issueId ? 'PUT' : 'POST',
-          body: payload
-        });
-      }
-      this.cancelEquipmentIssueEdit();
-      await this.loadEquipmentData();
-      this.showToast(issueId ? 'แก้ไขประวัติการเบิกแล้ว' : 'บันทึกประวัติการเบิกแล้ว', 'success');
-    } catch (error) {
-      this.showToast(`บันทึกประวัติการเบิกไม่สำเร็จ: ${error.message}`, 'error');
-    }
-  }
-
-  editEquipmentIssue(id) {
-    const issue = this.equipmentIssues.find(entry => Number(entry.id) === Number(id));
-    if (!issue) {
-      this.showToast('ไม่พบประวัติการเบิกที่ต้องการแก้ไข', 'error');
-      return;
-    }
-    document.getElementById('equipment-issue-id').value = issue.id;
-    document.getElementById('equipment-issue-project').value = issue.project_name;
-    document.getElementById('equipment-issue-date').value = issue.issued_at;
-    document.getElementById('equipment-issue-by').value = issue.issued_by;
-    document.getElementById('equipment-issue-notes').value = issue.notes || '';
-    document.getElementById('equipment-issue-form-title').textContent = 'แก้ไขประวัติการเบิกอุปกรณ์';
-    document.getElementById('btn-cancel-equipment-edit').classList.remove('hidden');
-    this.renderEquipmentIssueLines(issue.items || []);
-    document.getElementById('equipment-issue-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
-
-  cancelEquipmentIssueEdit() {
-    const form = document.getElementById('equipment-issue-form');
-    form?.reset();
-    document.getElementById('equipment-issue-id').value = '';
-    document.getElementById('equipment-issue-form-title').textContent = 'บันทึกเบิกอุปกรณ์ไปหน้างาน';
-    document.getElementById('btn-cancel-equipment-edit').classList.add('hidden');
-    document.getElementById('equipment-issue-date').value = this.getLocalDateInputValue();
-    document.getElementById('equipment-issue-by').value = appSettings.getDefaultTechnician() || '';
-    this.renderEquipmentIssueLines([{}]);
-  }
-
-  async deleteEquipmentIssue(id) {
-    const issue = this.equipmentIssues.find(entry => Number(entry.id) === Number(id));
-    if (!issue || !await this.confirmAction({
-      title: 'ยืนยันการลบประวัติ',
-      message: `ลบประวัติการเบิกของโครงการ "${issue.project_name}" วันที่ ${issue.issued_at} หรือไม่?`,
-      confirmText: 'ลบประวัติ'
-    })) return;
-    try {
-      if (this.isMockMode) {
-        this.equipmentIssues = this.equipmentIssues.filter(entry => Number(entry.id) !== Number(id));
-        localStorage.setItem('solartrack_equipment_issues', JSON.stringify(this.equipmentIssues));
-      } else {
-        await this.requestJson(`/api/equipment/issues/${encodeURIComponent(id)}`, { method: 'DELETE' });
-      }
-      await this.loadEquipmentData();
-      this.showToast('ลบประวัติการเบิกแล้ว', 'success');
-    } catch (error) {
-      this.showToast(`ลบประวัติการเบิกไม่สำเร็จ: ${error.message}`, 'error');
     }
   }
 
@@ -4253,7 +3820,8 @@ let app;
 window.addEventListener('DOMContentLoaded', async () => {
   const viewFragments = [
     { mountId: 'database-view-mount', file: 'database-view.html', viewId: 'view-database', label: 'ตารางข้อมูล' },
-    { mountId: 'dongle-view-mount', file: 'dongle-view.html', viewId: 'view-dongle', label: 'สต๊อกดองเกิ้ล' }
+    { mountId: 'dongle-view-mount', file: 'dongle-view.html', viewId: 'view-dongle', label: 'สต๊อกดองเกิ้ล' },
+    { mountId: 'equipment-view-mount', file: 'equipment-view.html', viewId: 'view-equipment', label: 'ทะเบียนเครื่องมือช่าง' }
   ];
   await Promise.all(viewFragments.map(async fragment => {
     const mount = document.getElementById(fragment.mountId);

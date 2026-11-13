@@ -1,0 +1,70 @@
+<!-- VIEW: TOOL REGISTER -->
+<div id="view-equipment" class="view-panel hidden w-full space-y-5">
+  <div class="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-slate-900 p-5 text-white shadow-lg">
+    <div class="flex items-center gap-3">
+      <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-violet-500/20 text-violet-300"><i data-lucide="wrench" class="h-5 w-5"></i></div>
+      <div><div class="text-[10px] uppercase tracking-[.18em] text-slate-400">Tool & Equipment Management</div><h2 class="text-lg font-bold">ทะเบียนเครื่องมือช่าง</h2><p class="text-xs text-slate-400">ติดตามเครื่องมือรายชิ้น ผู้ถือครอง สถานที่ และประวัติการใช้งาน</p></div>
+    </div>
+    <div class="flex flex-wrap gap-2"><button type="button" onclick="app.openToolStocktake()" class="flex items-center gap-2 rounded-xl bg-slate-700 px-4 py-2.5 text-xs font-bold text-white hover:bg-slate-600"><i data-lucide="clipboard-check" class="h-4 w-4"></i> ตรวจนับสต็อก</button><button type="button" onclick="app.toggleToolRegistration()" class="flex items-center gap-2 rounded-xl bg-violet-500 px-4 py-2.5 text-xs font-bold text-white hover:bg-violet-400"><i data-lucide="plus" class="h-4 w-4"></i> ลงทะเบียนเครื่องมือ</button></div>
+  </div>
+
+  <div class="grid grid-cols-2 gap-3 xl:grid-cols-5">
+    <article class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><div class="flex items-center justify-between text-xs text-slate-500"><span>เครื่องมือทั้งหมด</span><i data-lucide="boxes" class="h-4 w-4 text-violet-500"></i></div><strong id="tool-stat-total" class="mt-2 block text-3xl font-bold text-slate-900">0</strong></article>
+    <article class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><div class="flex items-center justify-between text-xs text-slate-500"><span>พร้อมใช้งาน</span><i data-lucide="circle-check" class="h-4 w-4 text-emerald-600"></i></div><strong id="tool-stat-available" class="mt-2 block text-3xl font-bold text-emerald-700">0</strong></article>
+    <article class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><div class="flex items-center justify-between text-xs text-slate-500"><span>รออนุมัติ</span><i data-lucide="hourglass" class="h-4 w-4 text-amber-600"></i></div><strong id="tool-stat-pending" class="mt-2 block text-3xl font-bold text-amber-700">0</strong></article>
+    <article class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><div class="flex items-center justify-between text-xs text-slate-500"><span>อยู่หน้างาน</span><i data-lucide="map-pin" class="h-4 w-4 text-blue-600"></i></div><strong id="tool-stat-borrowed" class="mt-2 block text-3xl font-bold text-blue-700">0</strong></article>
+    <article class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><div class="flex items-center justify-between text-xs text-slate-500"><span>ซ่อม / ชำรุด / สูญหาย</span><i data-lucide="triangle-alert" class="h-4 w-4 text-amber-600"></i></div><strong id="tool-stat-repair" class="mt-2 block text-3xl font-bold text-amber-700">0</strong></article>
+  </div>
+
+  <section id="tool-registration-panel" class="hidden overflow-hidden rounded-2xl border border-violet-200 bg-white shadow-sm">
+    <div class="border-b border-violet-100 bg-violet-50/70 p-4"><h3 class="text-sm font-bold text-slate-800">ลงทะเบียนเครื่องมือใหม่</h3><p class="mt-1 text-xs text-slate-500">กำหนดรหัสให้แต่ละชิ้น เพื่อดูสถานะและไทม์ไลน์แยกกัน</p></div>
+    <form id="tool-asset-form" onsubmit="app.saveToolAsset(event)" class="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 xl:grid-cols-4">
+      <label class="text-xs font-semibold text-slate-700">รหัสเครื่องมือ · กำหนดอัตโนมัติ<input id="tool-auto-code" readonly placeholder="กำหนดเมื่อบันทึก" class="mt-1 w-full rounded-xl border border-violet-200 bg-violet-50 px-3 py-2.5 text-sm font-bold text-violet-800"></label>
+      <label class="text-xs font-semibold text-slate-700">ชื่อเครื่องมือ *<input name="name" required placeholder="สว่านกระแทก" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm font-normal"></label>
+      <label class="text-xs font-semibold text-slate-700">หมวดหมู่<input name="category" placeholder="เครื่องมือไฟฟ้า" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm font-normal"></label>
+      <label class="text-xs font-semibold text-slate-700">สถานที่จัดเก็บ<input name="location" placeholder="คลังเครื่องมือ" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm font-normal"></label>
+      <label class="text-xs font-semibold text-slate-700">ยี่ห้อ<input name="brand" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm font-normal"></label>
+      <label class="text-xs font-semibold text-slate-700">รุ่น<input name="model" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm font-normal"></label>
+      <label class="text-xs font-semibold text-slate-700">Serial Number<input name="serial_number" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm font-normal"></label>
+      <label class="text-xs font-semibold text-slate-700">วันที่ซื้อ<input name="purchase_date" type="date" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm font-normal"></label>
+      <label class="text-xs font-semibold text-slate-700 sm:col-span-2 xl:col-span-3">สภาพ / หมายเหตุ<input name="condition_note" placeholder="สภาพปกติ, อุปกรณ์ครบ" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm font-normal"></label>
+      <label class="text-xs font-semibold text-slate-700">ลงทะเบียนโดย<input name="actor" placeholder="ชื่อผู้บันทึก" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm font-normal"></label>
+      <div class="flex items-end gap-2 sm:col-span-2 xl:col-span-4"><button type="submit" class="rounded-xl bg-violet-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-violet-700">บันทึกทะเบียน</button><button type="button" onclick="app.toggleToolRegistration(false)" class="rounded-xl bg-slate-100 px-4 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-200">ยกเลิก</button></div>
+    </form>
+  </section>
+
+  <div class="grid gap-4 2xl:grid-cols-[1.5fr_1fr]">
+    <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div class="flex flex-col justify-between gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center">
+        <div><h3 class="text-sm font-bold text-slate-800">รายการเครื่องมือ</h3><p class="mt-1 text-[11px] text-slate-500">ค้นหาจากรหัส ชื่อ Serial Number หรือผู้ถือครอง</p></div>
+        <div class="flex flex-col gap-2 sm:flex-row"><input id="tool-register-search" oninput="app.renderToolRegistry()" placeholder="ค้นหาเครื่องมือ..." class="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs sm:w-56"><select id="tool-register-status" onchange="app.renderToolRegistry()" class="rounded-lg border border-slate-200 px-3 py-2 text-xs sm:w-40"><option value="all">ทุกสถานะ</option><option value="available">พร้อมใช้งาน</option><option value="pending_approval">รออนุมัติ</option><option value="borrowed">อยู่หน้างาน</option><option value="maintenance">กำลังซ่อม</option><option value="damaged">ชำรุด</option><option value="lost">สูญหาย</option></select></div>
+      </div>
+      <div class="overflow-x-auto"><table class="w-full min-w-[720px] text-left"><thead class="bg-slate-50 text-[11px] font-semibold text-slate-500"><tr><th class="px-4 py-3">รหัส / ชื่อเครื่องมือ</th><th class="px-4 py-3">หมวดหมู่</th><th class="px-4 py-3">สถานที่ / ผู้ถือครอง</th><th class="px-4 py-3">สถานะ</th><th class="px-4 py-3"></th></tr></thead><tbody id="tool-register-rows" class="divide-y divide-slate-100"><tr><td colspan="5" class="p-6 text-center text-xs text-slate-400">กำลังโหลดทะเบียน...</td></tr></tbody></table></div>
+    </section>
+    <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div class="border-b border-slate-100 p-4"><h3 class="text-sm font-bold text-slate-800">กิจกรรมล่าสุด</h3><p class="mt-1 text-[11px] text-slate-500">รายการล่าสุดจากไทม์ไลน์เครื่องมือทั้งหมด</p></div>
+      <div id="tool-recent-activity" class="space-y-0 p-4"><div class="text-center text-xs text-slate-400">กำลังโหลดกิจกรรม...</div></div>
+    </section>
+  </div>
+
+  <div id="tool-detail-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/60 p-3 backdrop-blur-sm" onclick="if(event.target===this) app.closeToolDetail()">
+    <section class="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="tool-detail-title">
+      <div class="sticky top-0 z-10 flex items-start justify-between border-b border-slate-100 bg-white p-4"><div><div class="text-[10px] uppercase tracking-wider text-slate-400">Tool detail & timeline</div><h3 id="tool-detail-title" class="mt-1 text-base font-bold text-slate-900">รายละเอียดเครื่องมือ</h3></div><button type="button" onclick="app.closeToolDetail()" class="rounded-lg p-2 text-slate-400 hover:bg-slate-100" aria-label="ปิด"><i data-lucide="x" class="h-5 w-5"></i></button></div>
+      <div id="tool-detail-content" class="p-4 sm:p-5"></div>
+    </section>
+  </div>
+
+  <div id="tool-event-modal" class="fixed inset-0 z-[60] hidden items-center justify-center bg-slate-950/60 p-3 backdrop-blur-sm" onclick="if(event.target===this) app.closeToolEventForm()">
+    <section class="w-full max-w-lg rounded-2xl bg-white p-5 shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="tool-event-title">
+      <h3 id="tool-event-title" class="mb-4 text-base font-bold text-slate-900">บันทึกกิจกรรม</h3>
+      <form id="tool-event-form" onsubmit="app.saveToolEvent(event)" class="grid gap-3"></form>
+    </section>
+  </div>
+
+  <div id="tool-stocktake-modal" class="fixed inset-0 z-[60] hidden items-center justify-center bg-slate-950/60 p-3 backdrop-blur-sm" onclick="if(event.target===this) app.closeToolStocktake()">
+    <section class="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="tool-stocktake-title">
+      <h3 id="tool-stocktake-title" class="mb-4 text-base font-bold text-slate-900">รอบตรวจนับสต็อก</h3>
+      <form id="tool-stocktake-form" onsubmit="app.saveToolStocktake(event)" class="grid gap-3"></form>
+    </section>
+  </div>
+</div>

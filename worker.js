@@ -198,6 +198,19 @@ async function handleApi(request, env, url) {
     return json(await store.saveEquipmentCatalogItem(await request.json()), 201);
   }
 
+  if (path === '/api/tools' && method === 'GET') {
+    return json({ success: true, ...(await store.getToolRegistry()) });
+  }
+  if (path === '/api/tools' && method === 'POST') {
+    return json(await store.saveToolAsset(await request.json()), 201);
+  }
+  const toolPath = path.match(/^\/api\/tools\/(\d+)(?:\/(events))?$/);
+  if (toolPath) {
+    const [, toolId, eventsPath] = toolPath;
+    if (!eventsPath && method === 'GET') return json({ success: true, ...(await store.getToolAsset(toolId)) });
+    if (eventsPath && method === 'POST') return json(await store.createToolEvent(toolId, await request.json()), 201);
+  }
+
   const equipmentIssuePath = path.match(/^\/api\/equipment\/issues(?:\/(\d+))?$/);
   if (equipmentIssuePath) {
     const issueId = equipmentIssuePath[1];
@@ -437,6 +450,8 @@ class DataStore {
       projects: DEFAULT_PROJECTS.map((p) => ({ ...p })),
       equipmentCatalog: [],
       equipmentIssues: [],
+      toolAssets: [],
+      toolEvents: [],
       dongles: []
     };
   }
@@ -450,6 +465,8 @@ class DataStore {
       this.cache = inMemoryStore;
       if (!Array.isArray(this.cache.equipmentCatalog)) this.cache.equipmentCatalog = [];
       if (!Array.isArray(this.cache.equipmentIssues)) this.cache.equipmentIssues = [];
+      if (!Array.isArray(this.cache.toolAssets)) this.cache.toolAssets = [];
+      if (!Array.isArray(this.cache.toolEvents)) this.cache.toolEvents = [];
       if (!Array.isArray(this.cache.dongles)) this.cache.dongles = [];
       return this.cache;
     }
@@ -470,11 +487,14 @@ class DataStore {
       if (!Array.isArray(this.cache.projects)) this.cache.projects = DEFAULT_PROJECTS.map((p) => ({ ...p }));
       const needsEquipmentMigration = !Array.isArray(this.cache.equipmentCatalog) ||
         !Array.isArray(this.cache.equipmentIssues);
+      const needsToolMigration = !Array.isArray(this.cache.toolAssets) || !Array.isArray(this.cache.toolEvents);
       const needsDongleMigration = !Array.isArray(this.cache.dongles);
       if (!Array.isArray(this.cache.equipmentCatalog)) this.cache.equipmentCatalog = [];
       if (!Array.isArray(this.cache.equipmentIssues)) this.cache.equipmentIssues = [];
+      if (!Array.isArray(this.cache.toolAssets)) this.cache.toolAssets = [];
+      if (!Array.isArray(this.cache.toolEvents)) this.cache.toolEvents = [];
       if (!Array.isArray(this.cache.dongles)) this.cache.dongles = [];
-      if (needsEquipmentMigration || needsDongleMigration) await this.save();
+      if (needsEquipmentMigration || needsToolMigration || needsDongleMigration) await this.save();
     } catch {
       this.cache = this.emptyStore();
     }
@@ -866,6 +886,134 @@ class DataStore {
     if (memory.equipmentIssues.length === initialCount) throw equipmentError('ไม่พบประวัติการเบิก');
     await this.save();
     return { success: true };
+  }
+
+  async getToolRegistry() {
+    const memory = await this.load();
+    const tools = [...memory.toolAssets].sort((a, b) => String(a.asset_code).localeCompare(String(b.asset_code)));
+    const recent = [...memory.toolEvents]
+      .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)) || Number(b.id) - Number(a.id))
+      .slice(0, 12)
+      .map(event => {
+        const tool = memory.toolAssets.find(item => Number(item.id) === Number(event.tool_id));
+        return { ...event, asset_code: tool?.asset_code || '', tool_name: tool?.name || '' };
+      });
+    return {
+      tools,
+      recent,
+      stats: {
+        total: tools.length,
+        available: tools.filter(tool => tool.status === 'available').length,
+        pending: tools.filter(tool => tool.status === 'pending_approval').length,
+        borrowed: tools.filter(tool => tool.status === 'borrowed').length,
+        repair: tools.filter(tool => ['maintenance', 'damaged', 'lost'].includes(tool.status)).length
+      }
+    };
+  }
+
+  async getToolAsset(id) {
+    const memory = await this.load();
+    const toolId = Number(id);
+    if (!Number.isSafeInteger(toolId) || toolId <= 0) throw equipmentError('รหัสเครื่องมือไม่ถูกต้อง');
+    const tool = memory.toolAssets.find(item => Number(item.id) === toolId);
+    if (!tool) throw equipmentError('ไม่พบเครื่องมือ');
+    const events = memory.toolEvents.filter(event => Number(event.tool_id) === toolId)
+      .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)) || Number(b.id) - Number(a.id));
+    return { tool, events };
+  }
+
+  async saveToolAsset(payload = {}, id = null) {
+    const readText = key => typeof payload[key] === 'string' ? payload[key].trim() : '';
+    const asset = {
+      asset_code: readText('asset_code').toUpperCase(),
+      name: readText('name'),
+      category: readText('category'),
+      brand: readText('brand'),
+      model: readText('model'),
+      serial_number: readText('serial_number'),
+      location: readText('location'),
+      condition_note: readText('condition_note'),
+      purchase_date: readText('purchase_date')
+    };
+    if (!asset.name) throw equipmentError('กรุณาระบุชื่อเครื่องมือ');
+    if (asset.purchase_date && !/^\d{4}-\d{2}-\d{2}$/.test(asset.purchase_date)) throw equipmentError('วันที่ซื้อไม่ถูกต้อง');
+    const memory = await this.load();
+    const toolId = id === null ? null : Number(id);
+    if (toolId !== null && (!Number.isSafeInteger(toolId) || toolId <= 0)) throw equipmentError('รหัสเครื่องมือไม่ถูกต้อง');
+    const nextId = Math.max(0, ...memory.toolAssets.map(item => Number(item.id) || 0)) + 1;
+    const nextCode = Math.max(0, ...memory.toolAssets.map(item => Number(/^TL-(\d+)$/i.exec(String(item.asset_code || ''))?.[1]) || 0)) + 1;
+    if (toolId === null && !asset.asset_code) asset.asset_code = `TL-${String(nextCode).padStart(4, '0')}`;
+    if (toolId !== null && !asset.asset_code) asset.asset_code = memory.toolAssets.find(item => Number(item.id) === toolId)?.asset_code || '';
+    const duplicate = memory.toolAssets.find(item => item.asset_code.toLowerCase() === asset.asset_code.toLowerCase() && Number(item.id) !== toolId);
+    if (duplicate) throw equipmentError(`รหัสเครื่องมือ ${asset.asset_code} มีอยู่แล้ว`);
+    let tool = toolId === null ? null : memory.toolAssets.find(item => Number(item.id) === toolId);
+    if (toolId !== null && !tool) throw equipmentError('ไม่พบเครื่องมือ');
+    const now = new Date().toISOString();
+    if (tool) Object.assign(tool, asset, { updated_at: now });
+    else {
+      tool = { id: nextId, ...asset, status: 'available', current_holder: '', current_project: '', expected_return_at: '', created_at: now, updated_at: now };
+      memory.toolAssets.push(tool);
+      const eventId = Math.max(Date.now(), ...memory.toolEvents.map(event => Number(event.id) + 1 || 0));
+      memory.toolEvents.push({ id: eventId, tool_id: tool.id, event_type: 'registered', title: 'ลงทะเบียนเครื่องมือ', actor: readText('actor'), project_name: '', detail: asset.condition_note, created_at: now });
+    }
+    await this.save();
+    return { success: true, tool };
+  }
+
+  async createToolEvent(id, payload = {}) {
+    const toolId = Number(id);
+    const type = typeof payload.type === 'string' ? payload.type.trim() : '';
+    const actor = typeof payload.actor === 'string' ? payload.actor.trim() : '';
+    const requestedBy = typeof payload.requested_by === 'string' ? payload.requested_by.trim() : '';
+    const projectName = typeof payload.project_name === 'string' ? payload.project_name.trim() : '';
+    const detail = typeof payload.detail === 'string' ? payload.detail.trim() : '';
+    if (!Number.isSafeInteger(toolId) || toolId <= 0) throw equipmentError('รหัสเครื่องมือไม่ถูกต้อง');
+    if (!actor) throw equipmentError('กรุณาระบุผู้รับผิดชอบ');
+    const definitions = {
+      checkout_request: { title: 'ส่งคำขอเบิก', from: ['available'], to: 'pending_approval' },
+      approve: { title: 'อนุมัติการเบิก', from: ['pending_approval'], to: 'borrowed' },
+      reject: { title: 'ปฏิเสธคำขอเบิก', from: ['pending_approval'], to: 'available' },
+      return: { title: 'รับคืนเข้าคลัง', from: ['borrowed'], to: 'available' },
+      maintenance: { title: 'ส่งซ่อมบำรุง', from: ['available', 'damaged'], to: 'maintenance' },
+      repair_complete: { title: 'ปิดงานซ่อม', from: ['maintenance'], to: payload.mark_damaged ? 'damaged' : 'available' },
+      damaged: { title: 'บันทึกชำรุด', from: ['available', 'borrowed'], to: 'damaged' },
+      lost: { title: 'บันทึกสูญหาย', from: ['available', 'borrowed'], to: 'lost' },
+      stocktake: { title: 'ตรวจนับสต็อก', from: ['available', 'pending_approval', 'borrowed', 'maintenance', 'damaged', 'lost'], to: null }
+    };
+    const definition = definitions[type];
+    if (!definition) throw equipmentError('กิจกรรมเครื่องมือไม่ถูกต้อง');
+    if (!['checkout_request', 'approve'].includes(type) && !detail) throw equipmentError('กรุณาระบุรายละเอียดกิจกรรม');
+    if (type === 'checkout_request' && !requestedBy) throw equipmentError('กรุณาระบุชื่อผู้ขอเบิก');
+    if (type === 'checkout_request' && requestedBy.toLocaleLowerCase() === actor.toLocaleLowerCase()) throw equipmentError('ผู้ขอเบิกและผู้บันทึกคำขอต้องเป็นคนละคน');
+    if (type === 'checkout_request' && !projectName) throw equipmentError('กรุณาระบุโครงการหรือสถานที่ใช้งาน');
+    const memory = await this.load();
+    const tool = memory.toolAssets.find(item => Number(item.id) === toolId);
+    if (!tool) throw equipmentError('ไม่พบเครื่องมือ');
+    if (!definition.from.includes(tool.status)) throw equipmentError(`เปลี่ยนสถานะจาก ${tool.status} ไม่ได้`);
+    const now = new Date().toISOString();
+    const previousProject = tool.current_project;
+    tool.status = type === 'stocktake' ? tool.status : definition.to;
+    if (type === 'checkout_request') {
+      tool.current_holder = requestedBy;
+      tool.current_project = projectName;
+      tool.expected_return_at = payload.expected_return_at || '';
+    } else if (type === 'return' || ['repair_complete', 'damaged', 'lost', 'reject'].includes(type)) {
+      tool.current_holder = '';
+      tool.current_project = '';
+      if (type === 'return') {
+        tool.expected_return_at = '';
+        tool.location = typeof payload.location === 'string' && payload.location.trim() ? payload.location.trim() : tool.location;
+      }
+      if (type === 'damaged' || type === 'lost' || type === 'reject') tool.expected_return_at = '';
+      if (type === 'return' || type === 'repair_complete') tool.condition_note = detail || tool.condition_note;
+    }
+    tool.updated_at = now;
+    const eventId = Math.max(Date.now(), ...memory.toolEvents.map(event => Number(event.id) + 1 || 0));
+    const event = { id: eventId, tool_id: toolId, event_type: type, title: definition.title, actor, requested_by: requestedBy,
+      project_name: projectName || previousProject || '', detail, created_at: now };
+    memory.toolEvents.push(event);
+    await this.save();
+    return { success: true, tool, event };
   }
 
   async getDongleInventory() {
