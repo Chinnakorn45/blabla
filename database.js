@@ -33,6 +33,7 @@ let memoryStore = {
   projects: [],
   equipmentCatalog: [],
   equipmentIssues: [],
+  inverterClaims: [],
   toolAssets: [],
   toolEvents: [],
   dongles: [],
@@ -70,6 +71,7 @@ function useJsonFallback() {
       memoryStore = data;
       memoryStore.equipmentCatalog ||= [];
       memoryStore.equipmentIssues ||= [];
+      memoryStore.inverterClaims ||= [];
       memoryStore.toolAssets ||= [];
       memoryStore.toolEvents ||= [];
       memoryStore.dongles ||= [];
@@ -78,11 +80,11 @@ function useJsonFallback() {
       saveJsonStore();
     } catch (err) {
       console.error('Failed reading existing JSON file, initializing new store:', err);
-      memoryStore = { panels: [], projects: [], equipmentCatalog: [], equipmentIssues: [], toolAssets: [], toolEvents: [], dongles: [], cts: [], settings: null };
+      memoryStore = { panels: [], projects: [], equipmentCatalog: [], equipmentIssues: [], inverterClaims: [], toolAssets: [], toolEvents: [], dongles: [], cts: [], settings: null };
       saveJsonStore();
     }
   } else {
-    memoryStore = { panels: [], projects: [], equipmentCatalog: [], equipmentIssues: [], toolAssets: [], toolEvents: [], dongles: [], cts: [], settings: null };
+    memoryStore = { panels: [], projects: [], equipmentCatalog: [], equipmentIssues: [], inverterClaims: [], toolAssets: [], toolEvents: [], dongles: [], cts: [], settings: null };
     saveJsonStore();
   }
 }
@@ -154,6 +156,19 @@ function setupTables() {
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
       `);
+
+      db.run(`CREATE TABLE IF NOT EXISTS inverter_claims (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        model TEXT NOT NULL,
+        serial_number TEXT NOT NULL,
+        project_name TEXT NOT NULL,
+        sent_at TEXT NOT NULL,
+        contact_person TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'sent',
+        result TEXT DEFAULT '',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )`);
 
       db.run(`
         CREATE TABLE IF NOT EXISTS tool_assets (
@@ -1172,6 +1187,31 @@ async function importPanels(panelsArray, { requireWarehouseStock = false } = {})
 
   const results = await Promise.all(validPanels.map(p => savePanel(p, { requireWarehouseStock })));
   return { success: true, count: results.filter(Boolean).length };
+}
+
+function getInverterClaims() {
+  if (useJsonStore) return Promise.resolve([...(memoryStore.inverterClaims || [])].sort((a, b) => String(b.sent_at).localeCompare(String(a.sent_at))));
+  return new Promise((resolve, reject) => db.all('SELECT * FROM inverter_claims ORDER BY sent_at DESC, id DESC', (err, rows) => err ? reject(err) : resolve(rows || [])));
+}
+function saveInverterClaim(payload, id = null) {
+  const fields = ['model', 'serial_number', 'project_name', 'sent_at', 'contact_person', 'status', 'result'];
+  const claim = Object.fromEntries(fields.map(key => [key, String(payload?.[key] || '').trim()]));
+  if (fields.slice(0, 5).some(key => !claim[key])) return Promise.reject(equipmentError('กรุณากรอกข้อมูลรุ่น, Serial Number, โครงการ, วันที่ส่งเคลม และผู้รับเรื่องให้ครบ'));
+  if (!['sent', 'checking', 'repairing', 'replacement', 'resolved'].includes(claim.status)) claim.status = 'sent';
+  if (useJsonStore) {
+    memoryStore.inverterClaims ||= [];
+    if (id) { const item = memoryStore.inverterClaims.find(row => Number(row.id) === Number(id)); if (!item) return Promise.reject(equipmentError('ไม่พบรายการเคลม')); Object.assign(item, claim, { updated_at: new Date().toISOString() }); return Promise.resolve({ success: true, claim: item }); }
+    const item = { id: Date.now(), ...claim, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }; memoryStore.inverterClaims.unshift(item); saveJsonStore(); return Promise.resolve({ success: true, claim: item });
+  }
+  return new Promise((resolve, reject) => {
+    const done = err => err ? reject(err) : getInverterClaims().then(items => resolve({ success: true, claim: items.find(row => Number(row.id) === Number(id)) })).catch(reject);
+    if (id) db.run('UPDATE inverter_claims SET model=?, serial_number=?, project_name=?, sent_at=?, contact_person=?, status=?, result=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', [...fields.map(key => claim[key]), Number(id)], function(err) { if (err) return reject(err); if (!this.changes) return reject(equipmentError('ไม่พบรายการเคลม')); done(); });
+    else db.run('INSERT INTO inverter_claims (model, serial_number, project_name, sent_at, contact_person, status, result) VALUES (?, ?, ?, ?, ?, ?, ?)', fields.map(key => claim[key]), function(err) { if (err) return reject(err); db.get('SELECT * FROM inverter_claims WHERE id=?', [this.lastID], (getErr, row) => getErr ? reject(getErr) : resolve({ success: true, claim: row })); });
+  });
+}
+function deleteInverterClaim(id) {
+  if (useJsonStore) { const before = memoryStore.inverterClaims?.length || 0; memoryStore.inverterClaims = (memoryStore.inverterClaims || []).filter(row => Number(row.id) !== Number(id)); if (before === memoryStore.inverterClaims.length) return Promise.reject(equipmentError('ไม่พบรายการเคลม')); saveJsonStore(); return Promise.resolve({ success: true }); }
+  return new Promise((resolve, reject) => db.run('DELETE FROM inverter_claims WHERE id=?', [Number(id)], function(err) { if (err) reject(err); else if (!this.changes) reject(equipmentError('ไม่พบรายการเคลม')); else resolve({ success: true }); }));
 }
 
 function getEquipmentCatalog() {
@@ -2196,6 +2236,9 @@ module.exports = {
   seedDemoData,
   importPanels,
   getEquipmentCatalog,
+  getInverterClaims,
+  saveInverterClaim,
+  deleteInverterClaim,
   saveEquipmentCatalogItem,
   deleteEquipmentCatalogItem,
   getEquipmentIssues,

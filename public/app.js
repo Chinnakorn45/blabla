@@ -45,6 +45,7 @@ class SolarTrackingApp {
     };
     this.cachedDbPanels = [];
     this.equipmentCatalog = [];
+    this.inverterClaims = [];
     this.equipmentIssues = [];
     this.toolAssets = [];
     this.toolEvents = [];
@@ -231,6 +232,51 @@ class SolarTrackingApp {
     return result;
   }
 
+  async loadInverterClaims() {
+    try { this.inverterClaims = (await this.requestJson('/api/inverter-claims')).claims || []; this.renderInverterClaims(); }
+    catch (error) { this.showToast(`โหลดรายการเคลมไม่สำเร็จ: ${error.message}`, 'error'); }
+  }
+
+  renderInverterClaims() {
+    const host = document.getElementById('inverter-claims-list'); if (!host) return;
+    const query = (document.getElementById('inverter-claim-search')?.value || '').trim().toLocaleLowerCase();
+    const labels = { sent: 'ส่งเคลมแล้ว', checking: 'กำลังตรวจสอบ', repairing: 'กำลังซ่อม', replacement: 'รอเปลี่ยนเครื่อง', resolved: 'ดำเนินการเสร็จแล้ว' };
+    const claims = this.inverterClaims.filter(item => [item.model,item.serial_number,item.project_name,item.contact_person,item.status,item.result].some(value => String(value || '').toLocaleLowerCase().includes(query)));
+    host.innerHTML = claims.length ? claims.map(item => `<article class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><div class="flex flex-wrap items-start justify-between gap-3"><div><div class="font-bold text-slate-900">${this.escapeHtml(item.model)} <span class="font-mono text-sm text-slate-500">${this.escapeHtml(item.serial_number)}</span></div><div class="mt-1 text-sm text-slate-600">${this.escapeHtml(item.project_name)} · ส่งเคลม ${this.escapeHtml(item.sent_at)}</div><div class="mt-1 text-sm text-slate-600">ผู้รับเรื่อง: ${this.escapeHtml(item.contact_person)}</div>${item.result ? `<p class="mt-2 whitespace-pre-wrap text-sm text-slate-700">${this.escapeHtml(item.result)}</p>` : ''}</div><div class="flex items-center gap-2"><span class="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-900">${labels[item.status] || labels.sent}</span><button onclick="app.editInverterClaim(${Number(item.id)})" class="rounded-lg bg-slate-100 px-3 py-2 text-xs font-semibold">แก้ไข</button><button onclick="app.deleteInverterClaim(${Number(item.id)})" class="rounded-lg bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700">ลบ</button></div></div></article>`).join('') : '<div class="rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500">ยังไม่มีรายการเคลม</div>';
+    this.refreshIcons();
+  }
+
+  newInverterClaim() {
+    document.getElementById('inverter-claim-form')?.classList.remove('hidden');
+    document.getElementById('inverter-claim-form')?.reset();
+    document.getElementById('inverter-claim-id').value = '';
+    document.getElementById('inverter-claim-date').value = new Date().toISOString().slice(0,10);
+    document.getElementById('inverter-claim-status').value = 'sent';
+    document.getElementById('inverter-claim-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  editInverterClaim(id) {
+    const item = this.inverterClaims.find(row => Number(row.id) === Number(id)); if (!item) return;
+    this.newInverterClaim();
+    for (const [field,key] of [['id','id'],['model','model'],['serial','serial_number'],['project','project_name'],['date','sent_at'],['contact','contact_person'],['status','status'],['result','result']]) document.getElementById(`inverter-claim-${field}`).value = item[key] || '';
+  }
+
+  closeInverterClaimForm() { document.getElementById('inverter-claim-form')?.classList.add('hidden'); }
+
+  async saveInverterClaim(event) {
+    event.preventDefault();
+    const id = document.getElementById('inverter-claim-id').value;
+    const body = { model: document.getElementById('inverter-claim-model').value, serial_number: document.getElementById('inverter-claim-serial').value, project_name: document.getElementById('inverter-claim-project').value, sent_at: document.getElementById('inverter-claim-date').value, contact_person: document.getElementById('inverter-claim-contact').value, status: document.getElementById('inverter-claim-status').value, result: document.getElementById('inverter-claim-result').value };
+    try { await this.requestJson(id ? `/api/inverter-claims/${encodeURIComponent(id)}` : '/api/inverter-claims', { method: id ? 'PUT' : 'POST', body }); this.closeInverterClaimForm(); await this.loadInverterClaims(); this.showToast('บันทึกรายการเคลมแล้ว', 'success'); }
+    catch (error) { this.showToast(`บันทึกไม่สำเร็จ: ${error.message}`, 'error'); }
+  }
+
+  async deleteInverterClaim(id) {
+    if (!window.confirm('ยืนยันลบรายการเคลมนี้?')) return;
+    try { await this.requestJson(`/api/inverter-claims/${encodeURIComponent(id)}`, { method: 'DELETE' }); await this.loadInverterClaims(); this.showToast('ลบรายการแล้ว', 'success'); }
+    catch (error) { this.showToast(`ลบไม่สำเร็จ: ${error.message}`, 'error'); }
+  }
+
   async requestJson(path, { method = 'GET', body } = {}) {
     const options = { method, headers: {} };
     if (body !== undefined) {
@@ -334,7 +380,7 @@ class SolarTrackingApp {
 
   showView(viewId) {
     this.closeMainNavigation();
-    const views = ['dashboard', 'warehouse', 'field', 'form', 'success', 'database', 'settings', 'dongle', 'ct', 'equipment'];
+    const views = ['dashboard', 'warehouse', 'field', 'form', 'success', 'database', 'settings', 'dongle', 'ct', 'equipment', 'inverter-claims'];
     views.forEach(v => {
       const el = document.getElementById(`view-${v}`);
       if (el) {
@@ -361,6 +407,8 @@ class SolarTrackingApp {
       this.populateDbProjectDropdowns().then(() => this.loadCTData());
     } else if (viewId === 'equipment') {
       this.populateDbProjectDropdowns().then(() => this.loadEquipmentData());
+    } else if (viewId === 'inverter-claims') {
+      this.populateDbProjectDropdowns().then(() => this.loadInverterClaims());
     } else if (viewId === 'settings') {
       appSettings.renderSettingsView();
     }
@@ -2383,8 +2431,10 @@ class SolarTrackingApp {
     const equipmentProjectOptions = document.getElementById('equipment-project-options');
     const dongleProjectSelect = document.getElementById('dongle-issue-project');
     const ctProjectSelect = document.getElementById('ct-issue-project');
+    const inverterClaimProject = document.getElementById('inverter-claim-project');
 
     const optionsHtml = projects.map(p => `<option value="${this.escapeHtml(p)}">${this.escapeHtml(p)}</option>`).join('');
+    if (inverterClaimProject) inverterClaimProject.innerHTML = `<option value="">เลือกโครงการ</option>` + optionsHtml;
 
     if (filterSelect) {
       filterSelect.innerHTML = `<option value="all">ทุกโครงการ (${projects.length})</option>` + optionsHtml;
@@ -3410,6 +3460,27 @@ class SolarTrackingApp {
 
       this.cachedProjects = projects;
 
+      this.renderDbProjects(projects);
+    } catch (e) {
+      console.error('Failed loading DB projects:', e);
+    }
+  }
+
+  filterDbProjects() {
+    const query = (document.getElementById('db-project-search')?.value || '').trim().toLocaleLowerCase();
+    const projects = this.cachedProjects || [];
+    const filtered = projects.filter(project => `${project.name || ''} ${project.location || ''}`.toLocaleLowerCase().includes(query));
+    this.renderDbProjects(filtered);
+  }
+
+  renderDbProjects(projects) {
+    const grid = document.getElementById('db-projects-grid');
+    if (!grid) return;
+    if (!projects.length) {
+      grid.innerHTML = '<div class="col-span-full rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500">ไม่พบโครงการที่ค้นหา</div>';
+      return;
+    }
+
       grid.innerHTML = projects.map(proj => {
         const total = proj.total_panels || 0;
         const installed = proj.installed_panels || 0;
@@ -3496,9 +3567,6 @@ class SolarTrackingApp {
       }).join('');
 
       this.refreshIcons();
-    } catch (e) {
-      console.error('Failed loading DB projects:', e);
-    }
   }
 
   filterByProjectAndShow(projectName) {
@@ -4007,7 +4075,8 @@ window.addEventListener('DOMContentLoaded', async () => {
     { mountId: 'database-view-mount', file: 'database-view.html', viewId: 'view-database', label: 'ตารางข้อมูล' },
     { mountId: 'dongle-view-mount', file: 'dongle-view.html', viewId: 'view-dongle', label: 'สต๊อกดองเกิ้ล' },
     { mountId: 'ct-view-mount', file: 'ct-view.html', viewId: 'view-ct', label: 'จัดการ CT' },
-    { mountId: 'equipment-view-mount', file: 'equipment-view.html', viewId: 'view-equipment', label: 'ทะเบียนเครื่องมือช่าง' }
+    { mountId: 'equipment-view-mount', file: 'equipment-view.html', viewId: 'view-equipment', label: 'ทะเบียนเครื่องมือช่าง' },
+    { mountId: 'inverter-claims-view-mount', file: 'inverter-claims-view.html', viewId: 'view-inverter-claims', label: 'ติดตามอินเวอร์เตอร์ส่งเคลม' }
   ];
   await Promise.all(viewFragments.map(async fragment => {
     const mount = document.getElementById(fragment.mountId);

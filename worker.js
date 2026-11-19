@@ -194,6 +194,11 @@ async function handleApi(request, env, url) {
   if (path === '/api/equipment' && method === 'GET') {
     return json({ success: true, equipment: await store.getEquipmentCatalog() });
   }
+  if (path === '/api/inverter-claims' && method === 'GET') return json({ success: true, claims: await store.getInverterClaims() });
+  if (path === '/api/inverter-claims' && method === 'POST') return json(await store.saveInverterClaim(await request.json()), 201);
+  const inverterClaimPath = path.match(/^\/api\/inverter-claims\/(\d+)$/);
+  if (inverterClaimPath && method === 'PUT') return json(await store.saveInverterClaim(await request.json(), inverterClaimPath[1]));
+  if (inverterClaimPath && method === 'DELETE') return json(await store.deleteInverterClaim(inverterClaimPath[1]));
   if (path === '/api/equipment' && method === 'POST') {
     return json(await store.saveEquipmentCatalogItem(await request.json()), 201);
   }
@@ -485,6 +490,7 @@ class DataStore {
       projects: DEFAULT_PROJECTS.map((p) => ({ ...p })),
       equipmentCatalog: [],
       equipmentIssues: [],
+      inverterClaims: [],
       toolAssets: [],
       toolEvents: [],
       dongles: [],
@@ -501,6 +507,7 @@ class DataStore {
       this.cache = inMemoryStore;
       if (!Array.isArray(this.cache.equipmentCatalog)) this.cache.equipmentCatalog = [];
       if (!Array.isArray(this.cache.equipmentIssues)) this.cache.equipmentIssues = [];
+      if (!Array.isArray(this.cache.inverterClaims)) this.cache.inverterClaims = [];
       if (!Array.isArray(this.cache.toolAssets)) this.cache.toolAssets = [];
       if (!Array.isArray(this.cache.toolEvents)) this.cache.toolEvents = [];
       if (!Array.isArray(this.cache.dongles)) this.cache.dongles = [];
@@ -529,6 +536,7 @@ class DataStore {
       const needsCTMigration = !Array.isArray(this.cache.cts);
       if (!Array.isArray(this.cache.equipmentCatalog)) this.cache.equipmentCatalog = [];
       if (!Array.isArray(this.cache.equipmentIssues)) this.cache.equipmentIssues = [];
+      if (!Array.isArray(this.cache.inverterClaims)) this.cache.inverterClaims = [];
       if (!Array.isArray(this.cache.toolAssets)) this.cache.toolAssets = [];
       if (!Array.isArray(this.cache.toolEvents)) this.cache.toolEvents = [];
       if (!Array.isArray(this.cache.dongles)) this.cache.dongles = [];
@@ -833,6 +841,27 @@ class DataStore {
       valid.push(await this.savePanel(p));
     }
     return { success: true, count: valid.length };
+  }
+
+  async getInverterClaims() {
+    return [...(await this.load()).inverterClaims].sort((a,b) => String(b.sent_at).localeCompare(String(a.sent_at)));
+  }
+
+  async saveInverterClaim(payload, id = null) {
+    const fields = ['model','serial_number','project_name','sent_at','contact_person','status','result'];
+    const claim = Object.fromEntries(fields.map(key => [key, String(payload?.[key] || '').trim()]));
+    if (fields.slice(0,5).some(key => !claim[key])) throw equipmentError('กรุณากรอกข้อมูลให้ครบ');
+    if (!['sent','checking','repairing','replacement','resolved'].includes(claim.status)) claim.status = 'sent';
+    const memory = await this.load();
+    if (id) { const item = memory.inverterClaims.find(row => Number(row.id) === Number(id)); if (!item) throw equipmentError('ไม่พบรายการเคลม'); Object.assign(item, claim, { updated_at: new Date().toISOString() }); await this.save(); return { success: true, claim: item }; }
+    const item = { id: Date.now(), ...claim, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }; memory.inverterClaims.unshift(item); await this.save(); return { success: true, claim: item };
+  }
+
+  async deleteInverterClaim(id) {
+    const memory = await this.load(), count = memory.inverterClaims.length;
+    memory.inverterClaims = memory.inverterClaims.filter(row => Number(row.id) !== Number(id));
+    if (memory.inverterClaims.length === count) throw equipmentError('ไม่พบรายการเคลม');
+    await this.save(); return { success: true };
   }
 
   async getEquipmentCatalog() {

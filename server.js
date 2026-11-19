@@ -251,6 +251,11 @@ app.post('/api/tools/:id/events', async (req, res) => {
   }
 });
 
+app.get('/api/inverter-claims', async (req, res) => { try { res.json({ success: true, claims: await db.getInverterClaims() }); } catch (err) { res.status(500).json({ success: false, error: err.message }); } });
+app.post('/api/inverter-claims', async (req, res) => { try { res.status(201).json(await db.saveInverterClaim(req.body)); } catch (err) { res.status(err.status || 500).json({ success: false, error: err.message }); } });
+app.put('/api/inverter-claims/:id', async (req, res) => { try { res.json(await db.saveInverterClaim(req.body, req.params.id)); } catch (err) { res.status(err.status || 500).json({ success: false, error: err.message }); } });
+app.delete('/api/inverter-claims/:id', async (req, res) => { try { res.json(await db.deleteInverterClaim(req.params.id)); } catch (err) { res.status(err.status || 500).json({ success: false, error: err.message }); } });
+
 app.get('/api/equipment', async (req, res) => {
   try {
     const equipment = await db.getEquipmentCatalog();
