@@ -237,36 +237,52 @@ class SolarTrackingApp {
     catch (error) { this.showToast(`โหลดรายการเคลมไม่สำเร็จ: ${error.message}`, 'error'); }
   }
 
+  openEntryModal(id) {
+    const modal = document.getElementById(id);
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    setTimeout(() => modal.querySelector('input:not([type="hidden"]), select, textarea')?.focus(), 0);
+  }
+
+  closeEntryModal(id) {
+    const modal = document.getElementById(id);
+    if (!modal) return;
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+
   renderInverterClaims() {
     const host = document.getElementById('inverter-claims-list'); if (!host) return;
     const query = (document.getElementById('inverter-claim-search')?.value || '').trim().toLocaleLowerCase();
     const labels = { sent: 'ส่งเคลมแล้ว', checking: 'กำลังตรวจสอบ', repairing: 'กำลังซ่อม', replacement: 'รอเปลี่ยนเครื่อง', resolved: 'ดำเนินการเสร็จแล้ว' };
-    const claims = this.inverterClaims.filter(item => [item.model,item.serial_number,item.project_name,item.contact_person,item.status,item.result].some(value => String(value || '').toLocaleLowerCase().includes(query)));
-    host.innerHTML = claims.length ? claims.map(item => `<article class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><div class="flex flex-wrap items-start justify-between gap-3"><div><div class="font-bold text-slate-900">${this.escapeHtml(item.model)} <span class="font-mono text-sm text-slate-500">${this.escapeHtml(item.serial_number)}</span></div><div class="mt-1 text-sm text-slate-600">${this.escapeHtml(item.project_name)} · ส่งเคลม ${this.escapeHtml(this.formatThaiDate(item.sent_at))}</div><div class="mt-1 text-sm text-slate-600">ผู้รับเรื่อง: ${this.escapeHtml(item.contact_person)}</div>${item.result ? `<p class="mt-2 whitespace-pre-wrap text-sm text-slate-700">${this.escapeHtml(item.result)}</p>` : ''}</div><div class="flex items-center gap-2"><span class="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-900">${labels[item.status] || labels.sent}</span><button onclick="app.editInverterClaim(${Number(item.id)})" class="rounded-lg bg-slate-100 px-3 py-2 text-xs font-semibold">แก้ไข</button><button onclick="app.deleteInverterClaim(${Number(item.id)})" class="rounded-lg bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700">ลบ</button></div></div></article>`).join('') : '<div class="rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500">ยังไม่มีรายการเคลม</div>';
+    const claims = this.inverterClaims.filter(item => [item.model,item.serial_number,item.project_name,item.contact_person,item.tracking_number,item.status,item.result].some(value => String(value || '').toLocaleLowerCase().includes(query)));
+    host.innerHTML = claims.length ? claims.map(item => `<article class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><div class="flex flex-wrap items-start justify-between gap-3"><div><div class="font-bold text-slate-900">${this.escapeHtml(item.model)} <span class="font-mono text-sm text-slate-500">${this.escapeHtml(item.serial_number)}</span></div><div class="mt-1 text-sm text-slate-600">${this.escapeHtml(item.project_name)} · ส่งเคลม ${this.escapeHtml(this.formatThaiDate(item.sent_at))}</div><div class="mt-1 text-sm text-slate-600">ผู้รับเรื่อง: ${this.escapeHtml(item.contact_person)}</div>${item.tracking_number ? `<div class="mt-1 text-sm text-slate-600">เลขพัสดุ: <span class="font-mono font-semibold">${this.escapeHtml(item.tracking_number)}</span></div>` : ''}${item.result ? `<p class="mt-2 whitespace-pre-wrap text-sm text-slate-700">${this.escapeHtml(item.result)}</p>` : ''}</div><div class="flex items-center gap-2"><span class="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-900">${labels[item.status] || labels.sent}</span><button onclick="app.editInverterClaim(${Number(item.id)})" class="rounded-lg bg-slate-100 px-3 py-2 text-xs font-semibold">แก้ไข</button><button onclick="app.deleteInverterClaim(${Number(item.id)})" class="rounded-lg bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700">ลบ</button></div></div></article>`).join('') : '<div class="rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500">ยังไม่มีรายการเคลม</div>';
     this.refreshIcons();
   }
 
   newInverterClaim() {
-    document.getElementById('inverter-claim-form')?.classList.remove('hidden');
+    const modal = document.getElementById('inverter-claim-modal');
+    modal?.classList.remove('hidden');
     document.getElementById('inverter-claim-form')?.reset();
     document.getElementById('inverter-claim-id').value = '';
     document.getElementById('inverter-claim-date').value = new Date().toISOString().slice(0,10);
     document.getElementById('inverter-claim-status').value = 'sent';
-    document.getElementById('inverter-claim-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setTimeout(() => document.getElementById('inverter-claim-model')?.focus(), 0);
   }
 
   editInverterClaim(id) {
     const item = this.inverterClaims.find(row => Number(row.id) === Number(id)); if (!item) return;
     this.newInverterClaim();
-    for (const [field,key] of [['id','id'],['model','model'],['serial','serial_number'],['project','project_name'],['date','sent_at'],['contact','contact_person'],['status','status'],['result','result']]) document.getElementById(`inverter-claim-${field}`).value = item[key] || '';
+    for (const [field,key] of [['id','id'],['model','model'],['serial','serial_number'],['project','project_name'],['date','sent_at'],['contact','contact_person'],['tracking','tracking_number'],['status','status'],['result','result']]) document.getElementById(`inverter-claim-${field}`).value = item[key] || '';
   }
 
-  closeInverterClaimForm() { document.getElementById('inverter-claim-form')?.classList.add('hidden'); }
+  closeInverterClaimForm() { document.getElementById('inverter-claim-modal')?.classList.add('hidden'); }
 
   async saveInverterClaim(event) {
     event.preventDefault();
     const id = document.getElementById('inverter-claim-id').value;
-    const body = { model: document.getElementById('inverter-claim-model').value, serial_number: document.getElementById('inverter-claim-serial').value, project_name: document.getElementById('inverter-claim-project').value, sent_at: document.getElementById('inverter-claim-date').value, contact_person: document.getElementById('inverter-claim-contact').value, status: document.getElementById('inverter-claim-status').value, result: document.getElementById('inverter-claim-result').value };
+    const body = { model: document.getElementById('inverter-claim-model').value, serial_number: document.getElementById('inverter-claim-serial').value, project_name: document.getElementById('inverter-claim-project').value, sent_at: document.getElementById('inverter-claim-date').value, contact_person: document.getElementById('inverter-claim-contact').value, tracking_number: document.getElementById('inverter-claim-tracking').value, status: document.getElementById('inverter-claim-status').value, result: document.getElementById('inverter-claim-result').value };
     try { await this.requestJson(id ? `/api/inverter-claims/${encodeURIComponent(id)}` : '/api/inverter-claims', { method: id ? 'PUT' : 'POST', body }); this.closeInverterClaimForm(); await this.loadInverterClaims(); this.showToast('บันทึกรายการเคลมแล้ว', 'success'); }
     catch (error) { this.showToast(`บันทึกไม่สำเร็จ: ${error.message}`, 'error'); }
   }
@@ -2551,6 +2567,7 @@ class SolarTrackingApp {
         await this.requestJson('/api/cts/import', { method: 'POST', body: { cts: serials.map(serial_number => ({ serial_number, model, ratio })) } });
       }
       document.getElementById('ct-stock-form').reset();
+      this.closeEntryModal('ct-stock-modal');
       await this.loadCTData();
       this.showToast(`รับ CT เข้าสต๊อก ${serials.length} รายการแล้ว`, 'success');
     } catch (error) { this.showToast(`บันทึกรับ CT ไม่สำเร็จ: ${error.message}`, 'error'); }
@@ -2569,6 +2586,8 @@ class SolarTrackingApp {
         localStorage.setItem('solartrack_cts', JSON.stringify(this.cts));
       } else await this.requestJson(`/api/cts/${encodeURIComponent(id)}/issue`, { method: 'PUT', body: payload });
       document.getElementById('ct-issue-item').value = '';
+      this.closeEntryModal('ct-issue-modal');
+      this.closeEntryModal('ct-issue-modal');
       await this.loadCTData();
       this.showToast('บันทึกการเบิก CT แล้ว', 'success');
     } catch (error) { this.showToast(`เบิก CT ไม่สำเร็จ: ${error.message}`, 'error'); }
@@ -2765,6 +2784,7 @@ class SolarTrackingApp {
         });
       }
       document.getElementById('dongle-stock-form').reset();
+      this.closeEntryModal('dongle-stock-modal');
       await this.loadDongleData();
       this.showToast(`รับดองเกิ้ลเข้าสต๊อก ${serials.length} รายการแล้ว`, 'success');
     } catch (error) {
@@ -2799,6 +2819,7 @@ class SolarTrackingApp {
         });
       }
       document.getElementById('dongle-issue-item').value = '';
+      this.closeEntryModal('dongle-issue-modal');
       await this.loadDongleData();
       this.showToast('บันทึกการเบิกดองเกิ้ลแล้ว', 'success');
     } catch (error) {

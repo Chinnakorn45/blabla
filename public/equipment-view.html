@@ -16,8 +16,9 @@
     <article class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><div class="flex items-center justify-between text-xs text-slate-500"><span>ซ่อม / ชำรุด / สูญหาย</span><i data-lucide="triangle-alert" class="h-4 w-4 text-amber-600"></i></div><strong id="tool-stat-repair" class="mt-2 block text-3xl font-bold text-amber-700">0</strong></article>
   </div>
 
-  <section id="tool-registration-panel" class="hidden overflow-hidden rounded-2xl border border-violet-200 bg-white shadow-sm">
-    <div class="border-b border-violet-100 bg-violet-50/70 p-4"><h3 class="text-sm font-bold text-slate-800">ลงทะเบียนเครื่องมือใหม่</h3><p class="mt-1 text-xs text-slate-500">กำหนดรหัสให้แต่ละชิ้น เพื่อดูสถานะและไทม์ไลน์แยกกัน</p></div>
+  <section id="tool-registration-panel" class="app-modal-backdrop hidden" onclick="if(event.target===this) app.toggleToolRegistration(false)">
+    <div class="app-modal-card app-modal-card-wide !p-0" role="dialog" aria-modal="true" aria-labelledby="tool-registration-title">
+    <div class="app-modal-heading m-0 bg-violet-50/70 p-5"><div><h3 id="tool-registration-title">ลงทะเบียนเครื่องมือใหม่</h3><p class="mt-1 text-xs font-normal text-slate-500">กำหนดรหัสให้แต่ละชิ้น เพื่อดูสถานะและไทม์ไลน์แยกกัน</p></div><button type="button" onclick="app.cancelToolEdit()" aria-label="ปิดหน้าต่าง" class="app-modal-close">&times;</button></div>
     <form id="tool-asset-form" onsubmit="app.saveToolAsset(event)" class="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 xl:grid-cols-4">
       <label class="text-xs font-semibold text-slate-700">รหัสเครื่องมือ · กำหนดอัตโนมัติ<input id="tool-auto-code" readonly placeholder="กำหนดเมื่อบันทึก" class="mt-1 w-full rounded-xl border border-violet-200 bg-violet-50 px-3 py-2.5 text-sm font-bold text-violet-800"></label>
       <label class="text-xs font-semibold text-slate-700">ชื่อเครื่องมือ *<input name="name" required placeholder="สว่านกระแทก" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm font-normal"></label>
@@ -33,6 +34,7 @@
       <label class="text-xs font-semibold text-slate-700">ลงทะเบียนโดย<input name="actor" placeholder="ชื่อผู้บันทึก" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm font-normal"></label>
       <div class="flex items-end gap-2 sm:col-span-2 xl:col-span-4"><button type="submit" class="rounded-xl bg-violet-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-violet-700">บันทึกทะเบียน</button><button type="button" onclick="app.cancelToolEdit()" class="rounded-xl bg-slate-100 px-4 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-200">ยกเลิก</button></div>
     </form>
+    </div>
   </section>
 
   <div class="grid gap-4 2xl:grid-cols-[1.5fr_1fr]">

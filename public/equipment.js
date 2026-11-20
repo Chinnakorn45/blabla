@@ -102,6 +102,7 @@ Object.assign(SolarTrackingApp.prototype, {
     if (!panel) return;
     const shouldShow = typeof force === 'boolean' ? force : panel.classList.contains('hidden');
     panel.classList.toggle('hidden', !shouldShow);
+    panel.classList.toggle('flex', shouldShow);
     if (shouldShow) {
       const autoCodeField = document.getElementById('tool-auto-code');
       if (autoCodeField) autoCodeField.value = this.nextToolAssetCode();
@@ -153,7 +154,7 @@ Object.assign(SolarTrackingApp.prototype, {
       const cancel = form?.querySelector('button[type="button"]');
       if (cancel) cancel.setAttribute('onclick', 'app.cancelToolEdit()');
       panel.classList.remove('hidden');
-      panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      panel.classList.add('flex');
     } catch (error) {
       this.showToast(`เปิดหน้าแก้ไขไม่สำเร็จ: ${error.message}`, 'error');
     }

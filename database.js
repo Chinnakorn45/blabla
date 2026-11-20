@@ -166,6 +166,7 @@ function setupTables() {
         contact_person TEXT NOT NULL,
         status TEXT NOT NULL DEFAULT 'sent',
         result TEXT DEFAULT '',
+        tracking_number TEXT DEFAULT '',
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )`);
@@ -256,10 +257,15 @@ function setupTables() {
           resolve();
           return;
         }
+        const ensureClaimTrackingNumber = next => db.all('PRAGMA table_info(inverter_claims)', (claimPragmaErr, claimColumns) => {
+          if (claimPragmaErr) return reject(claimPragmaErr);
+          if (claimColumns.some(column => column.name === 'tracking_number')) return next();
+          db.run("ALTER TABLE inverter_claims ADD COLUMN tracking_number TEXT DEFAULT ''", alterErr => alterErr ? reject(alterErr) : next());
+        });
         const ensureToolAssetPhoto = () => db.all('PRAGMA table_info(tool_assets)', (assetPragmaErr, assetColumns) => {
           if (assetPragmaErr) return reject(assetPragmaErr);
-          if (assetColumns.some(column => column.name === 'photo')) return resolve();
-          db.run('ALTER TABLE tool_assets ADD COLUMN photo TEXT', alterErr => alterErr ? reject(alterErr) : resolve());
+          if (assetColumns.some(column => column.name === 'photo')) return ensureClaimTrackingNumber(resolve);
+          db.run('ALTER TABLE tool_assets ADD COLUMN photo TEXT', alterErr => alterErr ? reject(alterErr) : ensureClaimTrackingNumber(resolve));
         });
         const ensureToolEventRequester = () => db.all('PRAGMA table_info(tool_events)', (eventPragmaErr, eventColumns) => {
           if (eventPragmaErr) return reject(eventPragmaErr);
@@ -1194,7 +1200,7 @@ function getInverterClaims() {
   return new Promise((resolve, reject) => db.all('SELECT * FROM inverter_claims ORDER BY sent_at DESC, id DESC', (err, rows) => err ? reject(err) : resolve(rows || [])));
 }
 function saveInverterClaim(payload, id = null) {
-  const fields = ['model', 'serial_number', 'project_name', 'sent_at', 'contact_person', 'status', 'result'];
+  const fields = ['model', 'serial_number', 'project_name', 'sent_at', 'contact_person', 'status', 'result', 'tracking_number'];
   const claim = Object.fromEntries(fields.map(key => [key, String(payload?.[key] || '').trim()]));
   if (fields.slice(0, 5).some(key => !claim[key])) return Promise.reject(equipmentError('กรุณากรอกข้อมูลรุ่น, Serial Number, โครงการ, วันที่ส่งเคลม และผู้รับเรื่องให้ครบ'));
   if (!['sent', 'checking', 'repairing', 'replacement', 'resolved'].includes(claim.status)) claim.status = 'sent';
@@ -1205,8 +1211,8 @@ function saveInverterClaim(payload, id = null) {
   }
   return new Promise((resolve, reject) => {
     const done = err => err ? reject(err) : getInverterClaims().then(items => resolve({ success: true, claim: items.find(row => Number(row.id) === Number(id)) })).catch(reject);
-    if (id) db.run('UPDATE inverter_claims SET model=?, serial_number=?, project_name=?, sent_at=?, contact_person=?, status=?, result=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', [...fields.map(key => claim[key]), Number(id)], function(err) { if (err) return reject(err); if (!this.changes) return reject(equipmentError('ไม่พบรายการเคลม')); done(); });
-    else db.run('INSERT INTO inverter_claims (model, serial_number, project_name, sent_at, contact_person, status, result) VALUES (?, ?, ?, ?, ?, ?, ?)', fields.map(key => claim[key]), function(err) { if (err) return reject(err); db.get('SELECT * FROM inverter_claims WHERE id=?', [this.lastID], (getErr, row) => getErr ? reject(getErr) : resolve({ success: true, claim: row })); });
+    if (id) db.run('UPDATE inverter_claims SET model=?, serial_number=?, project_name=?, sent_at=?, contact_person=?, status=?, result=?, tracking_number=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', [...fields.map(key => claim[key]), Number(id)], function(err) { if (err) return reject(err); if (!this.changes) return reject(equipmentError('ไม่พบรายการเคลม')); done(); });
+    else db.run('INSERT INTO inverter_claims (model, serial_number, project_name, sent_at, contact_person, status, result, tracking_number) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', fields.map(key => claim[key]), function(err) { if (err) return reject(err); db.get('SELECT * FROM inverter_claims WHERE id=?', [this.lastID], (getErr, row) => getErr ? reject(getErr) : resolve({ success: true, claim: row })); });
   });
 }
 function deleteInverterClaim(id) {
